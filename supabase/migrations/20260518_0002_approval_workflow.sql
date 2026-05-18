@@ -27,12 +27,12 @@ create type override_scope as enum (
 );
 
 -- -----------------------------------------------------------------------------
--- clients: add auto-approve toggle
+-- coi_clients: add auto-approve toggle
 -- -----------------------------------------------------------------------------
-alter table clients
+alter table coi_clients
   add column auto_approve_enabled boolean not null default false;
 
-comment on column clients.auto_approve_enabled is
+comment on column coi_clients.auto_approve_enabled is
   'When true, cert requests skip Brook''s approval queue and send after reviewer pass. Must remain false until Brook has watched the client''s certs for a stretch and trusts them.';
 
 -- -----------------------------------------------------------------------------
@@ -40,7 +40,7 @@ comment on column clients.auto_approve_enabled is
 -- -----------------------------------------------------------------------------
 create table cert_requests (
   id                    uuid primary key default gen_random_uuid(),
-  client_id             uuid not null references clients(id) on delete cascade,
+  client_id             uuid not null references coi_clients(id) on delete cascade,
   agency_id             uuid not null references agencies(id) on delete cascade,
 
   -- snapshot of what the client requested
@@ -87,7 +87,7 @@ create index cert_requests_agency_queue_idx on cert_requests (agency_id, status)
 -- -----------------------------------------------------------------------------
 create table client_overrides (
   id           uuid primary key default gen_random_uuid(),
-  client_id    uuid not null references clients(id) on delete cascade,
+  client_id    uuid not null references coi_clients(id) on delete cascade,
   scope        override_scope not null,
   pattern      text not null,        -- when this situation occurs
   correction   text not null,        -- do this instead
@@ -106,7 +106,7 @@ comment on table client_overrides is
 -- Row-Level Security
 -- =============================================================================
 -- cert_requests: client sees own requests (status + decision visible).
--- client_overrides: not exposed to clients at all — Brook-only via service role.
+-- client_overrides: not exposed to coi_clients at all — Brook-only via service role.
 -- =============================================================================
 
 alter table cert_requests     enable row level security;
@@ -117,7 +117,7 @@ create policy "cert_requests_self_select"
   for select
   using (
     exists (
-      select 1 from clients c
+      select 1 from coi_clients c
       where c.id = cert_requests.client_id
         and c.contact_email = auth.email()
     )

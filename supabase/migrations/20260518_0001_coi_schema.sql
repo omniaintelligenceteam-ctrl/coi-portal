@@ -34,9 +34,9 @@ create table agencies (
 );
 
 -- -----------------------------------------------------------------------------
--- clients
+-- coi_clients
 -- -----------------------------------------------------------------------------
-create table clients (
+create table coi_clients (
   id                  uuid primary key default gen_random_uuid(),
   agency_id           uuid not null references agencies(id) on delete cascade,
   business_name       text not null,
@@ -47,7 +47,7 @@ create table clients (
   created_at          timestamptz not null default now()
 );
 
-create index clients_contact_email_idx on clients (contact_email);
+create index coi_clients_contact_email_idx on coi_clients (contact_email);
 
 -- -----------------------------------------------------------------------------
 -- insurers
@@ -65,7 +65,7 @@ create unique index insurers_naic_uidx on insurers (naic);
 -- -----------------------------------------------------------------------------
 create table policies (
   id                       uuid primary key default gen_random_uuid(),
-  client_id                uuid not null references clients(id) on delete cascade,
+  client_id                uuid not null references coi_clients(id) on delete cascade,
   type                     policy_type not null,
   insurer_id               uuid not null references insurers(id),
   policy_number            text not null,
@@ -87,7 +87,7 @@ create index policies_exp_date_idx on policies (exp_date);
 -- -----------------------------------------------------------------------------
 create table coi_audit (
   id                    uuid primary key default gen_random_uuid(),
-  client_id             uuid not null references clients(id) on delete cascade,
+  client_id             uuid not null references coi_clients(id) on delete cascade,
   cert_number           text not null unique,
   generated_at          timestamptz not null default now(),
   requested_by_email    text,
@@ -104,18 +104,18 @@ create index coi_audit_client_generated_idx on coi_audit (client_id, generated_a
 -- =============================================================================
 -- Row-Level Security
 -- =============================================================================
--- Strategy: end-users (clients) auth via Supabase magic-link. Their JWT carries
+-- Strategy: end-users (coi_clients) auth via Supabase magic-link. Their JWT carries
 -- their email. RLS scopes every client-data row to that email.
 -- Service role (server endpoints / cron) bypasses RLS by default in Supabase.
 -- =============================================================================
 
-alter table clients   enable row level security;
+alter table coi_clients   enable row level security;
 alter table policies  enable row level security;
 alter table coi_audit enable row level security;
 
--- clients: row visible only when its contact_email = auth.email()
-create policy "clients_self_select"
-  on clients
+-- coi_clients: row visible only when its contact_email = auth.email()
+create policy "coi_clients_self_select"
+  on coi_clients
   for select
   using (contact_email = auth.email());
 
@@ -125,20 +125,20 @@ create policy "policies_self_select"
   for select
   using (
     exists (
-      select 1 from clients c
+      select 1 from coi_clients c
       where c.id = policies.client_id
         and c.contact_email = auth.email()
     )
   );
 
 -- coi_audit: visible when joined client.contact_email = auth.email()
--- (clients see their own history; server inserts via service role)
+-- (coi_clients see their own history; server inserts via service role)
 create policy "coi_audit_self_select"
   on coi_audit
   for select
   using (
     exists (
-      select 1 from clients c
+      select 1 from coi_clients c
       where c.id = coi_audit.client_id
         and c.contact_email = auth.email()
     )
@@ -147,4 +147,4 @@ create policy "coi_audit_self_select"
 -- Note: no INSERT/UPDATE/DELETE policies on these tables.
 -- Writes happen via service-role on server endpoints, which bypass RLS.
 -- agencies + insurers are reference data; we leave RLS off so authenticated
--- clients can read agency branding + insurer names for COI rendering.
+-- coi_clients can read agency branding + insurer names for COI rendering.

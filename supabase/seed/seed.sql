@@ -39,7 +39,7 @@ insert into insurers (name, naic) values
   ('Great American Insurance Company', '16691');
 
 -- ---- 3. Client: Evans Electric Inc ----------------------------------------
-insert into clients (
+insert into coi_clients (
   agency_id,
   business_name,
   business_address1,
@@ -80,7 +80,7 @@ select
   '{"eachOccurrence":1000000,"damageToRented":300000,"medExp":5000,"personalAdvInjury":1000000,"generalAggregate":2000000,"productsCompOp":2000000}'::jsonb,
   false,
   false
-from clients c
+from coi_clients c
   join insurers i on i.naic = '37206'
 where c.business_name = 'Evans Electric Inc';
 
@@ -106,7 +106,7 @@ select
   '{"eachAccident":1000000,"diseaseEaEmployee":1000000,"diseasePolicyLimit":1000000}'::jsonb,
   false,
   false
-from clients c
+from coi_clients c
   join insurers i on i.naic = '16691'
 where c.business_name = 'Evans Electric Inc';
 
@@ -134,6 +134,6 @@ select
   false,
   false,
   'Contractors Equipment Rented/Leased'
-from clients c
+from coi_clients c
   join insurers i on i.naic = '37206'
 where c.business_name = 'Evans Electric Inc';
