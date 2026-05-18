@@ -1,0 +1,22 @@
+node_modules
+dist
+out
+*.log
+.env
+.env.local
+.env.*.local
+.DS_Store
+Thumbs.db
+
+# Generated PDFs (regen at will, don't commit)
+out/
+*.generated.pdf
+
+# Local credentials — NEVER commit
+assets/license/
+.vercel/
+
+# Editor
+.vscode/
+.idea/
+*.swp
