@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd \\\"c:\\\\Users\\\\default.DESKTOP-ON29PVN\\\\PolicyPlace\\\\coi-portal\\\" && npm run crop-diff -- --baseline 2>&1\",\"description\":\"Write initial golden crops for all fields\"}",
-  "error": "Exit code 1\n\n> coi-portal@0.1.0 crop-diff\n> tsx scripts/cropDiff.ts --baseline\n\n\ncrop-diff — per-field visual regression\n  mode: baseline (writing goldens)\n  DPI: 150  SSIM threshold: 0.92\n\n\ncrop-diff crashed: TypeError: getDocument is not a function\n    at pdfToSharp (C:\\Users\\default.DESKTOP-ON29PVN\\PolicyPlace\\coi-portal\\scripts\\cropDiff.ts:44:21)\n    at async main (C:\\Users\\default.DESKTOP-ON29PVN\\PolicyPlace\\coi-portal\\scripts\\cropDiff.ts:115:15)",
-  "timestamp": "2026-05-18T23:12:51.181Z",
+  "tool_input_preview": "{\"command\":\"cd \\\"c:\\\\Users\\\\default.DESKTOP-ON29PVN\\\\PolicyPlace\\\\coi-portal\\\" && git push 2>&1\",\"description\":\"Push both commits to remote\"}",
+  "error": "Exit code 128\nfatal: No configured push destination.\nEither specify the URL from the command-line or configure a remote repository using\n\n    git remote add <name> <url>\n\nand then push using the remote name\n\n    git push <name>",
+  "timestamp": "2026-05-18T23:29:57.985Z",
   "retry_count": 1
 }
