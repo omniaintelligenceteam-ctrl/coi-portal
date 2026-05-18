@@ -6,7 +6,7 @@ export type PolicyForForm = {
   id: string;
   type: 'GL' | 'WC' | 'AUTO' | 'UMBRELLA' | 'EQUIPMENT' | 'OTHER';
   policyNumber: string;
-  effDate: string; // 'YYYY-MM-DD'
+  effDate: string;
   expDate: string;
   insurerName: string;
   addlInsuredBlanket: boolean;
@@ -29,8 +29,16 @@ const TYPE_LABEL: Record<PolicyForForm['type'], string> = {
   OTHER: 'Other Coverage',
 };
 
+const TYPE_BADGE: Record<PolicyForForm['type'], string> = {
+  GL: 'bg-blue-100 text-blue-700',
+  WC: 'bg-orange-100 text-orange-700',
+  AUTO: 'bg-purple-100 text-purple-700',
+  UMBRELLA: 'bg-indigo-100 text-indigo-700',
+  EQUIPMENT: 'bg-slate-100 text-slate-600',
+  OTHER: 'bg-gray-100 text-gray-600',
+};
+
 function formatDate(iso: string): string {
-  // 'YYYY-MM-DD' → 'MM/DD/YYYY'
   const [y, m, d] = iso.split('-');
   return `${m}/${d}/${y}`;
 }
@@ -86,26 +94,26 @@ export function CoverageForm({
         return;
       }
       const json = (await res.json()) as { certNumber?: string };
-      setState({
-        kind: 'success',
-        certNumber: json.certNumber ?? 'pending',
-      });
+      setState({ kind: 'success', certNumber: json.certNumber ?? 'pending' });
     } catch (err) {
-      setState({
-        kind: 'error',
-        message: err instanceof Error ? err.message : 'Network error.',
-      });
+      setState({ kind: 'error', message: err instanceof Error ? err.message : 'Network error.' });
     }
   }
 
   if (state.kind === 'success') {
     return (
-      <div className="rounded-md border border-green-200 bg-green-50 p-6">
-        <h3 className="font-semibold text-green-900">Request submitted</h3>
-        <p className="mt-2 text-sm text-green-800">
-          Your request <span className="font-mono">{state.certNumber}</span> has been queued for
-          Brook&apos;s review. You&apos;ll receive an email with the certificate attached once it
-          clears review (usually within a few business hours).
+      <div className="rounded-xl border border-green-200 bg-green-50 p-7 text-center">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
+          <CheckIcon className="h-6 w-6 text-green-600" />
+        </div>
+        <h3 className="font-semibold text-green-900 text-base">Request submitted</h3>
+        <p className="mt-2 text-sm text-green-800 leading-relaxed">
+          Your request{' '}
+          <span className="font-mono font-semibold bg-green-100 px-1.5 py-0.5 rounded">
+            {state.certNumber}
+          </span>{' '}
+          has been queued for Brook&apos;s review. You&apos;ll receive an email with the certificate
+          attached once it clears review (usually within a few business hours).
         </p>
       </div>
     );
@@ -113,125 +121,199 @@ export function CoverageForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <section>
-        <h3 className="text-base font-semibold text-gray-900">1. Select coverages</h3>
-        <p className="mt-1 text-xs text-gray-500">
-          All eligible, in-force policies are checked by default. Uncheck any you don&apos;t want
-          on this certificate.
-        </p>
-        <ul className="mt-4 divide-y divide-gray-200 rounded-md border border-gray-200 bg-white">
-          {policies.map((p) => (
-            <li key={p.id} className="flex items-start gap-3 p-4">
-              <input
-                type="checkbox"
-                id={`policy-${p.id}`}
-                checked={selected.has(p.id)}
-                onChange={() => togglePolicy(p.id)}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor={`policy-${p.id}`} className="flex-1 cursor-pointer">
-                <div className="font-medium text-gray-900">{TYPE_LABEL[p.type]}</div>
-                <div className="mt-1 text-sm text-gray-600">
-                  {p.insurerName} · policy {p.policyNumber}
-                </div>
-                <div className="mt-1 text-xs text-gray-500">
-                  Effective {formatDate(p.effDate)} — expires {formatDate(p.expDate)}
-                </div>
-                {(p.addlInsuredBlanket || p.subrogationWaived || p.description) && (
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-                    {p.addlInsuredBlanket && (
-                      <span className="inline-flex rounded bg-gray-100 px-2 py-0.5 text-gray-700">
-                        Additional Insured: blanket
-                      </span>
-                    )}
-                    {p.subrogationWaived && (
-                      <span className="inline-flex rounded bg-gray-100 px-2 py-0.5 text-gray-700">
-                        Waiver of Subrogation
-                      </span>
-                    )}
-                    {p.description && (
-                      <span className="inline-flex rounded bg-gray-100 px-2 py-0.5 text-gray-700">
-                        {p.description}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </label>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h3 className="text-base font-semibold text-gray-900">2. Certificate Holder</h3>
-        <p className="mt-1 text-xs text-gray-500">
-          The company or person this certificate is being issued to.
-        </p>
-        <div className="mt-4 space-y-3">
+      {/* Step 1: Coverages */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <StepBadge n={1} />
           <div>
-            <label htmlFor="holder-name" className="block text-sm font-medium text-gray-700">
-              Holder name <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="holder-name"
-              type="text"
-              required
-              value={holderName}
-              onChange={(e) => setHolderName(e.target.value)}
-              placeholder="Sheffer Construction & Development LLC"
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="holder-addr1" className="block text-sm font-medium text-gray-700">
-              Address line 1 <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="holder-addr1"
-              type="text"
-              required
-              value={holderAddress1}
-              onChange={(e) => setHolderAddress1(e.target.value)}
-              placeholder="1425 N. Royal Ave."
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="holder-addr2" className="block text-sm font-medium text-gray-700">
-              Address line 2
-            </label>
-            <input
-              id="holder-addr2"
-              type="text"
-              value={holderAddress2}
-              onChange={(e) => setHolderAddress2(e.target.value)}
-              placeholder="Evansville, IN 47711"
-              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <h4 className="text-sm font-semibold text-slate-800">Select coverages</h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              All in-force policies are included by default.
+            </p>
           </div>
         </div>
-      </section>
+        <div className="space-y-2">
+          {policies.map((p) => {
+            const isSelected = selected.has(p.id);
+            return (
+              <label
+                key={p.id}
+                className={`flex items-start gap-4 rounded-xl border p-4 cursor-pointer transition-all ${
+                  isSelected
+                    ? 'border-kyblue-400 bg-kyblue-50 ring-1 ring-kyblue-300'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => togglePolicy(p.id)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-kyblue-500 focus:ring-kyblue-400"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm text-slate-900">
+                      {TYPE_LABEL[p.type]}
+                    </span>
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[p.type]}`}
+                    >
+                      {p.type}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {p.insurerName} · Policy {p.policyNumber}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {formatDate(p.effDate)} — {formatDate(p.expDate)}
+                  </p>
+                  {(p.addlInsuredBlanket || p.subrogationWaived || p.description) && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {p.addlInsuredBlanket && (
+                        <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                          Additional Insured: blanket
+                        </span>
+                      )}
+                      {p.subrogationWaived && (
+                        <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                          Waiver of Subrogation
+                        </span>
+                      )}
+                      {p.description && (
+                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                          {p.description}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Step 2: Holder */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <StepBadge n={2} />
+          <div>
+            <h4 className="text-sm font-semibold text-slate-800">Certificate Holder</h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              The company or person this certificate is issued to.
+            </p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <FormField
+            id="holder-name"
+            label="Holder name"
+            required
+            value={holderName}
+            onChange={setHolderName}
+            placeholder="Sheffer Construction & Development LLC"
+          />
+          <FormField
+            id="holder-addr1"
+            label="Address line 1"
+            required
+            value={holderAddress1}
+            onChange={setHolderAddress1}
+            placeholder="1425 N. Royal Ave."
+          />
+          <FormField
+            id="holder-addr2"
+            label="Address line 2"
+            value={holderAddress2}
+            onChange={setHolderAddress2}
+            placeholder="Evansville, IN 47711"
+          />
+        </div>
+      </div>
 
       {state.kind === 'error' && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {state.message}
         </div>
       )}
 
-      <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-6">
+      <div className="pt-1">
         <button
           type="submit"
           disabled={state.kind === 'submitting'}
-          className="rounded-md bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl bg-kyblue-500 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-kyblue-600 focus:outline-none focus:ring-2 focus:ring-kyblue-500 focus:ring-offset-2 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {state.kind === 'submitting' ? 'Submitting…' : 'Request Certificate'}
+          {state.kind === 'submitting' ? (
+            <span className="flex items-center justify-center gap-2">
+              <SpinnerIcon className="h-4 w-4 animate-spin" />
+              Submitting…
+            </span>
+          ) : (
+            'Request Certificate'
+          )}
         </button>
+        <p className="mt-3 text-center text-xs text-slate-400">
+          Requests are reviewed by Brook before the certificate is sent.
+        </p>
       </div>
-
-      <p className="text-xs text-gray-500">
-        Requests are reviewed by Brook before the certificate is sent. You&apos;ll receive an
-        email with the certificate attached once it&apos;s approved.
-      </p>
     </form>
+  );
+}
+
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-kyblue-500 text-xs font-bold text-white">
+      {n}
+    </span>
+  );
+}
+
+function FormField({
+  id,
+  label,
+  required,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  required?: boolean;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-xs font-medium text-slate-700 mb-1.5">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <input
+        id={id}
+        type="text"
+        required={required}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="block w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-kyblue-500 focus:outline-none focus:ring-2 focus:ring-kyblue-200 transition-colors"
+      />
+    </div>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+    </svg>
+  );
+}
+
+function SpinnerIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+    </svg>
   );
 }

@@ -9,7 +9,7 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
 export type CoiEmailInput = {
   to: string;
-  ccBrook: string;
+  cc: string[];
   pdfBytes: Uint8Array;
   certNumber: string;
   holderName: string;
@@ -66,7 +66,7 @@ export async function sendCoiEmail(input: CoiEmailInput): Promise<CoiEmailResult
   const payload = {
     from: `The Policy Place <${fromEmail}>`,
     to: [input.to],
-    cc: input.ccBrook ? [input.ccBrook] : undefined,
+    cc: input.cc.length ? input.cc : undefined,
     subject: `Certificate of Insurance ${input.certNumber} — ${input.insuredBusinessName}`,
     html: buildHtml(input),
     text: buildText(input),

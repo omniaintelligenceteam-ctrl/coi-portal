@@ -146,7 +146,8 @@ export async function sendApprovedCert(
   // 6. Send email
   const { id: emailId } = await sendCoiEmail({
     to: client.contact_email,
-    ccBrook: agency.email ?? '',
+    cc: [agency.email, 'wesoverstreet@gmail.com']
+      .filter((e): e is string => Boolean(e) && e !== client.contact_email),
     pdfBytes,
     certNumber: req.cert_number,
     holderName: req.holder_name,

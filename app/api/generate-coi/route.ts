@@ -50,8 +50,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'no client account' }, { status: 403 });
   }
 
-  // 4. Agency (for producer block on the cert)
-  const { data: agency } = await supabase
+  // 4. Agency (RLS enabled, no user policy — must use admin client)
+  const admin = createAdminClient();
+  const { data: agency } = await admin
     .from('agencies')
     .select('name, address1, address2, contact_name, phone, fax, email')
     .eq('id', client.agency_id)
@@ -88,7 +89,6 @@ export async function POST(req: NextRequest) {
     .filter(Boolean);
 
   // 7. Compute next cert number for today
-  const admin = createAdminClient();
   const todayPrefix = formatDatePrefix(today);
   const { data: maxRow } = await admin
     .from('cert_requests')

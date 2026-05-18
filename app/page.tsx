@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { selectableCoverages, type DbPolicy } from '@/lib/getClientPolicies';
 import { CoverageForm, type PolicyForForm } from './CoverageForm';
+import { Header } from './components/Header';
 
 type ClientRow = {
   id: string;
@@ -24,9 +25,7 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user?.email) {
-    redirect('/login');
-  }
+  if (!user?.email) redirect('/login');
 
   const { data: client } = await supabase
     .from('coi_clients')
@@ -34,9 +33,7 @@ export default async function HomePage() {
     .eq('contact_email', user.email)
     .maybeSingle<ClientRow>();
 
-  if (!client) {
-    return <NoClientFound email={user.email} />;
-  }
+  if (!client) return <NoClientFound email={user.email} />;
 
   const { data: policiesRaw } = await supabase
     .from('policies')
@@ -64,45 +61,48 @@ export default async function HomePage() {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight text-gray-900">
-            The Policy Place
-          </h1>
-          <span className="text-xs text-gray-500">{user.email}</span>
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50">
+      <Header email={user.email} />
 
-      <main className="mx-auto max-w-3xl px-6 py-10">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">{client.business_name}</h2>
+      <main className="mx-auto max-w-2xl px-6 py-10">
+        {/* Insured identity card */}
+        <div className="mb-6 rounded-xl bg-white border border-slate-200 shadow-sm px-6 py-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Insured
+          </p>
+          <h2 className="text-xl font-bold text-slate-900">{client.business_name}</h2>
           {client.business_address1 && (
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="mt-0.5 text-sm text-slate-500">
               {client.business_address1}
               {client.business_address2 ? `, ${client.business_address2}` : ''}
             </p>
           )}
         </div>
 
-        {policiesForForm.length === 0 ? (
-          <NoActivePolicies />
-        ) : (
-          <CoverageForm clientId={client.id} policies={policiesForForm} />
-        )}
+        {/* Form card */}
+        <div className="rounded-xl bg-white border border-slate-200 shadow-sm px-6 py-7">
+          <h3 className="text-base font-semibold text-slate-900">Request a Certificate</h3>
+          <p className="mt-1 text-sm text-slate-500 mb-7">
+            Select the coverages to include and enter the certificate holder. Brook will review and
+            send within a few business hours.
+          </p>
 
-        <aside className="mt-10 rounded-md border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-          <p className="font-medium">Need something not shown above?</p>
-          <p className="mt-1">
+          {policiesForForm.length === 0 ? <NoActivePolicies /> : (
+            <CoverageForm clientId={client.id} policies={policiesForForm} />
+          )}
+        </div>
+
+        {/* Info callout */}
+        <div className="mt-5 rounded-xl border border-kyblue-200 bg-kyblue-50 px-5 py-4">
+          <p className="text-sm font-semibold text-kyblue-900">Need something not shown above?</p>
+          <p className="mt-1 text-sm text-kyblue-800 leading-relaxed">
             If your contract requires Additional Insured status, Waiver of Subrogation, or custom
-            language that doesn&apos;t appear on this form, those must be set up by Brook before
-            they can appear on a certificate. Reach out to{' '}
-            <a className="underline" href="mailto:brook@yourpolicyplace.com">
+            language, those must be set up by Brook before they can appear on a certificate.{' '}
+            <a className="underline font-medium" href="mailto:brook@yourpolicyplace.com">
               brook@yourpolicyplace.com
             </a>
-            .
           </p>
-        </aside>
+        </div>
       </main>
     </div>
   );
@@ -110,32 +110,37 @@ export default async function HomePage() {
 
 function NoClientFound({ email }: { email: string }) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <h2 className="text-xl font-semibold text-gray-900">Account not found</h2>
-        <p className="mt-3 text-sm text-gray-600">
-          We don&apos;t have a Policy Place client account associated with{' '}
-          <span className="font-medium">{email}</span>.
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="max-w-md w-full mx-auto px-6 py-16 text-center">
+        <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 mb-6">
+          <svg className="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-semibold text-slate-900">Account not found</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          No Policy Place account is linked to{' '}
+          <span className="font-semibold text-slate-800">{email}</span>.
         </p>
-        <p className="mt-3 text-sm text-gray-600">
-          If you should have access, please contact{' '}
-          <a className="underline" href="mailto:brook@yourpolicyplace.com">
+        <p className="mt-1 text-sm text-slate-500">
+          Contact{' '}
+          <a className="text-kyblue-500 underline" href="mailto:brook@yourpolicyplace.com">
             brook@yourpolicyplace.com
-          </a>
-          .
+          </a>{' '}
+          to get access.
         </p>
-      </main>
+      </div>
     </div>
   );
 }
 
 function NoActivePolicies() {
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 p-6">
-      <h3 className="font-semibold text-amber-900">No active policies on file</h3>
-      <p className="mt-2 text-sm text-amber-800">
-        We don&apos;t see any active, in-force policies for your account right now. Please reach
-        out to Brook to confirm your coverage status before requesting a certificate.
+    <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+      <p className="font-semibold text-amber-900 text-sm">No active policies on file</p>
+      <p className="mt-1 text-sm text-amber-800">
+        We don&apos;t see any in-force policies for your account right now. Please reach out to
+        Brook to confirm your coverage status before requesting a certificate.
       </p>
     </div>
   );
