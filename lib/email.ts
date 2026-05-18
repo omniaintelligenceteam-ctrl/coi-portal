@@ -69,9 +69,8 @@ export type QueueNotificationInput = {
 export async function sendQueueNotification(input: QueueNotificationInput): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
-    .split(',').map((s) => s.trim()).filter(Boolean);
-  if (!apiKey || !fromEmail || adminEmails.length === 0) return;
+  if (!apiKey || !fromEmail) return;
+  const adminEmails = ['wesoverstreet@gmail.com'];
 
   const reviewerLine = input.reviewerPass === null
     ? 'Reviewer still running.'

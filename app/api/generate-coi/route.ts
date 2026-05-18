@@ -193,15 +193,19 @@ export async function POST(req: NextRequest) {
     console.error('reviewer failed:', err);
   }
 
-  // 13. Notify admins (fire-and-forget — never block the response)
-  sendQueueNotification({
-    certNumber,
-    requestId: inserted.id,
-    clientName: client.business_name,
-    holderName: body.holder.name,
-    reviewerPass: null,
-    flagCount: 0,
-  }).catch(() => {});
+  // 13. Notify Wes (awaited — serverless kills detached promises after response)
+  try {
+    await sendQueueNotification({
+      certNumber,
+      requestId: inserted.id,
+      clientName: client.business_name,
+      holderName: body.holder.name,
+      reviewerPass: null,
+      flagCount: 0,
+    });
+  } catch {
+    // non-fatal — cert is already queued
+  }
 
   return NextResponse.json({
     certNumber,
