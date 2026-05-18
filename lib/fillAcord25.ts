@@ -22,7 +22,8 @@
 import { readFile } from 'node:fs/promises';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
 import type { CoiInput, Coverage } from './types';
-import { COORDS, DEFAULT_SIZE, PAGE_WIDTH, PAGE_HEIGHT, type Coord } from './coords';
+import { COORDS, FIELD_VALIDATORS, DEFAULT_SIZE, PAGE_WIDTH, PAGE_HEIGHT, type Coord } from './coords';
+import { LINE_HEIGHT } from './anchors';
 
 /**
  * Format a dollar amount the way ACORD certs do: comma-grouped, no decimals.
@@ -32,19 +33,84 @@ function fmtMoney(n: number): string {
   return n.toLocaleString('en-US');
 }
 
+// Reverse lookup: coord object → field key. Built once at module load so
+// drawAt can validate without needing a key parameter at every call site.
+const coordToKey = new Map<Coord, string>(
+  (Object.entries(COORDS) as Array<[string, Coord | { x: number; y: number; width: number; height: number }]>)
+    .filter(([, v]) => !('width' in v))
+    .map(([k, v]) => [v as Coord, k]),
+);
+
+const MIN_FONT_SIZE = 6.5;
+
+/**
+ * Layout a text value into the declared cell, attempting to fit without
+ * truncation:
+ *   1. Try declared size — if it fits within maxWidth, draw as-is.
+ *   2. Shrink in 0.5pt steps down to MIN_FONT_SIZE.
+ *   3. If still too wide at MIN_FONT_SIZE, split at word boundaries and draw
+ *      two lines (second line at y - LINE_HEIGHT).
+ *
+ * When no maxWidth is declared, draws at declared size (unchanged behaviour).
+ */
 function drawAt(page: PDFPage, font: PDFFont, coord: Coord, text: string): void {
   if (!text) return;
   const trimmed = text.trim().toLowerCase();
   if (trimmed === '' || trimmed === 'none' || trimmed === 'n/a' || trimmed === 'na') return;
-  const size = coord.size ?? DEFAULT_SIZE;
-  page.drawText(text, {
-    x: coord.x,
-    y: coord.y,
-    size,
-    font,
-    color: rgb(0, 0, 0),
-    maxWidth: coord.maxWidth,
-  });
+
+  // Run Zod validator if one is registered for this field.
+  const key = coordToKey.get(coord);
+  if (key) {
+    const schema = FIELD_VALIDATORS[key];
+    if (schema) {
+      const result = schema.safeParse(text);
+      if (!result.success) {
+        throw new Error(
+          `fillAcord25: invalid value for field ${key}: "${text}". ${result.error.issues.map((i) => i.message).join(', ')}`,
+        );
+      }
+    }
+  }
+
+  const maxWidth = coord.maxWidth;
+  let size = coord.size ?? DEFAULT_SIZE;
+
+  // No maxWidth constraint — draw at declared size.
+  if (!maxWidth) {
+    page.drawText(text, { x: coord.x, y: coord.y, size, font, color: rgb(0, 0, 0) });
+    return;
+  }
+
+  // Step 1: fits at declared size?
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) {
+    page.drawText(text, { x: coord.x, y: coord.y, size, font, color: rgb(0, 0, 0), maxWidth });
+    return;
+  }
+
+  // Step 2: shrink to fit.
+  while (size > MIN_FONT_SIZE) {
+    size -= 0.5;
+    if (font.widthOfTextAtSize(text, size) <= maxWidth) {
+      page.drawText(text, { x: coord.x, y: coord.y, size, font, color: rgb(0, 0, 0), maxWidth });
+      return;
+    }
+  }
+
+  // Step 3: split into two lines at MIN_FONT_SIZE.
+  const words = text.split(' ');
+  let line1 = '';
+  let splitIdx = 0;
+  for (let i = 0; i < words.length; i++) {
+    const candidate = i === 0 ? words[0]! : line1 + ' ' + words[i]!;
+    if (font.widthOfTextAtSize(candidate, MIN_FONT_SIZE) > maxWidth) break;
+    line1 = candidate;
+    splitIdx = i + 1;
+  }
+  const line2 = words.slice(splitIdx).join(' ');
+  page.drawText(line1 || text, { x: coord.x, y: coord.y, size: MIN_FONT_SIZE, font, color: rgb(0, 0, 0), maxWidth });
+  if (line2) {
+    page.drawText(line2, { x: coord.x, y: coord.y - LINE_HEIGHT, size: MIN_FONT_SIZE, font, color: rgb(0, 0, 0), maxWidth });
+  }
 }
 
 function findCoverage<T extends Coverage['type']>(
@@ -97,8 +163,9 @@ export async function fillAcord25(input: CoiInput): Promise<Uint8Array> {
   drawAt(page, font, COORDS.INSURED_ADDRESS_1, input.insured.address1);
   drawAt(page, font, COORDS.INSURED_ADDRESS_2, input.insured.address2);
 
-  // 7. Cert number
+  // 7. Cert number + optional revision
   drawAt(page, font, COORDS.CERT_NUMBER, input.certNumber);
+  if (input.revisionNumber) drawAt(page, font, COORDS.REVISION_NUMBER, input.revisionNumber);
 
   // 8. Coverage rows — render each that's present in input
   const gl = findCoverage(input.coverages, 'GL');
@@ -172,12 +239,15 @@ export async function fillAcord25(input: CoiInput): Promise<Uint8Array> {
     drawAt(page, font, COORDS.OTHER_LIMIT, fmtMoney(equipment.limits.equipmentLimit));
   }
 
-  // 9. Cert Holder block
+  // 9. Description of Operations (optional free-form text)
+  if (input.description) drawAt(page, font, COORDS.DESCRIPTION, input.description);
+
+  // 10. Cert Holder block
   drawAt(page, font, COORDS.HOLDER_NAME, input.holder.name);
   drawAt(page, font, COORDS.HOLDER_ADDRESS_1, input.holder.address1);
   drawAt(page, font, COORDS.HOLDER_ADDRESS_2, input.holder.address2);
 
-  // 10. Signature stamp (optional — Phase 1.5)
+  // 11. Signature stamp (optional — Phase 1.5)
   if (input.signaturePngPath) {
     try {
       const sigBytes = await readFile(input.signaturePngPath);

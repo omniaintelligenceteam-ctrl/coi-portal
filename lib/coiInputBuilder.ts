@@ -177,6 +177,8 @@ export function buildCoiInput(args: {
   today: Date;
   templatePngPath: string;
   signaturePngPath: string;
+  description?: string;
+  revisionNumber?: string;
 }): CoiInput {
   const agency: Agency = {
     name: args.agency.name,
@@ -225,6 +227,8 @@ export function buildCoiInput(args: {
     holder: args.holder,
     certNumber: args.certNumber,
     certDate,
+    ...(args.description ? { description: args.description } : {}),
+    ...(args.revisionNumber ? { revisionNumber: args.revisionNumber } : {}),
     signaturePngPath: args.signaturePngPath,
     templatePngPath: args.templatePngPath,
   };

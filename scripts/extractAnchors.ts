@@ -28,6 +28,7 @@
  */
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -83,10 +84,13 @@ async function main(): Promise<void> {
     return a.x - b.x;
   });
 
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+
   const out = {
     page_width: 612,
     page_height: 792,
     source: 'assets/acord-25-template.pdf',
+    source_sha256: sha256,
     generated_at: new Date().toISOString(),
     labels,
   };

@@ -1,0 +1,41 @@
+{
+  "page_width": 612,
+  "page_height": 792,
+  "source": "hand-authored from assets/acord-25-template.pdf (ACORD 25, 2016/03)",
+  "generated_at": "2026-05-18",
+  "note": "Region anchors for fields that have no nearby text label to anchor against (DATE in the header box, WC officer-excluded Y/N box, DESCRIPTION OF OPERATIONS free-form area, Authorized Representative signature rect). Hand-authored because pdfjs.getTextContent() returns text items only — drawn rectangles in the content stream aren't enumerable through that API. If ACORD revises the template and these boxes move, update this file by hand AFTER regenerating template-anchors.json. The values were derived from the current absolute coordinates in lib/coords.ts that we know render correctly; the resolver computes field.x = region.x + dx, field.y = region.y + dy.",
+  "regions": [
+    {
+      "name": "DATE_BOX",
+      "x": 540,
+      "y": 748,
+      "width": 52,
+      "height": 20,
+      "comment": "Top-right header box. Holds today's date (MM/DD/YYYY)."
+    },
+    {
+      "name": "WC_OFFICER_BOX",
+      "x": 162,
+      "y": 282,
+      "width": 12,
+      "height": 12,
+      "comment": "Y/N box for officer-excluded indicator on the WORKERS COMPENSATION row."
+    },
+    {
+      "name": "DESC_BOX",
+      "x": 30,
+      "y": 140,
+      "width": 545,
+      "height": 80,
+      "comment": "DESCRIPTION OF OPERATIONS free-form area below the coverages table."
+    },
+    {
+      "name": "SIG_BOX",
+      "x": 425,
+      "y": 55,
+      "width": 115,
+      "height": 28,
+      "comment": "Authorized Representative signature rectangle, bottom-right of the cert."
+    }
+  ]
+}

@@ -123,6 +123,10 @@ export type CoiInput = {
   holder: Holder;
   certNumber: string;          // PP-YYYYMMDD-XXXX
   certDate: string;            // MM/DD/YYYY (today)
+  /** Free-form DESCRIPTION OF OPERATIONS / LOCATIONS / VEHICLES text. Optional. */
+  description?: string;
+  /** Revision number string, e.g. "1". Optional — omit for original issuance. */
+  revisionNumber?: string;
   signaturePngPath: string;    // path to signature image
   templatePngPath: string;     // path to ACORD 25 rasterized template
 };

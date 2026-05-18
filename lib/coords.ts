@@ -25,17 +25,21 @@
  *   row     value uses ANCHOR Y but ABSOLUTE x (for table column positions
  *           that aren't derivable from label positions). dx is interpreted
  *           as the absolute x coordinate.
+ *   inside  value sits INSIDE a hand-authored region rect (DATE_BOX,
+ *           WC_OFFICER_BOX, DESC_BOX, SIG_BOX). dx/dy are offsets from the
+ *           region's bottom-left. Used for fields with no nearby text label.
  *
- * Fields without a nearby usable label (DATE in the header box, SIGNATURE
- * rectangle, DESCRIPTION free-form area) keep absolute (x, y) — the system
- * is not all-or-nothing.
+ * Phase 1.8 (2026-05-18): every field on the cert is now anchor-relative —
+ * either to an extracted text label or a region anchor. There are no absolute
+ * coordinate literals in this file. Cert-doctor enforces this.
  *
  * Tune with:   npm run calibrate   (writes out/calibration.pdf — red dots + anchor boxes)
  * Verify with: npm run regen-sheffer + visual diff against ~/Downloads/Sheffer COI (1).pdf
  * Regression:  tests/fillAcord25.positions.test.ts (locks each coord, no-overlap gate)
  */
 
-import { resolveCoord, type AnchorRef } from './anchors';
+import { z } from 'zod';
+import { findAnchor, resolveCoord, type AnchorRef } from './anchors';
 
 export const PAGE_WIDTH = 612;
 export const PAGE_HEIGHT = 792;
@@ -45,12 +49,6 @@ export type RectCoord = { x: number; y: number; width: number; height: number };
 
 export const DEFAULT_SIZE = 7.5;
 
-/** Field declaration: anchor-relative or absolute. */
-type FieldDecl =
-  | (AnchorRef & { size?: number; maxWidth?: number })
-  | (Coord & { _abs: true })
-  | (RectCoord & { _rect: true });
-
 function field(decl: AnchorRef & { size?: number; maxWidth?: number }): Coord {
   const { x, y } = resolveCoord(decl);
   const out: Coord = { x: round2(x), y: round2(y) };
@@ -59,12 +57,21 @@ function field(decl: AnchorRef & { size?: number; maxWidth?: number }): Coord {
   return out;
 }
 
-function abs(coord: Coord): Coord {
-  return coord;
-}
-
-function rect(r: RectCoord): RectCoord {
-  return r;
+/**
+ * Region-anchored rect: width and height come from the named region in
+ * assets/template-regions.json; x/y come from the region's origin + (dx, dy).
+ * Used for the signature rectangle so it inherits propagation discipline like
+ * every other field — no hardcoded coordinates anywhere in this file.
+ */
+function rectFromRegion(name: string, opts: { dx?: number; dy?: number; width?: number; height?: number } = {}): RectCoord {
+  const { dx = 0, dy = 0 } = opts;
+  const a = findAnchor(name);
+  return {
+    x: round2(a.x + dx),
+    y: round2(a.y + dy),
+    width: opts.width ?? a.width,
+    height: opts.height ?? a.height,
+  };
 }
 
 function round2(n: number): number {
@@ -72,19 +79,22 @@ function round2(n: number): number {
 }
 
 /**
- * Field-level metadata used by the no-overlap regression test in
- * tests/fillAcord25.positions.test.ts. Lists every anchor-relative field
- * along with its anchor declaration, so the test can verify rendered text
- * is at least minClearance pt from the anchor label's bounding box.
- *
- * Absolute-coord fields (DATE, SIGNATURE, DESCRIPTION) are not listed here
- * since there's no anchor to clear.
+ * Field-level metadata used by the no-overlap regression test and cert-doctor.
+ * Lists every anchor-relative field along with its anchor declaration.
  */
 export const FIELD_ANCHORS: Record<string, AnchorRef> = {};
 
+/**
+ * Optional Zod validators for field values. Populated by declare() when a
+ * `validate` schema is provided. fillAcord25 calls these before drawing to
+ * catch malformed input (bad date format, out-of-enum value, etc.) at
+ * render time rather than silently drawing garbage.
+ */
+export const FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {};
+
 function declare<K extends string>(
   key: K,
-  decl: AnchorRef & { size?: number; maxWidth?: number },
+  decl: AnchorRef & { size?: number; maxWidth?: number; validate?: z.ZodTypeAny },
 ): Coord {
   FIELD_ANCHORS[key] = {
     anchor: decl.anchor,
@@ -93,14 +103,17 @@ function declare<K extends string>(
     dy: decl.dy,
     ...(decl.nearY !== undefined ? { nearY: decl.nearY } : {}),
   };
+  if (decl.validate) {
+    FIELD_VALIDATORS[key] = decl.validate;
+  }
   return field(decl);
 }
 
 export const COORDS = {
   // ====================================================================
-  // HEADER — date in the top-right box (no nearby usable label)
+  // HEADER — date in the top-right box. Region-anchored to DATE_BOX.
   // ====================================================================
-  DATE: abs({ x: 546, y: 753, size: 8 }),
+  DATE: declare('DATE', { anchor: 'DATE_BOX', side: 'inside', dx: 6, dy: 5, size: 8 }),
 
   // ====================================================================
   // PRODUCER block — anchor "PRODUCER" (top-left of producer cell)
@@ -193,7 +206,7 @@ export const COORDS = {
   // WC row — PER STATUTE checkbox + Y/N officer-excluded character
   // ====================================================================
   WC_CHK_PER_STATUTE:   declare('WC_CHK_PER_STATUTE', { anchor: 'PER', side: 'left', dx: -10, dy: -0.5, size: 9 }),
-  WC_OFFICER_YN:        abs({ x: 168, y: 287, size: 8 }),
+  WC_OFFICER_YN:        declare('WC_OFFICER_YN', { anchor: 'WC_OFFICER_BOX', side: 'inside', dx: 6, dy: 5, size: 8, validate: z.enum(['Y', 'N']) }),
   WC_INSR_LTR:          declare('WC_INSR_LTR',      { anchor: 'WORKERS COMPENSATION', side: 'row', dx:  28, dy: -9, size: 7.5 }),
   WC_POLICY_NUMBER:     declare('WC_POLICY_NUMBER', { anchor: 'WORKERS COMPENSATION', side: 'row', dx: 223, dy: -9, size: 7.5, maxWidth: 92 }),
   WC_EFF_DATE:          declare('WC_EFF_DATE',      { anchor: 'WORKERS COMPENSATION', side: 'row', dx: 322, dy: -9, size: 7.5 }),
@@ -215,9 +228,11 @@ export const COORDS = {
   OTHER_LIMIT:         declare('OTHER_LIMIT',         { anchor: 'E.L. DISEASE - POLICY LIMIT', side: 'row', dx: 562, dy: -26, size: 7.5, maxWidth: 45 }),
 
   // ====================================================================
-  // DESCRIPTION OF OPERATIONS — large free-form area, no anchor needed
+  // DESCRIPTION OF OPERATIONS — region-anchored to DESC_BOX. Text origin
+  // sits near the top of the box (PDF y increases upward), so dy is the
+  // height-ish offset from the region's bottom-left.
   // ====================================================================
-  DESCRIPTION: abs({ x: 35, y: 207, size: 7, maxWidth: 540 }),
+  DESCRIPTION: declare('DESCRIPTION', { anchor: 'DESC_BOX', side: 'inside', dx: 5, dy: 67, size: 7, maxWidth: 540 }),
 
   // ====================================================================
   // CERTIFICATE HOLDER block — anchored to "CERTIFICATE HOLDER" label
@@ -227,9 +242,11 @@ export const COORDS = {
   HOLDER_ADDRESS_2: declare('HOLDER_ADDRESS_2', { anchor: 'CERTIFICATE HOLDER', side: 'below', dx: 13.4, dy: -31, size: 7.5, maxWidth: 290 }),
 
   // ====================================================================
-  // Authorized Representative signature rectangle
+  // Authorized Representative signature rectangle — region-anchored to
+  // SIG_BOX. Inherits x/y/width/height directly from the region so a
+  // template revision shifts the rect automatically.
   // ====================================================================
-  SIGNATURE: rect({ x: 425, y: 55, width: 115, height: 28 }),
+  SIGNATURE: rectFromRegion('SIG_BOX'),
 } as const;
 
 export type CoordKey = keyof typeof COORDS;

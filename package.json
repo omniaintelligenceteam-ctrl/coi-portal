@@ -17,13 +17,17 @@
     "regen-sheffer": "tsx scripts/regenSheffer.ts",
     "calibrate": "tsx scripts/calibrate.ts",
     "extract-anchors": "tsx scripts/extractAnchors.ts",
-    "extract-signature": "tsx scripts/extractSignature.ts"
+    "extract-signature": "tsx scripts/extractSignature.ts",
+    "cert-doctor": "tsx scripts/certDoctor.ts",
+    "crop-diff": "tsx scripts/cropDiff.ts",
+    "coverage-audit": "tsx scripts/coverageAudit.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
     "@cantoo/pdf-lib": "^2.4.5",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.0",
+    "motion": "^12.39.0",
     "next": "^16.2.6",
     "pdf-to-img": "^6.1.0",
     "react": "^19.2.6",
@@ -33,10 +37,12 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^22.0.0",
+    "@types/pixelmatch": "^5.2.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.0",
     "pdfjs-dist": "^5.7.284",
+    "pixelmatch": "^7.2.0",
     "postcss": "^8.5.14",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.3.0",

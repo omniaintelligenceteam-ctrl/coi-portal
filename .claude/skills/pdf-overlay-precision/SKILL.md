@@ -1,28 +1,29 @@
 ---
 name: pdf-overlay-precision
-description: Use when calibrating or adjusting field positions on the ACORD 25 PDF (or any PNG-overlay form). Enforces anchor-relative coordinate declarations so values never overlap labels. Invoke when COORDS values need to change, when adding a new field, when the no-overlap regression test fails, or when ACORD ships a template revision.
+description: Use when calibrating or adjusting field positions on the ACORD 25 PDF (or any PNG-overlay form). Enforces anchor-relative coordinate declarations so values never overlap labels. Invoke when COORDS values need to change, when adding a new field, when any cert-doctor gate fails, or when ACORD ships a template revision.
 ---
 
 # PDF Overlay Precision
 
-This skill enforces anchor-relative coordinate declarations for ACORD-style PDF rendering. Every drawn field declares a STATIC LABEL anchor + offset rather than absolute (x, y). When the template revises, regenerating the anchors JSON propagates the shift to every dependent field — no per-field retuning.
+This skill enforces anchor-relative coordinate declarations for ACORD-style PDF rendering. Every drawn field declares a STATIC LABEL anchor + offset (or a REGION anchor for fields with no nearby text label) rather than absolute (x, y). When the template revises, regenerating the anchors JSON propagates the shift to every dependent field — no per-field retuning.
 
 See [methodology.md](methodology.md) for why this exists and the failure modes it prevents.
 
 ## When to use
 
 - Coords in `lib/coords.ts` need to change (PR feedback, defect report, new field).
-- `npm test` fails on the no-overlap regression gate.
+- `npm run cert-doctor` fails on any gate.
 - ACORD ships a new revision of the template PDF.
 - Adding support for a new ACORD form (101, 27, 28) using the same overlay strategy.
 
 ## Required reading before starting
 
-1. `assets/template-anchors.json` — list of every extractable static label and its (x, y, width, height).
-2. `lib/anchors.ts` — the resolver. Understand the five `side` values: `right`, `left`, `below`, `above`, `row`.
-3. `lib/coords.ts` — the field declarations. Match the existing pattern.
+1. `assets/template-anchors.json` — extracted text labels (generated). Used by text-anchored fields.
+2. `assets/template-regions.json` — hand-authored region rects for DATE_BOX, WC_OFFICER_BOX, DESC_BOX, SIG_BOX. Used by region-anchored fields.
+3. `lib/anchors.ts` — the resolver. Understand the six `side` values: `right`, `left`, `below`, `above`, `row`, `inside`.
+4. `lib/coords.ts` — the field declarations. Match the existing pattern.
 
-## Procedure
+## Procedure (3 steps)
 
 ### Step 1 — Regenerate the anchors JSON if the template changed
 
@@ -30,22 +31,13 @@ See [methodology.md](methodology.md) for why this exists and the failure modes i
 npm run extract-anchors
 ```
 
-Skip this step if you're only adjusting offsets — the anchors JSON is only stale if `assets/acord-25-template.pdf` was replaced. Output is `assets/template-anchors.json` (~143 labels on ACORD 25 2016/03).
+Skip if you're only adjusting offsets. Required if `assets/acord-25-template.pdf` was replaced or cert-doctor reports a SHA mismatch. Output is `assets/template-anchors.json` (~143 labels on ACORD 25 2016/03) with a `source_sha256` field that cert-doctor uses to detect template drift.
 
-### Step 2 — Find the anchor for the field you're adjusting
+For region anchors (DATE_BOX, WC_OFFICER_BOX, DESC_BOX, SIG_BOX): these are hand-maintained in `assets/template-regions.json` because they're drawn boxes, not text labels. Update them manually if the template shifts those boxes.
 
-For each field, the anchor should be the **closest static label with a stable spatial relationship**. Same row, ideally same column.
+### Step 2 — Declare or modify the field in `lib/coords.ts`
 
-- Value sits to the RIGHT of a label (e.g., "Liberty Mutual" right of "INSURER A :"): `side: 'right'`
-- Value sits BELOW a label (e.g., producer name below "PRODUCER"): `side: 'below'`
-- Value sits ABOVE a label (e.g., bottom OTHER row description above "DESCRIPTION OF OPERATIONS"): `side: 'above'`
-- Value's x is dictated by **table-column geometry** (not by any label) and y by the row's label: `side: 'row'`. Use `dx` as the absolute column x, `dy` to shift relative to the anchor's baseline.
-
-Anchor lookup is case + whitespace insensitive. If the exact label text isn't in `template-anchors.json`, the resolver throws `MissingAnchorError` with the three closest matches by Levenshtein distance — copy one of those.
-
-### Step 3 — Declare or modify the field in `lib/coords.ts`
-
-Use the `declare` helper:
+**Text-anchored field** (value near a static label):
 
 ```ts
 INSURER_A_NAME: declare('INSURER_A_NAME', {
@@ -58,9 +50,32 @@ INSURER_A_NAME: declare('INSURER_A_NAME', {
 }),
 ```
 
-For absolute-coord fields (no nearby label — DATE, SIGNATURE, DESCRIPTION free-form area), use `abs({...})` or `rect({...})`. These DON'T register in `FIELD_ANCHORS` and the no-overlap test ignores them.
+**Region-anchored field** (value inside a named box with no nearby text label):
 
-If the chosen anchor has duplicates (e.g., "EACH OCCURRENCE" appears in both GL and UMB rows), add `nearY` to pin it:
+```ts
+DATE: declare('DATE', {
+  anchor: 'DATE_BOX',   // resolved from assets/template-regions.json
+  side: 'inside',       // field lands INSIDE the region rect
+  dx: 6,                // offset from region's bottom-left x
+  dy: 5,                // offset from region's bottom-left y
+  size: 8,
+}),
+```
+
+**Table-column field** (x dictated by column geometry, y by row anchor):
+
+```ts
+GL_POLICY_NUMBER: declare('GL_POLICY_NUMBER', {
+  anchor: 'COMMERCIAL GENERAL LIABILITY',
+  side: 'row',
+  dx: 223,   // absolute column x
+  dy: -6,    // offset from anchor baseline
+  size: 7.5,
+  maxWidth: 92,
+}),
+```
+
+**Duplicate anchor disambiguation** (same label text appears on multiple rows):
 
 ```ts
 UMB_LIMIT_EACH_OCC: declare('UMB_LIMIT_EACH_OCC', {
@@ -68,69 +83,64 @@ UMB_LIMIT_EACH_OCC: declare('UMB_LIMIT_EACH_OCC', {
   side: 'right',
   dx: 72.5,
   dy: 0,
-  nearY: 338,   // pin to UMB row, not GL row (y≈482)
+  nearY: 338,   // pin to UMB row; GL row is at y≈482
   size: 7.5,
   maxWidth: 45,
 }),
 ```
 
-### Step 4 — Regenerate the calibration overlay
+Anchor lookup is case + whitespace insensitive. If the anchor text isn't in `template-anchors.json` or `template-regions.json`, the resolver throws `MissingAnchorError` with the three closest matches by Levenshtein distance.
+
+### Step 3 — Run cert-doctor
 
 ```
-npm run calibrate
+npm run cert-doctor
 ```
 
-Opens `out/calibration.pdf`. Read the legend printed in stdout. Visually verify each red field dot sits clear of its anchor's blue box on the declared side.
+Must exit 0 before any commit. Cert-doctor runs all gates:
 
-A red dot **inside** a blue box means the value will overlap its label — adjust `dx`/`dy` and re-run.
+| Gate | What it catches |
+|------|-----------------|
+| template-hash | anchors JSON generated from a different template PDF |
+| anchor-resolution | misspelled anchor text → did-you-mean suggestions |
+| anchor-clearance | field origin too close to its anchor label (PP-0009 class) |
+| region-bounds | region-anchored field resolved outside its region rect |
+| page-bounds | field coordinate off the 612×792 page |
+| field-collision | two fields' bboxes overlap with typical values |
+| rendered-overlap | rendered text bbox overlaps its anchor label bbox |
 
-### Step 5 — Run the test suite
+If any gate fails, the output names the field, the violation type, and a suggested fix. Adjust `dx`/`dy` and re-run until PASS.
 
-```
-npm test
-```
-
-Three tests must pass:
-
-- `tests/anchors.test.ts` (12 tests) — resolver mechanics
-- `tests/fillAcord25.positions.test.ts > regression gate` — every fixed field within ±3pt of its declared coord
-- `tests/fillAcord25.positions.test.ts > no-overlap (anchor clearance gate)` — every anchor-relative field ≥3pt clear of its anchor label
-
-If the no-overlap gate fails, the failure message names the field, gives current clearance, and tells you which anchor it's overlapping. Adjust `dx`/`dy` on that field.
-
-### Step 6 — Regenerate the Sheffer reference and visually diff
+**Visual regression** (run after cert-doctor passes):
 
 ```
-npm run regen-sheffer
+npm run crop-diff
 ```
 
-Compare `out/sheffer-regenerated.pdf` side-by-side with `~/Downloads/Sheffer COI (1).pdf` at 200% zoom. Every field should land in the same cell as the original. If anything looks off, return to Step 2.
-
-### Step 7 — Commit and deploy
+Compares every field's crop of the Sheffer render against committed goldens in `assets/golden-crops/`. If a coord change shifts a field visually, this fails with the field name and similarity score. After deliberately moving a field, update its golden:
 
 ```
-git add lib/coords.ts assets/template-anchors.json
-git commit -m "fix(coords): <what you adjusted and why>"
-git push
-vercel --prod  # only after Wes's explicit OK
+npm run crop-diff -- --baseline
 ```
 
-Generate a fresh cert from the deployed portal as final verification.
+Then commit the new golden alongside the `lib/coords.ts` change.
 
 ## Common failure modes and fixes
 
-- **"Anchor X not found"** → check spelling against `template-anchors.json`. The resolver's error message lists three closest matches.
-- **No-overlap gate fails on field Y** → look at the failure message's clearance value. Increase `dx` (for `side: right`) or `|dy|` (for `side: below`/`above`).
-- **Position regression test fails after editing dx/dy** → expected during calibration. Iterate until visually correct, then commit.
-- **Field draws on wrong row** → wrong anchor. Pick a label that's in the row you want.
-- **Field draws at correct y but wrong x in a table column** → switch to `side: 'row'` and pass dx as the absolute column x.
+- **"Anchor X not found"** → check spelling against `template-anchors.json` (text labels) or `template-regions.json` (region names). The error message lists three closest matches.
+- **anchor-clearance fails on field Y** → increase `dx` (for `side: right`) or `|dy|` (for `side: below`/`above`).
+- **region-bounds fails** → the region rect in `template-regions.json` is too small or the dx/dy overshoots it.
+- **field-collision between A and B** → one field's maxWidth is too large, or the column dx values are too close.
+- **crop-diff fails with similarity 0.7X** → the field moved visually; verify cert-doctor passes first, then update the golden.
+- **template-hash mismatch** → run `npm run extract-anchors` to regenerate from the current PDF.
 
 ## Things this skill enforces (do NOT do)
 
-- Don't reintroduce absolute `{ x, y }` literals for fields that have a nearby label.
-- Don't suppress the no-overlap test to ship a change. Adjust the field instead.
+- Don't reintroduce absolute `{ x, y }` literals — use `declare()` with a label or region anchor. Every field in `lib/coords.ts` is anchor-relative by design.
+- Don't suppress any cert-doctor gate. Adjust the field instead.
 - Don't manually edit `template-anchors.json` — regenerate it from the source PDF.
-- Don't move the `FIELD_ANCHORS` registration out of `declare()` — the test relies on it being populated as a side effect of coord resolution.
+- Don't manually edit `assets/golden-crops/*.png` — regenerate via `npm run crop-diff -- --baseline`.
+- Don't move `FIELD_ANCHORS` registration out of `declare()` — cert-doctor and tests rely on it.
 
 ## Related files
 
@@ -138,9 +148,15 @@ Generate a fresh cert from the deployed portal as final verification.
 |------|---------|
 | `lib/coords.ts` | Field declarations (one entry per drawn field) |
 | `lib/anchors.ts` | Anchor lookup + offset resolver + did-you-mean errors |
-| `assets/template-anchors.json` | Extracted static labels (generated, committed) |
-| `scripts/extractAnchors.ts` | Regenerates the JSON from the source template |
-| `scripts/calibrate.ts` | Visual diagnostic: anchor boxes + field dots |
-| `scripts/regenSheffer.ts` | Renders the canonical Sheffer fixture for visual diff |
+| `lib/pdfInspect.ts` | Shared PDF text extraction + bbox helpers |
+| `lib/certDoctorCore.ts` | Check engine used by both cert-doctor CLI and tests |
+| `assets/template-anchors.json` | Extracted text labels (generated, committed) |
+| `assets/template-regions.json` | Hand-authored region rects (committed) |
+| `assets/golden-crops/` | Per-field PNG crops for visual regression (committed) |
+| `scripts/certDoctor.ts` | CLI gate — run before every commit touching coords |
+| `scripts/cropDiff.ts` | Visual regression — compare + baseline |
+| `scripts/extractAnchors.ts` | Regenerates template-anchors.json from source PDF |
+| `scripts/calibrate.ts` | Visual diagnostic: anchor boxes + field dots (use during tuning) |
+| `scripts/regenSheffer.ts` | Renders the canonical Sheffer fixture for spot-check |
 | `tests/anchors.test.ts` | Resolver unit tests |
-| `tests/fillAcord25.positions.test.ts` | ±3pt regression + no-overlap gate |
+| `tests/fillAcord25.positions.test.ts` | ±3pt regression + no-overlap + text-width + collision gates |
