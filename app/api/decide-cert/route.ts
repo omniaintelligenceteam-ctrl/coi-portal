@@ -1,21 +1,24 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { sendApprovedCert } from '@/lib/sendApprovedCert';
 
 /**
  * Admin endpoint — Brook (or any ADMIN_EMAILS user) decides on a queued cert.
  *
- * Three decision modes:
- *  - approve  → status='approved', will render+email in a follow-up worker
- *  - edit     → mutate holder fields, status='edited', record diff
- *  - reject   → status='rejected', record decision_note
+ * approve  → status='approved', sendApprovedCert() fires (status→sent)
+ * edit     → mutate holder fields + edited_diff, then sendApprovedCert()
+ * reject   → status='rejected', record decision_note
  *
  * Optional `override` payload adds a row to client_overrides so the reviewer
  * agent applies the same correction on future requests for this client.
  *
- * Phase 4 will hook approval/edit to the actual send pipeline. For now this
- * just records the decision so we can verify the UI end-to-end.
+ * Auth check uses the user-cookie client; writes use the service-role client
+ * (cert_requests has RLS enabled with no write policies — service-role bypasses).
  */
+
+export const runtime = 'nodejs';
 
 function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? '')
@@ -57,6 +60,7 @@ const BodySchema = z.discriminatedUnion('decision', [
 ]);
 
 export async function POST(req: NextRequest) {
+  // Auth: user-cookie client just to read the session
   const supabase = await createClient();
   const {
     data: { user },
@@ -73,23 +77,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid body', detail: String(err) }, { status: 400 });
   }
 
+  // All writes go through admin (cert_requests + client_overrides RLS denies user writes)
+  const admin = createAdminClient();
   const now = new Date().toISOString();
   const decidedBy = email;
 
-  if (parsed.decision === 'approve') {
-    const { error } = await supabase
+  if (parsed.decision === 'reject') {
+    const { error } = await admin
       .from('cert_requests')
       .update({
-        status: 'approved',
+        status: 'rejected',
+        decision_note: parsed.decisionNote || null,
         decided_by_email: decidedBy,
         decided_at: now,
       })
       .eq('id', parsed.requestId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, status: 'rejected' });
   }
 
   if (parsed.decision === 'edit') {
-    const { data: existing, error: readErr } = await supabase
+    const { data: existing, error: readErr } = await admin
       .from('cert_requests')
       .select('holder_name, holder_address1, holder_address2')
       .eq('id', parsed.requestId)
@@ -98,7 +106,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: readErr?.message ?? 'request not found' }, { status: 404 });
     }
     const diff = computeHolderDiff(existing, parsed.holder);
-    const { error } = await supabase
+    const { error: updateErr } = await admin
       .from('cert_requests')
       .update({
         status: 'edited',
@@ -110,24 +118,22 @@ export async function POST(req: NextRequest) {
         decided_at: now,
       })
       .eq('id', parsed.requestId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (parsed.decision === 'reject') {
-    const { error } = await supabase
+    if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  } else if (parsed.decision === 'approve') {
+    const { error: updateErr } = await admin
       .from('cert_requests')
       .update({
-        status: 'rejected',
-        decision_note: parsed.decisionNote || null,
+        status: 'approved',
         decided_by_email: decidedBy,
         decided_at: now,
       })
       .eq('id', parsed.requestId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
   }
 
-  if (parsed.decision !== 'reject' && parsed.override) {
-    const { error } = await supabase.from('client_overrides').insert({
+  // Optional override write (only on approve/edit)
+  if (parsed.override) {
+    const { error: ovErr } = await admin.from('client_overrides').insert({
       client_id: parsed.override.clientId,
       scope: parsed.override.scope,
       pattern: parsed.override.pattern,
@@ -135,10 +141,26 @@ export async function POST(req: NextRequest) {
       added_by: decidedBy,
       source_request_id: parsed.requestId,
     });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (ovErr) return NextResponse.json({ error: ovErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  // Re-render + send + audit + mark sent
+  try {
+    const result = await sendApprovedCert(admin, parsed.requestId);
+    return NextResponse.json({
+      ok: true,
+      status: 'sent',
+      certNumber: result.certNumber,
+      emailId: result.emailId,
+    });
+  } catch (err) {
+    // Send failed AFTER decision was recorded — leave row at approved/edited so
+    // Brook can retry. Return 502 so the UI surfaces the email error.
+    return NextResponse.json(
+      { error: 'send failed', detail: (err as Error).message },
+      { status: 502 },
+    );
+  }
 }
 
 function computeHolderDiff(
