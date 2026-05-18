@@ -10,7 +10,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import type { CoiInput } from './types.js';
+import type { CoiInput } from './types';
 
 export type ClientOverride = {
   scope: 'holder' | 'coverage' | 'general';

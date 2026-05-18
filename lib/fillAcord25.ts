@@ -21,8 +21,8 @@
 
 import { readFile } from 'node:fs/promises';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
-import type { CoiInput, Coverage } from './types.js';
-import { COORDS, DEFAULT_SIZE, PAGE_WIDTH, PAGE_HEIGHT, type Coord } from './coords.js';
+import type { CoiInput, Coverage } from './types';
+import { COORDS, DEFAULT_SIZE, PAGE_WIDTH, PAGE_HEIGHT, type Coord } from './coords';
 
 /**
  * Format a dollar amount the way ACORD certs do: comma-grouped, no decimals.
