@@ -57,6 +57,49 @@ brook@yourpolicyplace.com · 270-410-2015
 `;
 }
 
+export type QueueNotificationInput = {
+  certNumber: string;
+  requestId: string;
+  clientName: string;
+  holderName: string;
+  reviewerPass: boolean | null;
+  flagCount: number;
+};
+
+export async function sendQueueNotification(input: QueueNotificationInput): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
+    .split(',').map((s) => s.trim()).filter(Boolean);
+  if (!apiKey || !fromEmail || adminEmails.length === 0) return;
+
+  const reviewerLine = input.reviewerPass === null
+    ? 'Reviewer still running.'
+    : input.reviewerPass && input.flagCount === 0
+      ? 'AI reviewer: clean.'
+      : `AI reviewer: ${input.flagCount} flag(s) — review carefully.`;
+
+  const text = `New cert request ready for review.
+
+Cert: ${input.certNumber}
+Client: ${input.clientName}
+Holder: ${input.holderName}
+${reviewerLine}
+
+Review and approve: https://coi-portal.vercel.app/admin/queue/${input.requestId}`;
+
+  await fetch(RESEND_ENDPOINT, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: `The Policy Place <${fromEmail}>`,
+      to: adminEmails,
+      subject: `[Action needed] Cert request ${input.certNumber} — ${input.clientName}`,
+      text,
+    }),
+  });
+}
+
 export async function sendCoiEmail(input: CoiEmailInput): Promise<CoiEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;

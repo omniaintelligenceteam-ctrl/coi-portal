@@ -7,6 +7,7 @@ import { fillAcord25 } from '@/lib/fillAcord25';
 import { reviewCert, type ClientOverride } from '@/lib/reviewerAgent';
 import { selectableCoverages } from '@/lib/getClientPolicies';
 import { buildCoiInput, computeNextCertNumber, type DbPolicyFull } from '@/lib/coiInputBuilder';
+import { sendQueueNotification } from '@/lib/email';
 
 export const runtime = 'nodejs';
 
@@ -192,7 +193,16 @@ export async function POST(req: NextRequest) {
     console.error('reviewer failed:', err);
   }
 
-  // 13. Done
+  // 13. Notify admins (fire-and-forget — never block the response)
+  sendQueueNotification({
+    certNumber,
+    requestId: inserted.id,
+    clientName: client.business_name,
+    holderName: body.holder.name,
+    reviewerPass: null,
+    flagCount: 0,
+  }).catch(() => {});
+
   return NextResponse.json({
     certNumber,
     requestId: inserted.id,
