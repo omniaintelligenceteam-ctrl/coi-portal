@@ -1,0 +1,44 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-kyblue: #003da5;
+  --color-kyblue-50: #e6eef9;
+  --color-kyblue-100: #ccdcf3;
+  --color-kyblue-200: #99bae7;
+  --color-kyblue-300: #6697db;
+  --color-kyblue-400: #3375cf;
+  --color-kyblue-500: #003da5;
+  --color-kyblue-600: #003184;
+  --color-kyblue-700: #002463;
+  --color-kyblue-800: #001842;
+  --color-kyblue-900: #000c21;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

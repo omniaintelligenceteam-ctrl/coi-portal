@@ -1,12 +1,16 @@
 node_modules
 dist
 out
+.next
+.vercel
 *.log
 .env
 .env.local
 .env.*.local
 .DS_Store
 Thumbs.db
+next-env.d.ts
+tsconfig.tsbuildinfo
 
 # Generated PDFs (regen at will, don't commit)
 out/
