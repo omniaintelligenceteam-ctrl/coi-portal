@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "rasterize": "tsx scripts/rasterizeTemplate.ts",
-    "regen-sheffer": "tsx scripts/regenSheffer.ts"
+    "regen-sheffer": "tsx scripts/regenSheffer.ts",
+    "calibrate": "tsx scripts/calibrate.ts"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.4.5",
