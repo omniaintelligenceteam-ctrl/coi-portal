@@ -103,6 +103,9 @@ export async function fillAcord25(input: CoiInput): Promise<Uint8Array> {
   // 8. Coverage rows — render each that's present in input
   const gl = findCoverage(input.coverages, 'GL');
   if (gl) {
+    drawAt(page, font, COORDS.GL_CHK_TYPE, 'X');
+    if (!gl.claimsMade) drawAt(page, font, COORDS.GL_CHK_OCCUR, 'X');
+    if (gl.generalAggregateAppliesPer === 'POLICY') drawAt(page, font, COORDS.GL_CHK_AGG_POLICY, 'X');
     drawAt(page, font, COORDS.GL_INSR_LTR, gl.insurerLetter);
     drawAt(page, font, COORDS.GL_POLICY_NUMBER, gl.policyNumber);
     drawAt(page, font, COORDS.GL_EFF_DATE, gl.effDate);
@@ -147,6 +150,8 @@ export async function fillAcord25(input: CoiInput): Promise<Uint8Array> {
 
   const wc = findCoverage(input.coverages, 'WC');
   if (wc) {
+    drawAt(page, font, COORDS.WC_CHK_PER_STATUTE, 'X');
+    drawAt(page, font, COORDS.WC_OFFICER_YN, wc.officerExcluded ? 'Y' : 'N');
     drawAt(page, font, COORDS.WC_INSR_LTR, wc.insurerLetter);
     drawAt(page, font, COORDS.WC_POLICY_NUMBER, wc.policyNumber);
     drawAt(page, font, COORDS.WC_EFF_DATE, wc.effDate);
