@@ -34,6 +34,8 @@ function fmtMoney(n: number): string {
 
 function drawAt(page: PDFPage, font: PDFFont, coord: Coord, text: string): void {
   if (!text) return;
+  const trimmed = text.trim().toLowerCase();
+  if (trimmed === '' || trimmed === 'none' || trimmed === 'n/a' || trimmed === 'na') return;
   const size = coord.size ?? DEFAULT_SIZE;
   page.drawText(text, {
     x: coord.x,

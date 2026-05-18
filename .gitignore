@@ -24,3 +24,6 @@ assets/license/
 .vscode/
 .idea/
 *.swp
+
+.vercel
+.env.vercel.check

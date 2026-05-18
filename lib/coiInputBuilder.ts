@@ -194,9 +194,18 @@ export function buildCoiInput(args: {
     address2: args.client.business_address2 ?? '',
   };
 
-  const { insurers, naicToLetter } = letterMap(args.policies);
+  // Sort policies by coverage type so insurer letter assignment is deterministic
+  // and matches ACORD convention (GL's insurer = A, WC's = B, etc).
+  const TYPE_ORDER: Record<DbPolicyFull['type'], number> = {
+    GL: 0, AUTO: 1, UMBRELLA: 2, WC: 3, EQUIPMENT: 4, OTHER: 5,
+  };
+  const sortedPolicies = [...args.policies].sort(
+    (a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type],
+  );
 
-  const coverages: Coverage[] = args.policies.flatMap((p) => {
+  const { insurers, naicToLetter } = letterMap(sortedPolicies);
+
+  const coverages: Coverage[] = sortedPolicies.flatMap((p) => {
     if (!p.insurer) return [];
     const letter = naicToLetter.get(p.insurer.naic);
     if (!letter) return [];
