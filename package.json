@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "rasterize": "tsx scripts/rasterizeTemplate.ts",
     "regen-sheffer": "tsx scripts/regenSheffer.ts",
-    "calibrate": "tsx scripts/calibrate.ts"
+    "calibrate": "tsx scripts/calibrate.ts",
+    "extract-anchors": "tsx scripts/extractAnchors.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",

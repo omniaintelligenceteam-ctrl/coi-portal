@@ -1,0 +1,1009 @@
+{
+  "page_width": 612,
+  "page_height": 792,
+  "source": "assets/acord-25-template.pdf",
+  "generated_at": "2026-05-18T18:17:23.641Z",
+  "labels": [
+    {
+      "text": "DATE (MM/DD/YYYY)",
+      "x": 521.34,
+      "y": 760.08,
+      "width": 58.92,
+      "height": 5.9
+    },
+    {
+      "text": "CERTIFICATE OF LIABILITY INSURANCE",
+      "x": 162.36,
+      "y": 751.32,
+      "width": 272.89,
+      "height": 14
+    },
+    {
+      "text": "THIS CERTIFICATE IS ISSUED AS A MATTER OF INFORMATION ONLY AND CONFERS NO RIGHTS UPON THE CERTIFICATE HOLDER. THIS",
+      "x": 28.8,
+      "y": 734.76,
+      "width": 554.3,
+      "height": 8
+    },
+    {
+      "text": "CERTIFICATE DOES NOT AFFIRMATIVELY OR NEGATIVELY AMEND, EXTEND OR ALTER THE COVERAGE AFFORDED BY THE POLICIES",
+      "x": 28.8,
+      "y": 725.16,
+      "width": 554.28,
+      "height": 8
+    },
+    {
+      "text": "BELOW.",
+      "x": 28.8,
+      "y": 715.56,
+      "width": 32,
+      "height": 8
+    },
+    {
+      "text": "THIS CERTIFICATE OF INSURANCE DOES NOT CONSTITUTE A CONTRACT BETWEEN THE ISSUING INSURER(S), AUTHORIZED",
+      "x": 68.92,
+      "y": 715.56,
+      "width": 514.17,
+      "height": 8
+    },
+    {
+      "text": "REPRESENTATIVE OR PRODUCER, AND THE CERTIFICATE HOLDER.",
+      "x": 28.8,
+      "y": 705.96,
+      "width": 267.64,
+      "height": 8
+    },
+    {
+      "text": "IMPORTANT:",
+      "x": 28.8,
+      "y": 693.96,
+      "width": 50.22,
+      "height": 8
+    },
+    {
+      "text": "If the certificate holder is an ADDITIONAL INSURED, the policy(ies) must have ADDITIONAL INSURED provisions or be endorsed.",
+      "x": 84.41,
+      "y": 693.96,
+      "width": 498.8,
+      "height": 8
+    },
+    {
+      "text": "If SUBROGATION IS WAIVED, subject to the terms and conditions of the policy, certain policies may require an endorsement.",
+      "x": 28.8,
+      "y": 684.36,
+      "width": 489.38,
+      "height": 8
+    },
+    {
+      "text": "A statement on",
+      "x": 524.05,
+      "y": 684.36,
+      "width": 59.21,
+      "height": 8
+    },
+    {
+      "text": "this certificate does not confer rights to the certificate holder in lieu of such endorsement(s).",
+      "x": 28.8,
+      "y": 674.76,
+      "width": 353.84,
+      "height": 8
+    },
+    {
+      "text": "CONTACT",
+      "x": 309.6,
+      "y": 666.6,
+      "width": 28.84,
+      "height": 5.9
+    },
+    {
+      "text": "PRODUCER",
+      "x": 21.6,
+      "y": 664.08,
+      "width": 33.77,
+      "height": 5.9
+    },
+    {
+      "text": "NAME:",
+      "x": 309.6,
+      "y": 661.08,
+      "width": 19.34,
+      "height": 5.9
+    },
+    {
+      "text": "PHONE",
+      "x": 309.6,
+      "y": 654.12,
+      "width": 20.98,
+      "height": 5.9
+    },
+    {
+      "text": "FAX",
+      "x": 486,
+      "y": 654.6,
+      "width": 11.8,
+      "height": 5.9
+    },
+    {
+      "text": "(A/C, No, Ext):",
+      "x": 309.6,
+      "y": 648.6,
+      "width": 39.62,
+      "height": 5.9
+    },
+    {
+      "text": "(A/C, No):",
+      "x": 486,
+      "y": 649.08,
+      "width": 27.14,
+      "height": 5.9
+    },
+    {
+      "text": "E-MAIL",
+      "x": 309.6,
+      "y": 642.48,
+      "width": 20.32,
+      "height": 5.9
+    },
+    {
+      "text": "ADDRESS:",
+      "x": 309.6,
+      "y": 636.96,
+      "width": 30.82,
+      "height": 5.9
+    },
+    {
+      "text": "INSURER(S) AFFORDING COVERAGE",
+      "x": 369.12,
+      "y": 625.68,
+      "width": 107.77,
+      "height": 6
+    },
+    {
+      "text": "NAIC #",
+      "x": 557.28,
+      "y": 625.68,
+      "width": 19.44,
+      "height": 6
+    },
+    {
+      "text": "INSURER A :",
+      "x": 309.6,
+      "y": 613.56,
+      "width": 35.88,
+      "height": 5.9
+    },
+    {
+      "text": "INSURED",
+      "x": 21.6,
+      "y": 604.08,
+      "width": 26.55,
+      "height": 5.9
+    },
+    {
+      "text": "INSURER B :",
+      "x": 309.6,
+      "y": 601.56,
+      "width": 35.88,
+      "height": 5.9
+    },
+    {
+      "text": "INSURER C :",
+      "x": 309.6,
+      "y": 589.56,
+      "width": 35.88,
+      "height": 5.9
+    },
+    {
+      "text": "INSURER D :",
+      "x": 309.6,
+      "y": 577.56,
+      "width": 35.88,
+      "height": 5.9
+    },
+    {
+      "text": "INSURER E :",
+      "x": 309.6,
+      "y": 565.56,
+      "width": 35.63,
+      "height": 5.9
+    },
+    {
+      "text": "INSURER F :",
+      "x": 309.6,
+      "y": 553.56,
+      "width": 35.28,
+      "height": 5.9
+    },
+    {
+      "text": "COVERAGES",
+      "x": 21.6,
+      "y": 542.4,
+      "width": 53.68,
+      "height": 8.4
+    },
+    {
+      "text": "CERTIFICATE NUMBER:",
+      "x": 158.4,
+      "y": 542.4,
+      "width": 98.15,
+      "height": 8.4
+    },
+    {
+      "text": "REVISION NUMBER:",
+      "x": 424.8,
+      "y": 542.4,
+      "width": 82.56,
+      "height": 8.4
+    },
+    {
+      "text": "THIS IS TO CERTIFY THAT THE POLICIES OF INSURANCE LISTED BELOW HAVE BEEN ISSUED TO THE INSURED NAMED ABOVE FOR THE POLICY PERIOD",
+      "x": 28.8,
+      "y": 532.08,
+      "width": 554.47,
+      "height": 7.2
+    },
+    {
+      "text": "INDICATED.",
+      "x": 28.8,
+      "y": 523.8,
+      "width": 40.8,
+      "height": 7.2
+    },
+    {
+      "text": "NOTWITHSTANDING ANY REQUIREMENT, TERM OR CONDITION OF ANY CONTRACT OR OTHER DOCUMENT WITH RESPECT TO WHICH THIS",
+      "x": 75.78,
+      "y": 523.8,
+      "width": 507.41,
+      "height": 7.2
+    },
+    {
+      "text": "CERTIFICATE MAY BE ISSUED OR MAY PERTAIN, THE INSURANCE AFFORDED BY THE POLICIES DESCRIBED HEREIN IS SUBJECT TO ALL THE TERMS,",
+      "x": 28.8,
+      "y": 515.52,
+      "width": 554.48,
+      "height": 7.2
+    },
+    {
+      "text": "EXCLUSIONS AND CONDITIONS OF SUCH POLICIES. LIMITS SHOWN MAY HAVE BEEN REDUCED BY PAID CLAIMS.",
+      "x": 28.8,
+      "y": 507.24,
+      "width": 396.2,
+      "height": 7.2
+    },
+    {
+      "text": "INSR",
+      "x": 20.07,
+      "y": 498.6,
+      "width": 13.86,
+      "height": 5.8
+    },
+    {
+      "text": "ADDL",
+      "x": 177.35,
+      "y": 499.02,
+      "width": 16.11,
+      "height": 5.8
+    },
+    {
+      "text": "SUBR",
+      "x": 195.18,
+      "y": 499.02,
+      "width": 16.43,
+      "height": 5.8
+    },
+    {
+      "text": "POLICY EFF",
+      "x": 337.26,
+      "y": 498.6,
+      "width": 34.68,
+      "height": 5.9
+    },
+    {
+      "text": "POLICY EXP",
+      "x": 383.7,
+      "y": 498.6,
+      "width": 35.38,
+      "height": 5.9
+    },
+    {
+      "text": "TYPE OF INSURANCE",
+      "x": 75.36,
+      "y": 494.58,
+      "width": 61.67,
+      "height": 5.9
+    },
+    {
+      "text": "LIMITS",
+      "x": 499.74,
+      "y": 494.58,
+      "width": 19.34,
+      "height": 5.9
+    },
+    {
+      "text": "LTR",
+      "x": 21.37,
+      "y": 493.14,
+      "width": 11.27,
+      "height": 5.8
+    },
+    {
+      "text": "INSD",
+      "x": 178.47,
+      "y": 492.6,
+      "width": 13.86,
+      "height": 5.8
+    },
+    {
+      "text": "WVD",
+      "x": 196.64,
+      "y": 492.6,
+      "width": 13.53,
+      "height": 5.8
+    },
+    {
+      "text": "POLICY NUMBER",
+      "x": 247.2,
+      "y": 493.56,
+      "width": 49.2,
+      "height": 5.9
+    },
+    {
+      "text": "(MM/DD/YYYY)",
+      "x": 333.95,
+      "y": 493.14,
+      "width": 41.3,
+      "height": 5.9
+    },
+    {
+      "text": "(MM/DD/YYYY)",
+      "x": 380.75,
+      "y": 493.14,
+      "width": 41.3,
+      "height": 5.9
+    },
+    {
+      "text": "COMMERCIAL GENERAL LIABILITY",
+      "x": 54,
+      "y": 484.02,
+      "width": 101.86,
+      "height": 6
+    },
+    {
+      "text": "EACH OCCURRENCE",
+      "x": 428.4,
+      "y": 482.04,
+      "width": 61.11,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 482.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "DAMAGE TO RENTED",
+      "x": 428.4,
+      "y": 475.02,
+      "width": 62.16,
+      "height": 6
+    },
+    {
+      "text": "CLAIMS-MADE",
+      "x": 68.4,
+      "y": 470.04,
+      "width": 41.67,
+      "height": 6
+    },
+    {
+      "text": "OCCUR",
+      "x": 133.2,
+      "y": 470.04,
+      "width": 22,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 470.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "PREMISES (Ea occurrence)",
+      "x": 428.4,
+      "y": 469.02,
+      "width": 75.34,
+      "height": 6
+    },
+    {
+      "text": "MED EXP (Any one person)",
+      "x": 428.4,
+      "y": 458.04,
+      "width": 74.73,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 458.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "PERSONAL & ADV INJURY",
+      "x": 428.4,
+      "y": 446.04,
+      "width": 75.38,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 446.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "GEN'L AGGREGATE LIMIT APPLIES PER:",
+      "x": 39.6,
+      "y": 434.04,
+      "width": 116.25,
+      "height": 6
+    },
+    {
+      "text": "GENERAL AGGREGATE",
+      "x": 428.4,
+      "y": 434.04,
+      "width": 68.16,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 434.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "PRO-",
+      "x": 97.2,
+      "y": 426,
+      "width": 15,
+      "height": 6
+    },
+    {
+      "text": "POLICY",
+      "x": 54,
+      "y": 422.04,
+      "width": 22.01,
+      "height": 6
+    },
+    {
+      "text": "LOC",
+      "x": 140.4,
+      "y": 422.04,
+      "width": 12.34,
+      "height": 6
+    },
+    {
+      "text": "PRODUCTS - COMP/OP AGG",
+      "x": 428.4,
+      "y": 422.04,
+      "width": 82.19,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 422.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "JECT",
+      "x": 97.2,
+      "y": 420.6,
+      "width": 15,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 412.02,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "OTHER:",
+      "x": 54,
+      "y": 409.56,
+      "width": 22.67,
+      "height": 6
+    },
+    {
+      "text": "COMBINED SINGLE LIMIT",
+      "x": 428.4,
+      "y": 402.48,
+      "width": 72.82,
+      "height": 6
+    },
+    {
+      "text": "AUTOMOBILE LIABILITY",
+      "x": 39.6,
+      "y": 400.08,
+      "width": 68.9,
+      "height": 5.9
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 400.02,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "(Ea accident)",
+      "x": 428.4,
+      "y": 397.02,
+      "width": 35.62,
+      "height": 6
+    },
+    {
+      "text": "ANY AUTO",
+      "x": 54,
+      "y": 388.44,
+      "width": 30.6,
+      "height": 6
+    },
+    {
+      "text": "BODILY INJURY (Per person)",
+      "x": 428.4,
+      "y": 388.02,
+      "width": 80.5,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 388.02,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "OWNED",
+      "x": 54,
+      "y": 378.48,
+      "width": 23,
+      "height": 6
+    },
+    {
+      "text": "SCHEDULED",
+      "x": 122.4,
+      "y": 378.48,
+      "width": 37.01,
+      "height": 6
+    },
+    {
+      "text": "BODILY INJURY (Per accident)",
+      "x": 428.4,
+      "y": 376.02,
+      "width": 84.58,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 376.02,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "AUTOS ONLY",
+      "x": 54,
+      "y": 372.48,
+      "width": 38.64,
+      "height": 6
+    },
+    {
+      "text": "AUTOS",
+      "x": 122.4,
+      "y": 372.48,
+      "width": 20.67,
+      "height": 6
+    },
+    {
+      "text": "HIRED",
+      "x": 54,
+      "y": 366.48,
+      "width": 18.67,
+      "height": 6
+    },
+    {
+      "text": "NON-OWNED",
+      "x": 122.4,
+      "y": 366.66,
+      "width": 38.33,
+      "height": 6
+    },
+    {
+      "text": "PROPERTY DAMAGE",
+      "x": 428.4,
+      "y": 366.48,
+      "width": 60.37,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 364.02,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "AUTOS ONLY",
+      "x": 54,
+      "y": 360.48,
+      "width": 38.64,
+      "height": 6
+    },
+    {
+      "text": "AUTOS ONLY",
+      "x": 122.4,
+      "y": 360.48,
+      "width": 38.64,
+      "height": 6
+    },
+    {
+      "text": "(Per accident)",
+      "x": 428.4,
+      "y": 361.02,
+      "width": 37.66,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 352.02,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "UMBRELLA LIAB",
+      "x": 54,
+      "y": 340.08,
+      "width": 48.14,
+      "height": 5.9
+    },
+    {
+      "text": "OCCUR",
+      "x": 133.2,
+      "y": 337.56,
+      "width": 22,
+      "height": 6
+    },
+    {
+      "text": "EACH OCCURRENCE",
+      "x": 428.4,
+      "y": 338.04,
+      "width": 61.11,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 338.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "EXCESS LIAB",
+      "x": 54,
+      "y": 328.08,
+      "width": 39.22,
+      "height": 5.9
+    },
+    {
+      "text": "CLAIMS-MADE",
+      "x": 133.2,
+      "y": 326.04,
+      "width": 41.67,
+      "height": 6
+    },
+    {
+      "text": "AGGREGATE",
+      "x": 428.4,
+      "y": 326.04,
+      "width": 38.01,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 326.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "DED",
+      "x": 54,
+      "y": 313.56,
+      "width": 12.67,
+      "height": 6
+    },
+    {
+      "text": "RETENTION $",
+      "x": 90,
+      "y": 313.56,
+      "width": 39.34,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 314.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "PER",
+      "x": 442.8,
+      "y": 306.48,
+      "width": 12.34,
+      "height": 6
+    },
+    {
+      "text": "OTH-",
+      "x": 493.07,
+      "y": 306.48,
+      "width": 14.66,
+      "height": 6
+    },
+    {
+      "text": "WORKERS COMPENSATION",
+      "x": 37.8,
+      "y": 305.28,
+      "width": 80.27,
+      "height": 5.9
+    },
+    {
+      "text": "STATUTE",
+      "x": 442.8,
+      "y": 301.02,
+      "width": 27.33,
+      "height": 6
+    },
+    {
+      "text": "ER",
+      "x": 493.2,
+      "y": 301.02,
+      "width": 8.33,
+      "height": 6
+    },
+    {
+      "text": "AND EMPLOYERS' LIABILITY",
+      "x": 37.8,
+      "y": 298.32,
+      "width": 82.32,
+      "height": 5.9
+    },
+    {
+      "text": "Y / N",
+      "x": 158.94,
+      "y": 295.68,
+      "width": 13.32,
+      "height": 6
+    },
+    {
+      "text": "ANYPROPRIETOR/PARTNER/EXECUTIVE",
+      "x": 37.8,
+      "y": 290.52,
+      "width": 113.86,
+      "height": 5.8
+    },
+    {
+      "text": "E.L. EACH ACCIDENT",
+      "x": 428.4,
+      "y": 290.04,
+      "width": 61.21,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 290.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "N / A",
+      "x": 178.62,
+      "y": 286.02,
+      "width": 13.56,
+      "height": 6
+    },
+    {
+      "text": "OFFICER/MEMBER EXCLUDED?",
+      "x": 37.8,
+      "y": 284.52,
+      "width": 87.94,
+      "height": 5.8
+    },
+    {
+      "text": "(Mandatory in NH)",
+      "x": 37.8,
+      "y": 278.52,
+      "width": 51.56,
+      "height": 6
+    },
+    {
+      "text": "E.L. DISEASE - EA EMPLOYEE",
+      "x": 428.4,
+      "y": 278.04,
+      "width": 85.91,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 278.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "If yes, describe under",
+      "x": 37.8,
+      "y": 271.56,
+      "width": 57.79,
+      "height": 6
+    },
+    {
+      "text": "DESCRIPTION OF OPERATIONS below",
+      "x": 37.8,
+      "y": 265.56,
+      "width": 109.3,
+      "height": 6
+    },
+    {
+      "text": "E.L. DISEASE - POLICY LIMIT",
+      "x": 428.4,
+      "y": 266.04,
+      "width": 82.53,
+      "height": 6
+    },
+    {
+      "text": "$",
+      "x": 518.4,
+      "y": 266.04,
+      "width": 3.34,
+      "height": 6
+    },
+    {
+      "text": "DESCRIPTION OF OPERATIONS / LOCATIONS / VEHICLES (ACORD 101, Additional Remarks Schedule, may be attached if more space is required)",
+      "x": 21.6,
+      "y": 220.08,
+      "width": 410.94,
+      "height": 5.9
+    },
+    {
+      "text": "CERTIFICATE HOLDER",
+      "x": 21.6,
+      "y": 134.04,
+      "width": 93.72,
+      "height": 8.4
+    },
+    {
+      "text": "CANCELLATION",
+      "x": 309.6,
+      "y": 134.04,
+      "width": 66.26,
+      "height": 8.4
+    },
+    {
+      "text": "SHOULD ANY OF THE ABOVE DESCRIBED POLICIES BE CANCELLED BEFORE",
+      "x": 316.8,
+      "y": 114.06,
+      "width": 266.32,
+      "height": 7
+    },
+    {
+      "text": "THE",
+      "x": 316.8,
+      "y": 105.78,
+      "width": 14,
+      "height": 7
+    },
+    {
+      "text": "EXPIRATION",
+      "x": 337.65,
+      "y": 105.78,
+      "width": 42.78,
+      "height": 7
+    },
+    {
+      "text": "DATE",
+      "x": 387.28,
+      "y": 105.78,
+      "width": 19.05,
+      "height": 7
+    },
+    {
+      "text": "THEREOF,",
+      "x": 413.18,
+      "y": 105.78,
+      "width": 35.39,
+      "height": 7
+    },
+    {
+      "text": "NOTICE",
+      "x": 455.42,
+      "y": 105.78,
+      "width": 26.44,
+      "height": 7
+    },
+    {
+      "text": "WILL",
+      "x": 488.72,
+      "y": 105.78,
+      "width": 17.1,
+      "height": 7
+    },
+    {
+      "text": "BE",
+      "x": 512.67,
+      "y": 105.78,
+      "width": 9.72,
+      "height": 7
+    },
+    {
+      "text": "DELIVERED",
+      "x": 529.24,
+      "y": 105.78,
+      "width": 40.06,
+      "height": 7
+    },
+    {
+      "text": "IN",
+      "x": 576.15,
+      "y": 105.78,
+      "width": 7,
+      "height": 7
+    },
+    {
+      "text": "ACCORDANCE WITH THE POLICY PROVISIONS.",
+      "x": 316.8,
+      "y": 97.5,
+      "width": 160.65,
+      "height": 7
+    },
+    {
+      "text": "AUTHORIZED REPRESENTATIVE",
+      "x": 309.6,
+      "y": 76.08,
+      "width": 93.23,
+      "height": 5.9
+    },
+    {
+      "text": "© 1988-2015 ACORD CORPORATION. All rights reserved.",
+      "x": 361.2,
+      "y": 39.18,
+      "width": 229.25,
+      "height": 8.4
+    },
+    {
+      "text": "ACORD 25 (2016/03)",
+      "x": 21.6,
+      "y": 27.18,
+      "width": 80.53,
+      "height": 8.4
+    },
+    {
+      "text": "The ACORD name and logo are registered marks of ACORD",
+      "x": 187.2,
+      "y": 27.18,
+      "width": 237.64,
+      "height": 8.4
+    }
+  ]
+}

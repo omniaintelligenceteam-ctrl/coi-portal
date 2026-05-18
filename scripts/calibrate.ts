@@ -19,6 +19,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PDFDocument, StandardFonts, rgb } from '@cantoo/pdf-lib';
 import { COORDS, PAGE_WIDTH, PAGE_HEIGHT } from '../lib/coords.js';
+import { listAnchors } from '../lib/anchors.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -32,6 +33,21 @@ async function main(): Promise<void> {
   const templateBytes = await readFile(resolve(ROOT, 'assets/template/acord-25-page-1.png'));
   const templateImage = await pdfDoc.embedPng(templateBytes);
   page.drawImage(templateImage, { x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT });
+
+  // Paint anchor label boxes FIRST (under field crosshairs) — faint blue
+  // outline around each static label from template-anchors.json. Any red
+  // field dot that lands INSIDE a blue box means the value will overlap its
+  // label when rendered — same visual diagnosis as the no-overlap test.
+  for (const label of listAnchors()) {
+    page.drawRectangle({
+      x: label.x,
+      y: label.y - 1,
+      width: label.width,
+      height: Math.max(label.height, 7),
+      borderColor: rgb(0.4, 0.6, 1.0),
+      borderWidth: 0.25,
+    });
+  }
 
   // Draw a crosshair + label at each coord
   for (const [key, coord] of Object.entries(COORDS)) {
@@ -89,8 +105,14 @@ async function main(): Promise<void> {
   const outPath = resolve(ROOT, 'out/calibration.pdf');
   await writeFile(outPath, await pdfDoc.save());
   console.log(`✓ Wrote ${outPath}`);
-  console.log(`\nOpen side-by-side with the Sheffer sample. Red dots mark text origins.`);
-  console.log(`Edit lib/coords.ts and re-run until dots align with where the original Sheffer text sits.`);
+  console.log(`\nLegend:`);
+  console.log(`  blue box = static label from template-anchors.json (the anchor)`);
+  console.log(`  red dot  = field text origin (resolved from lib/coords.ts)`);
+  console.log(`  red rect = signature image bounds`);
+  console.log(`  green ruler = y/x point grid every 50pt`);
+  console.log(`\nA red dot inside a blue box means the value will overlap its label —`);
+  console.log(`adjust the field's dx/dy in lib/coords.ts. Re-run npm run calibrate`);
+  console.log(`until every red dot sits clear of its anchor box on the declared side.`);
 }
 
 main().catch((err) => {
