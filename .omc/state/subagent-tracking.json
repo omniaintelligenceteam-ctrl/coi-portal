@@ -1,0 +1,80 @@
+{
+  "agents": [
+    {
+      "agent_id": "a7cd38265fc82ea28",
+      "agent_type": "Explore",
+      "started_at": "2026-05-18T22:24:23.695Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-05-18T22:25:50.350Z",
+      "duration_ms": 86655
+    },
+    {
+      "agent_id": "a83e1df9ac1e46245",
+      "agent_type": "Explore",
+      "started_at": "2026-05-18T22:24:32.129Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-05-18T22:26:58.641Z",
+      "duration_ms": 146512
+    },
+    {
+      "agent_id": "a55157069c7958a9d",
+      "agent_type": "Explore",
+      "started_at": "2026-05-18T22:26:26.106Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-05-18T22:27:33.837Z",
+      "duration_ms": 67731
+    },
+    {
+      "agent_id": "a3599635910194910",
+      "agent_type": "Explore",
+      "started_at": "2026-05-18T22:26:41.127Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-05-18T22:27:51.907Z",
+      "duration_ms": 70780
+    },
+    {
+      "agent_id": "adaf451da52a2242a",
+      "agent_type": "compound-engineering:research:ce-web-researcher",
+      "started_at": "2026-05-18T22:27:01.896Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-05-18T22:29:46.783Z",
+      "duration_ms": 164887
+    },
+    {
+      "agent_id": "a75f29f5d61b0f27b",
+      "agent_type": "Explore",
+      "started_at": "2026-05-18T22:28:43.935Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-05-18T22:30:17.841Z",
+      "duration_ms": 93906
+    },
+    {
+      "agent_id": "a2792a851e36321eb",
+      "agent_type": "Explore",
+      "started_at": "2026-05-18T22:29:01.914Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-05-18T22:30:06.622Z",
+      "duration_ms": 64708
+    },
+    {
+      "agent_id": "a14878e01b7930fc7",
+      "agent_type": "Explore",
+      "started_at": "2026-05-18T22:29:17.091Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-05-18T22:31:01.955Z",
+      "duration_ms": 104864
+    }
+  ],
+  "total_spawned": 8,
+  "total_completed": 8,
+  "total_failed": 0,
+  "last_updated": "2026-05-18T22:31:02.058Z"
+}

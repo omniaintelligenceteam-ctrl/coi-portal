@@ -1,30 +1,28 @@
+import Link from 'next/link';
+import { Logo } from './Logo';
+
 export function Header({ email, badge }: { email: string; badge?: string }) {
   return (
-    <header className="bg-[#000c21] border-b border-[#001842]">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+    <header className="sticky top-0 z-20 border-b border-hairline bg-paper/85 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-5 sm:px-8">
+        <Link href="/" className="focus-ring -m-1 rounded-md p-1" aria-label="The Policy Place — home">
+          <Logo tone="dark" />
+        </Link>
+
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-kyblue-700">
-            <ShieldIcon className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-base font-semibold text-white tracking-tight">
-            The Policy Place
-          </span>
           {badge && (
-            <span className="rounded-full bg-kyblue-800 border border-kyblue-700 px-2.5 py-0.5 text-xs font-medium text-kyblue-300">
+            <span className="caps inline-flex items-center gap-1.5 rounded-full border border-seal/30 bg-seal-soft px-2.5 py-0.5 text-[0.62rem] font-semibold text-seal-deep">
+              <span className="h-1 w-1 rounded-full bg-seal" aria-hidden="true" />
               {badge}
             </span>
           )}
+          {email && (
+            <span className="hidden font-mono text-[0.72rem] text-ink-muted sm:inline">
+              {email}
+            </span>
+          )}
         </div>
-        <span className="text-xs text-slate-400">{email}</span>
       </div>
     </header>
-  );
-}
-
-function ShieldIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
-    </svg>
   );
 }

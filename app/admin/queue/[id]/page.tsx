@@ -1,7 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { Hairline } from '@/app/components/Hairline';
+import { MonoTag } from '@/app/components/MonoTag';
+import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
+import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
 import { DecisionForm } from './DecisionForm';
+
+export const dynamic = 'force-dynamic';
 
 type RequestDetail = {
   id: string;
@@ -10,9 +17,9 @@ type RequestDetail = {
   holder_address1: string;
   holder_address2: string | null;
   coverages_selected: string[];
-  status: 'pending' | 'reviewed' | 'approved' | 'edited' | 'rejected' | 'sent';
+  status: CertStatus;
   reviewer_pass: boolean | null;
-  reviewer_flags: { field: string; severity: string; message: string }[];
+  reviewer_flags: { field: string; severity: 'error' | 'warning' | 'info'; message: string }[];
   reviewer_notes: string | null;
   reviewer_model: string | null;
   pdf_storage_path: string | null;
@@ -38,13 +45,13 @@ type CoverageDetail = {
   insurer: { name: string; naic: string } | null;
 };
 
-const STATUS_STYLE: Record<RequestDetail['status'], string> = {
-  pending: 'bg-amber-100 text-amber-800',
-  reviewed: 'bg-blue-100 text-blue-800',
-  approved: 'bg-green-100 text-green-800',
-  edited: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-700',
-  sent: 'bg-slate-100 text-slate-600',
+const TYPE_LABEL: Record<string, string> = {
+  GL: 'General Liability',
+  WC: "Workers' Compensation",
+  AUTO: 'Commercial Auto',
+  UMBRELLA: 'Umbrella / Excess',
+  EQUIPMENT: 'Contractors Equipment',
+  OTHER: 'Other Coverage',
 };
 
 function formatDate(iso: string): string {
@@ -89,119 +96,229 @@ export default async function CertDetailPage({
 
   const canDecide = req.status === 'pending' || req.status === 'reviewed';
 
+  // Mint signed URL for inline PDF preview (private bucket → service-role).
+  let previewUrl: string | null = null;
+  let downloadUrl: string | null = null;
+  if (req.pdf_storage_path) {
+    try {
+      const admin = createAdminClient();
+      const filename = buildCertFilename(
+        req.cert_number,
+        req.holder_name,
+        req.requested_at,
+      );
+      [previewUrl, downloadUrl] = await Promise.all([
+        createCertSignedUrl(admin, req.pdf_storage_path),
+        createCertSignedUrl(admin, req.pdf_storage_path, { downloadFilename: filename }),
+      ]);
+    } catch (err) {
+      console.error('signed URL mint failed (admin queue detail):', err);
+    }
+  }
+
   return (
-    <main className="mx-auto max-w-4xl px-6 py-8">
-      {/* Breadcrumb + heading */}
-      <div className="mb-6">
-        <Link
-          href="/admin/queue"
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 transition-colors"
-        >
-          <ChevronLeftIcon className="h-3.5 w-3.5" />
-          Back to queue
-        </Link>
-        <div className="mt-3 flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl font-bold text-slate-900 font-mono">{req.cert_number}</h1>
-          <span
-            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[req.status]}`}
-          >
-            {req.status}
+    <main className="mx-auto max-w-7xl px-6 pb-24 pt-10 sm:px-10 lg:pt-14">
+      <Link
+        href="/admin/queue"
+        className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
+      >
+        <ChevronLeft className="h-3 w-3" />
+        Back to queue
+      </Link>
+
+      {/* Document-style header — spans full width above the split */}
+      <header className="mt-8">
+        <p className="caps text-[0.65rem] font-semibold text-seal-deep">Certificate of Insurance</p>
+        <h1 className="mt-3 font-mono text-[2.25rem] font-medium leading-none tabular-nums text-ink sm:text-[2.75rem]">
+          {req.cert_number}
+        </h1>
+        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <StatusPill status={req.status} size="md" />
+          <span className="caps text-[0.6rem] font-medium text-ink-faint">
+            Requested by
+          </span>
+          <span className="font-mono text-[0.75rem] text-ink">{req.requested_by_email}</span>
+          <span className="text-hairline-strong">·</span>
+          <span className="font-mono text-[0.75rem] text-ink-muted">
+            {new Date(req.requested_at).toLocaleString()}
           </span>
         </div>
-        <p className="mt-1 text-xs text-slate-400">
-          Requested by {req.requested_by_email} ·{' '}
-          {new Date(req.requested_at).toLocaleString()}
-        </p>
-      </div>
+      </header>
 
-      {/* AI Reviewer card */}
-      <ReviewerCard
-        pass={req.reviewer_pass}
-        notes={req.reviewer_notes}
-        flags={req.reviewer_flags ?? []}
-        model={req.reviewer_model}
-      />
+      <Hairline className="mt-10" />
 
-      {/* Insured + Holder — 2-col */}
-      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <InfoCard label="Insured">
-          <p className="font-semibold text-slate-900">
-            {req.client?.business_name ?? 'Unknown client'}
-          </p>
-          {req.client?.business_address1 && (
-            <p className="text-sm text-slate-500 mt-0.5">
-              {req.client.business_address1}
-              {req.client.business_address2 ? `, ${req.client.business_address2}` : ''}
-            </p>
-          )}
-        </InfoCard>
+      {/* Two-column split: details/decision left, sticky PDF preview right */}
+      <div className="mt-10 grid grid-cols-1 gap-12 xl:grid-cols-[minmax(0,1fr),minmax(0,560px)]">
+        <div className="min-w-0">
+          {/* AI Reviewer card */}
+          <section>
+            <ReviewerCard
+              pass={req.reviewer_pass}
+              notes={req.reviewer_notes}
+              flags={req.reviewer_flags ?? []}
+              model={req.reviewer_model}
+            />
+          </section>
 
-        <InfoCard label="Certificate Holder">
-          <p className="font-semibold text-slate-900">{req.holder_name}</p>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {req.holder_address1}
-            {req.holder_address2 ? `, ${req.holder_address2}` : ''}
-          </p>
-        </InfoCard>
-      </div>
+          {/* Insured + Holder */}
+          <section className="mt-12 grid grid-cols-1 gap-10 sm:grid-cols-2">
+            <PartyCard
+              label="Insured"
+              name={req.client?.business_name ?? 'Unknown client'}
+              address1={req.client?.business_address1}
+              address2={req.client?.business_address2}
+            />
+            <PartyCard
+              label="Certificate Holder"
+              name={req.holder_name}
+              address1={req.holder_address1}
+              address2={req.holder_address2}
+            />
+          </section>
 
-      {/* Coverages */}
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white shadow-sm p-5">
-        <SectionLabel>Coverages selected</SectionLabel>
-        <div className="mt-3 space-y-2">
-          {(coverages ?? []).map((c) => (
-            <div key={c.id} className="rounded-lg border border-slate-200 p-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-sm text-slate-900">{c.type}</span>
-                <span className="font-mono text-xs text-slate-400">{c.policy_number}</span>
+          {/* Coverages */}
+          <section className="mt-14">
+            <Hairline label="Coverages selected" className="mb-6" />
+            <ul className="divide-y divide-hairline border-y border-hairline">
+              {(coverages ?? []).map((c) => (
+                <li key={c.id} className="py-5">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="font-display text-[1.05rem] font-semibold tracking-tight text-ink">
+                      {TYPE_LABEL[c.type] ?? c.type}
+                    </span>
+                    <span className="caps text-[0.6rem] font-medium text-ink-faint">{c.type}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.78rem] text-ink-muted">
+                    <span>{c.insurer?.name ?? 'Unknown insurer'}</span>
+                    <span className="text-hairline-strong">·</span>
+                    <MonoTag size="sm" tone="subtle">{c.policy_number}</MonoTag>
+                    <span className="text-hairline-strong">·</span>
+                    <span className="font-mono">
+                      {formatDate(c.eff_date)} → {formatDate(c.exp_date)}
+                    </span>
+                  </div>
+                  {(c.addl_insured_blanket || c.subrogation_waived || c.description) && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {c.addl_insured_blanket && (
+                        <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
+                          <span className="h-1 w-1 rounded-full bg-seal" />
+                          AI · blanket
+                        </span>
+                      )}
+                      {c.subrogation_waived && (
+                        <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
+                          <span className="h-1 w-1 rounded-full bg-seal" />
+                          WoS
+                        </span>
+                      )}
+                      {c.description && (
+                        <span className="rounded-[3px] border border-hairline-strong bg-white px-2 py-0.5 text-[0.7rem] text-ink-muted">
+                          {c.description}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Decision form or resolved state */}
+          <section className="mt-14">
+            {canDecide ? (
+              <DecisionForm
+                requestId={req.id}
+                clientId={req.client?.id ?? ''}
+                currentHolder={{
+                  name: req.holder_name,
+                  address1: req.holder_address1,
+                  address2: req.holder_address2 ?? '',
+                }}
+              />
+            ) : (
+              <div className="border-l-2 border-hairline-strong pl-5">
+                <p className="caps text-[0.62rem] font-semibold text-ink-faint">Closed</p>
+                <p className="mt-2 text-sm leading-relaxed text-ink">
+                  This request is{' '}
+                  <span className="font-semibold text-ink">{req.status}</span> — no further action
+                  needed.
+                </p>
               </div>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {c.insurer?.name ?? 'Unknown insurer'} · {formatDate(c.eff_date)} —{' '}
-                {formatDate(c.exp_date)}
-              </p>
-              {(c.addl_insured_blanket || c.subrogation_waived || c.description) && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {c.addl_insured_blanket && (
-                    <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                      AI: blanket
-                    </span>
-                  )}
-                  {c.subrogation_waived && (
-                    <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                      WoS
-                    </span>
-                  )}
-                  {c.description && (
-                    <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                      {c.description}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+            )}
+          </section>
         </div>
-      </div>
 
-      {/* Decision form or resolved state */}
-      {canDecide ? (
-        <DecisionForm
-          requestId={req.id}
-          clientId={req.client?.id ?? ''}
-          currentHolder={{
-            name: req.holder_name,
-            address1: req.holder_address1,
-            address2: req.holder_address2 ?? '',
-          }}
-        />
-      ) : (
-        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
-          This request is{' '}
-          <span className="font-semibold text-slate-800">{req.status}</span> — no further
-          action needed.
-        </div>
-      )}
+        {/* Right column: sticky PDF preview */}
+        <aside className="min-w-0 xl:sticky xl:top-24 xl:self-start">
+          <Hairline label="PDF preview" className="mb-4" />
+          {previewUrl ? (
+            <>
+              <div className="border border-hairline bg-card">
+                <iframe
+                  src={previewUrl}
+                  title={`Certificate ${req.cert_number} preview`}
+                  className="block h-[760px] w-full"
+                />
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="caps text-[0.58rem] font-medium text-ink-faint">
+                  Holder + signature reflect the current row · re-rendered on send
+                </p>
+                {downloadUrl && (
+                  <a
+                    href={downloadUrl}
+                    className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-hairline-strong bg-white px-3 py-1.5 text-[0.72rem] font-semibold text-ink transition-colors hover:bg-paper-deep/40"
+                  >
+                    Download
+                    <ArrowDown className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="border border-warning/30 bg-warning-soft/40 px-5 py-6">
+              <p className="caps text-[0.6rem] font-semibold text-warning">No PDF on file</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink">
+                The cert record has no <code className="font-mono text-[0.78rem]">pdf_storage_path</code>.
+                The submit pipeline may have failed mid-flight. Investigate before approving.
+              </p>
+            </div>
+          )}
+        </aside>
+      </div>
     </main>
+  );
+}
+
+function PartyCard({
+  label,
+  name,
+  address1,
+  address2,
+}: {
+  label: string;
+  name: string;
+  address1?: string | null;
+  address2?: string | null;
+}) {
+  return (
+    <div>
+      <p className="caps text-[0.62rem] font-semibold text-ink-faint">{label}</p>
+      <p className="font-display mt-3 text-[1.4rem] font-medium leading-tight tracking-tight text-ink">
+        {name}
+      </p>
+      {address1 && (
+        <p className="mt-3 font-mono text-[0.78rem] leading-relaxed text-ink-muted">
+          {address1}
+          {address2 && (
+            <>
+              <br />
+              {address2}
+            </>
+          )}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -213,65 +330,88 @@ function ReviewerCard({
 }: {
   pass: boolean | null;
   notes: string | null;
-  flags: { field: string; severity: string; message: string }[];
+  flags: { field: string; severity: 'error' | 'warning' | 'info'; message: string }[];
   model: string | null;
 }) {
   if (pass === null) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-500 italic">
-        AI reviewer still running…
+      <div className="border border-hairline bg-card px-6 py-5">
+        <p className="caps flex items-center gap-2 text-[0.65rem] font-semibold text-ink-muted">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ink-muted opacity-50" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ink-muted" />
+          </span>
+          AI Review · running
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+          The reviewer is checking this request now. Reload in a moment.
+        </p>
       </div>
     );
   }
 
   const hasError = flags.some((f) => f.severity === 'error');
-  const tone = hasError
-    ? 'border-red-200 bg-red-50'
-    : pass
-      ? 'border-green-200 bg-green-50'
-      : 'border-amber-200 bg-amber-50';
+  const hasWarning = flags.some((f) => f.severity === 'warning');
 
-  const label = hasError ? 'Needs attention' : pass ? 'Clean' : 'Warnings';
-  const labelColor = hasError ? 'text-red-800' : pass ? 'text-green-800' : 'text-amber-800';
-  const iconColor = hasError ? 'text-red-600' : pass ? 'text-green-600' : 'text-amber-600';
+  const tone: {
+    border: string;
+    bg: string;
+    dot: string;
+    title: string;
+    label: string;
+  } = hasError
+    ? {
+        border: 'border-danger/40',
+        bg: 'bg-danger-soft/40',
+        dot: 'bg-danger',
+        title: 'text-danger',
+        label: 'Needs attention',
+      }
+    : hasWarning || !pass
+    ? {
+        border: 'border-warning/40',
+        bg: 'bg-warning-soft/30',
+        dot: 'bg-warning',
+        title: 'text-warning',
+        label: 'Warnings',
+      }
+    : {
+        border: 'border-success/30',
+        bg: 'bg-success-soft/30',
+        dot: 'bg-success',
+        title: 'text-success',
+        label: 'All clear',
+      };
 
   return (
-    <div className={`rounded-xl border p-5 ${tone}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          {pass && !hasError ? (
-            <CheckCircleIcon className={`h-5 w-5 shrink-0 ${iconColor}`} />
-          ) : (
-            <ExclamationIcon className={`h-5 w-5 shrink-0 ${iconColor}`} />
-          )}
-          <span className={`font-semibold text-sm ${labelColor}`}>
-            AI Review: {label}
-          </span>
+    <div className={`border ${tone.border} ${tone.bg} px-6 py-5`}>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
+          <p className={`caps text-[0.65rem] font-semibold ${tone.title}`}>
+            AI Review · {tone.label}
+          </p>
         </div>
         {model && (
-          <span className="text-xs text-slate-400 font-mono shrink-0">{model}</span>
+          <span className="font-mono text-[0.68rem] text-ink-faint">{model}</span>
         )}
       </div>
       {notes && (
-        <p className="mt-2.5 text-sm text-slate-700 leading-relaxed">{notes}</p>
+        <p className="mt-4 text-sm leading-relaxed text-ink">{notes}</p>
       )}
       {flags.length > 0 && (
-        <ul className="mt-3 space-y-1.5">
+        <ul className="mt-5 space-y-3 border-t border-hairline pt-4">
           {flags.map((f, i) => (
-            <li key={i} className="flex items-baseline gap-2 text-sm">
-              <span
-                className={`shrink-0 text-xs font-bold uppercase ${
-                  f.severity === 'error'
-                    ? 'text-red-700'
-                    : f.severity === 'warning'
-                      ? 'text-amber-700'
-                      : 'text-slate-500'
-                }`}
-              >
-                {f.severity}
-              </span>
-              <span className="font-mono text-xs text-slate-400">{f.field}</span>
-              <span className="text-slate-700">{f.message}</span>
+            <li key={i} className="flex items-start gap-3 text-sm">
+              <SeverityChip severity={f.severity} />
+              <div className="min-w-0 flex-1">
+                {f.field && (
+                  <span className="font-mono text-[0.72rem] text-ink-faint">
+                    {f.field}
+                  </span>
+                )}
+                <p className="mt-0.5 leading-relaxed text-ink">{f.message}</p>
+              </div>
             </li>
           ))}
         </ul>
@@ -280,22 +420,23 @@ function ReviewerCard({
   );
 }
 
-function InfoCard({ label, children }: { label: string; children: React.ReactNode }) {
+function SeverityChip({ severity }: { severity: 'error' | 'warning' | 'info' }) {
+  const map = {
+    error: { bg: 'bg-danger', text: 'text-white', label: 'Error' },
+    warning: { bg: 'bg-warning', text: 'text-white', label: 'Warn' },
+    info: { bg: 'bg-ink-muted', text: 'text-white', label: 'Info' },
+  } as const;
+  const s = map[severity];
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-5">
-      <SectionLabel>{label}</SectionLabel>
-      <div className="mt-2">{children}</div>
-    </div>
+    <span
+      className={`caps mt-0.5 inline-flex shrink-0 items-center rounded-[3px] px-1.5 py-0.5 text-[0.55rem] font-semibold ${s.bg} ${s.text}`}
+    >
+      {s.label}
+    </span>
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{children}</p>
-  );
-}
-
-function ChevronLeftIcon({ className }: { className?: string }) {
+function ChevronLeft({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -303,18 +444,17 @@ function ChevronLeftIcon({ className }: { className?: string }) {
   );
 }
 
-function CheckCircleIcon({ className }: { className?: string }) {
+function ArrowDown({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
-
-function ExclamationIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
     </svg>
   );
 }

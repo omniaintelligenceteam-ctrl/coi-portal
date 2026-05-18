@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/policy-renewals",
+      "schedule": "0 14 * * *"
+    }
+  ]
+}

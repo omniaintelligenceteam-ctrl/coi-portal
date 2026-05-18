@@ -1,8 +1,11 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { selectableCoverages, type DbPolicy } from '@/lib/getClientPolicies';
-import { CoverageForm, type PolicyForForm } from './CoverageForm';
+import { CoverageForm, type PolicyForForm, type SavedHolder } from './CoverageForm';
 import { Header } from './components/Header';
+import { Hairline } from './components/Hairline';
+import { ShieldMark } from './components/Logo';
 
 type ClientRow = {
   id: string;
@@ -48,6 +51,17 @@ export default async function HomePage() {
 
   const eligible = selectableCoverages(policiesRaw ?? [], new Date());
 
+  // Fetch saved holders for autocomplete (sorted by most recently used)
+  const { data: holdersRaw } = await supabase
+    .from('cert_holders')
+    .select('name, address1, address2')
+    .eq('client_id', client.id)
+    .order('last_used_at', { ascending: false })
+    .limit(20)
+    .returns<SavedHolder[]>();
+
+  const savedHolders: SavedHolder[] = holdersRaw ?? [];
+
   const policiesForForm: PolicyForForm[] = eligible.map((p) => ({
     id: p.id,
     type: p.type,
@@ -61,86 +75,108 @@ export default async function HomePage() {
   }));
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <>
       <Header email={user.email} />
 
-      <main className="mx-auto max-w-2xl px-6 py-10">
-        {/* Insured identity card */}
-        <div className="mb-6 rounded-xl bg-white border border-slate-200 shadow-sm px-6 py-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-            Insured
-          </p>
-          <h2 className="text-xl font-bold text-slate-900">{client.business_name}</h2>
-          {client.business_address1 && (
-            <p className="mt-0.5 text-sm text-slate-500">
-              {client.business_address1}
-              {client.business_address2 ? `, ${client.business_address2}` : ''}
-            </p>
-          )}
-        </div>
+      <main className="mx-auto max-w-3xl px-6 pb-24 pt-16 sm:px-10 lg:pt-20">
+        {/* Insured identity — editorial hero card */}
+        <section className="mb-14">
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <p className="caps text-[0.65rem] font-semibold text-seal-deep">Insured</p>
+              <h1 className="font-display mt-4 text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[3rem]">
+                {client.business_name}
+              </h1>
+              {client.business_address1 && (
+                <p className="mt-4 font-mono text-sm text-ink-muted">
+                  {client.business_address1}
+                  {client.business_address2 ? `  ·  ${client.business_address2}` : ''}
+                </p>
+              )}
+            </div>
+            <Link
+              href="/certificates"
+              className="focus-ring caps mt-2 inline-flex shrink-0 items-center gap-1.5 rounded-md border border-hairline-strong bg-white px-3 py-1.5 text-[0.62rem] font-semibold text-ink hover:bg-paper-deep/40"
+            >
+              My certificates →
+            </Link>
+          </div>
+        </section>
 
-        {/* Form card */}
-        <div className="rounded-xl bg-white border border-slate-200 shadow-sm px-6 py-7">
-          <h3 className="text-base font-semibold text-slate-900">Request a Certificate</h3>
-          <p className="mt-1 text-sm text-slate-500 mb-7">
-            Select the coverages to include and enter the certificate holder. Brook will review and
-            send within a few business hours.
-          </p>
+        <Hairline label="Request a certificate" className="mb-10" />
 
-          {policiesForForm.length === 0 ? <NoActivePolicies /> : (
-            <CoverageForm clientId={client.id} policies={policiesForForm} />
-          )}
-        </div>
+        {policiesForForm.length === 0 ? (
+          <NoActivePolicies />
+        ) : (
+          <CoverageForm clientId={client.id} policies={policiesForForm} savedHolders={savedHolders} />
+        )}
 
         {/* Info callout */}
-        <div className="mt-5 rounded-xl border border-kyblue-200 bg-kyblue-50 px-5 py-4">
-          <p className="text-sm font-semibold text-kyblue-900">Need something not shown above?</p>
-          <p className="mt-1 text-sm text-kyblue-800 leading-relaxed">
+        <aside className="mt-16 border-l-2 border-seal/40 pl-5">
+          <p className="caps text-[0.6rem] font-semibold text-seal-deep">A note from Brook</p>
+          <p className="mt-2 text-sm leading-relaxed text-ink-muted">
             If your contract requires Additional Insured status, Waiver of Subrogation, or custom
-            language, those must be set up by Brook before they can appear on a certificate.{' '}
-            <a className="underline font-medium" href="mailto:brook@yourpolicyplace.com">
+            language, those must be set up on your policy before they can appear on a certificate.
+            Reach out and we'll get you sorted —{' '}
+            <a
+              className="font-medium text-brand underline-offset-4 hover:underline"
+              href="mailto:brook@yourpolicyplace.com"
+            >
               brook@yourpolicyplace.com
             </a>
+            .
           </p>
-        </div>
+        </aside>
       </main>
-    </div>
+    </>
   );
 }
 
 function NoClientFound({ email }: { email: string }) {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="max-w-md w-full mx-auto px-6 py-16 text-center">
-        <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 mb-6">
-          <svg className="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-          </svg>
-        </div>
-        <h2 className="text-xl font-semibold text-slate-900">Account not found</h2>
-        <p className="mt-2 text-sm text-slate-600">
+    <div className="flex min-h-screen flex-col">
+      <div className="mx-auto w-full max-w-5xl px-6 pt-10 sm:px-10">
+        <Link href="/" className="focus-ring inline-flex items-center gap-2 -m-1 rounded p-1">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand">
+            <ShieldMark className="h-3.5 w-3.5 text-white" />
+          </span>
+          <span className="font-display text-base font-semibold tracking-tight text-ink">
+            The Policy Place
+          </span>
+        </Link>
+      </div>
+
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-24 sm:px-10">
+        <p className="caps text-[0.65rem] font-semibold text-danger">Account not found</p>
+        <h1 className="font-display mt-4 text-[2.25rem] font-medium leading-[1.05] tracking-display text-ink">
+          We can't place this email yet.
+        </h1>
+        <p className="mt-5 text-base leading-relaxed text-ink-muted">
           No Policy Place account is linked to{' '}
-          <span className="font-semibold text-slate-800">{email}</span>.
+          <span className="font-mono text-ink">{email}</span>.
         </p>
-        <p className="mt-1 text-sm text-slate-500">
-          Contact{' '}
-          <a className="text-kyblue-500 underline" href="mailto:brook@yourpolicyplace.com">
+        <p className="mt-3 text-base leading-relaxed text-ink-muted">
+          If you should have access, reach out to{' '}
+          <a
+            className="font-medium text-brand underline-offset-4 hover:underline"
+            href="mailto:brook@yourpolicyplace.com"
+          >
             brook@yourpolicyplace.com
           </a>{' '}
-          to get access.
+          and we'll get you on file.
         </p>
-      </div>
+      </main>
     </div>
   );
 }
 
 function NoActivePolicies() {
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
-      <p className="font-semibold text-amber-900 text-sm">No active policies on file</p>
-      <p className="mt-1 text-sm text-amber-800">
-        We don&apos;t see any in-force policies for your account right now. Please reach out to
-        Brook to confirm your coverage status before requesting a certificate.
+    <div className="border border-warning/30 bg-warning-soft/50 px-6 py-5">
+      <p className="caps text-[0.62rem] font-semibold text-warning">No active policies</p>
+      <p className="mt-2 text-sm leading-relaxed text-ink">
+        We don't see any in-force policies for your account right now. Please reach out to Brook to
+        confirm your coverage status before requesting a certificate.
       </p>
     </div>
   );

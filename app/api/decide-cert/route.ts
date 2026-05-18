@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendApprovedCert } from '@/lib/sendApprovedCert';
+import { sendRejectionEmail } from '@/lib/email';
 
 /**
  * Admin endpoint — Brook (or any ADMIN_EMAILS user) decides on a queued cert.
@@ -93,6 +94,39 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', parsed.requestId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Notify the client by email — non-fatal if it fails (row is already updated)
+    try {
+      const { data: detail } = await admin
+        .from('cert_requests')
+        .select('cert_number, holder_name, client:coi_clients ( business_name, contact_email )')
+        .eq('id', parsed.requestId)
+        .maybeSingle<{
+          cert_number: string;
+          holder_name: string;
+          client: { business_name: string; contact_email: string } | null;
+        }>();
+
+      const contactEmail = detail?.client?.contact_email;
+      if (detail && contactEmail) {
+        const portalBase =
+          process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ??
+          'https://coi-portal.vercel.app';
+        await sendRejectionEmail({
+          to: contactEmail,
+          certNumber: detail.cert_number,
+          insuredBusinessName: detail.client?.business_name ?? 'Insured',
+          holderName: detail.holder_name,
+          reason:
+            parsed.decisionNote?.trim() ||
+            'Please reach out to Brook so we can sort out the details before re-issuing.',
+          resubmitUrl: `${portalBase}/`,
+        });
+      }
+    } catch (emailErr) {
+      console.error('rejection email failed:', emailErr);
+    }
+
     return NextResponse.json({ ok: true, status: 'rejected' });
   }
 

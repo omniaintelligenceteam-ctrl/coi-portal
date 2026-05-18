@@ -1,6 +1,45 @@
 @import 'tailwindcss';
 
 @theme {
+  /* ------------------------------------------------------------------
+   * Editorial Trust — design tokens
+   * ------------------------------------------------------------------ */
+
+  /* Surfaces */
+  --color-paper: #faf8f3;
+  --color-paper-deep: #f4f0e6;
+  --color-card: #ffffff;
+
+  /* Ink */
+  --color-ink: #1a1f2e;
+  --color-ink-muted: #5b6478;
+  --color-ink-faint: #8a93a6;
+
+  /* Hairlines */
+  --color-hairline: #e8e4db;
+  --color-hairline-cool: #e5e7eb;
+  --color-hairline-strong: #d6d1c4;
+
+  /* Brand — Kentucky blue, kept */
+  --color-brand: #003da5;
+  --color-brand-deep: #001842;
+  --color-brand-near: #000c21;
+  --color-brand-soft: #e6eef9;
+
+  /* Accent — muted gold, "issued" moments */
+  --color-seal: #b8923a;
+  --color-seal-soft: #f5ecd6;
+  --color-seal-deep: #8c6d27;
+
+  /* Status (institutional, not candy) */
+  --color-success: #16745a;
+  --color-success-soft: #e6f1ec;
+  --color-warning: #b45309;
+  --color-warning-soft: #fbeed7;
+  --color-danger: #b91c1c;
+  --color-danger-soft: #fbe7e7;
+
+  /* Legacy kyblue scale — kept for backward compatibility */
   --color-kyblue: #003da5;
   --color-kyblue-50: #e6eef9;
   --color-kyblue-100: #ccdcf3;
@@ -12,8 +51,25 @@
   --color-kyblue-700: #002463;
   --color-kyblue-800: #001842;
   --color-kyblue-900: #000c21;
+
+  /* Type families — bound to next/font CSS variables */
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: var(--font-fraunces), 'Iowan Old Style', Georgia, serif;
+  --font-mono: var(--font-geist-mono), 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Letter spacing */
+  --tracking-caps: 0.18em;
+  --tracking-display: -0.02em;
+
+  /* Shadows — restrained */
+  --shadow-card: 0 1px 0 rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-lift: 0 1px 0 rgb(0 0 0 / 0.02), 0 8px 24px -8px rgb(26 31 46 / 0.12);
+  --shadow-seal: 0 0 0 1px var(--color-seal) inset, 0 1px 0 rgb(0 0 0 / 0.04);
 }
 
+/* ------------------------------------------------------------------
+ * Base reset
+ * ------------------------------------------------------------------ */
 * {
   box-sizing: border-box;
   padding: 0;
@@ -26,7 +82,75 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-feature-settings: 'ss01', 'cv11';
+}
+
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Display headings use Fraunces with optical sizing pushed up */
+.font-display {
+  font-family: var(--font-serif);
+  font-variation-settings: 'opsz' 144, 'SOFT' 25, 'WONK' 0;
+  letter-spacing: var(--tracking-display);
+}
+
+/* Caps label utility */
+.caps {
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  font-feature-settings: 'ss01';
+}
+
+/* Hairline underline for inputs (editorial form style) */
+.field-underline {
+  border: 0;
+  border-bottom: 1px solid var(--color-hairline-strong);
+  background: transparent;
+  border-radius: 0;
+  padding: 0.625rem 0;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.field-underline:focus {
+  outline: none;
+  border-bottom-color: var(--color-brand);
+  box-shadow: 0 1px 0 0 var(--color-brand);
+}
+.field-underline::placeholder {
+  color: var(--color-ink-faint);
+}
+
+/* Focus ring — refined */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-brand);
+  border-radius: 4px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print: clean, no texture */
+@media print {
+  body {
+    background: white;
+  }
 }

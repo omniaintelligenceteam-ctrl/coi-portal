@@ -144,6 +144,8 @@ export async function sendApprovedCert(
   if (upErr) throw new Error(`storage upload failed: ${upErr.message}`);
 
   // 6. Send email
+  const portalBase =
+    process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ?? 'https://coi-portal.vercel.app';
   const { id: emailId } = await sendCoiEmail({
     to: client.contact_email,
     cc: [agency.email, 'wesoverstreet@gmail.com']
@@ -152,6 +154,7 @@ export async function sendApprovedCert(
     certNumber: req.cert_number,
     holderName: req.holder_name,
     insuredBusinessName: client.business_name,
+    verifyUrl: `${portalBase}/verify/${req.cert_number}`,
   });
 
   // 7. Insert audit row (E&O paper trail — last write before status update)

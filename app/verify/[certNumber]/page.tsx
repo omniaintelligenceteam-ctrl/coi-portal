@@ -1,0 +1,210 @@
+import { notFound } from 'next/navigation';
+import { createAdminClient } from '@/lib/supabase/admin';
+
+// Intentionally public — no auth. Only exposes non-sensitive cert metadata.
+export const dynamic = 'force-dynamic';
+
+type PageProps = { params: Promise<{ certNumber: string }> };
+
+type VerifyRow = {
+  cert_number: string;
+  status: string;
+  holder_name: string;
+  holder_address1: string;
+  holder_address2: string | null;
+  requested_at: string;
+  sent_at: string | null;
+  coverages_selected: string[];
+  client: { business_name: string } | null;
+  agency: { name: string; phone: string | null; email: string | null } | null;
+};
+
+type PolicyRow = {
+  type: string;
+  eff_date: string;
+  exp_date: string;
+  active: boolean;
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  GL: 'General Liability',
+  WC: "Workers' Compensation",
+  AUTO: 'Commercial Auto',
+  UMBRELLA: 'Umbrella / Excess',
+  EQUIPMENT: 'Contractors Equipment',
+  OTHER: 'Other Coverage',
+};
+
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${m}/${d}/${y}`;
+}
+
+export default async function VerifyPage({ params }: PageProps) {
+  const { certNumber } = await params;
+  const admin = createAdminClient();
+
+  const { data: cert } = await admin
+    .from('cert_requests')
+    .select(
+      `cert_number, status, holder_name, holder_address1, holder_address2,
+       requested_at, sent_at, coverages_selected,
+       client:coi_clients ( business_name ),
+       agency:agencies ( name, phone, email )`,
+    )
+    .eq('cert_number', certNumber)
+    .eq('status', 'sent')
+    .maybeSingle<VerifyRow>();
+
+  if (!cert) {
+    return <InvalidCert certNumber={certNumber} />;
+  }
+
+  const { data: policies } = cert.coverages_selected.length
+    ? await admin
+        .from('policies')
+        .select('type, eff_date, exp_date, active')
+        .in('id', cert.coverages_selected)
+        .returns<PolicyRow[]>()
+    : { data: [] as PolicyRow[] };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const allActive = (policies ?? []).every((p) => p.active && p.exp_date >= today);
+
+  return (
+    <div className="min-h-screen bg-paper px-6 py-16 sm:px-10">
+      <div className="mx-auto max-w-xl">
+        {/* Agency header */}
+        <div className="mb-12">
+          <p className="font-display text-xl font-semibold text-ink">
+            {cert.agency?.name ?? 'The Policy Place'}
+          </p>
+          {cert.agency?.phone && (
+            <p className="mt-1 font-mono text-sm text-ink-muted">{cert.agency.phone}</p>
+          )}
+        </div>
+
+        {/* Status banner */}
+        <div
+          className={`mb-10 flex items-center gap-3 border px-5 py-4 ${
+            allActive
+              ? 'border-success/30 bg-success-soft/40'
+              : 'border-danger/30 bg-danger-soft/40'
+          }`}
+        >
+          <span
+            className={`h-3 w-3 rounded-full ${allActive ? 'bg-success' : 'bg-danger'}`}
+          />
+          <div>
+            <p
+              className={`caps text-[0.65rem] font-semibold ${
+                allActive ? 'text-success' : 'text-danger'
+              }`}
+            >
+              {allActive ? 'Certificate verified — coverage active' : 'One or more policies have expired'}
+            </p>
+            <p className="mt-0.5 text-[0.78rem] text-ink-muted">
+              Verified as of {new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+            </p>
+          </div>
+        </div>
+
+        {/* Cert identity */}
+        <div className="mb-8">
+          <p className="caps text-[0.6rem] font-medium text-ink-faint">Certificate number</p>
+          <p className="mt-1 font-mono text-lg font-medium text-ink">{cert.cert_number}</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+          <div>
+            <p className="caps text-[0.6rem] font-medium text-ink-faint">Insured</p>
+            <p className="mt-1 font-medium text-ink">
+              {cert.client?.business_name ?? '—'}
+            </p>
+          </div>
+          <div>
+            <p className="caps text-[0.6rem] font-medium text-ink-faint">Certificate holder</p>
+            <p className="mt-1 font-medium text-ink">{cert.holder_name}</p>
+            <p className="mt-0.5 font-mono text-[0.78rem] text-ink-muted">
+              {cert.holder_address1}
+              {cert.holder_address2 ? `, ${cert.holder_address2}` : ''}
+            </p>
+          </div>
+        </div>
+
+        {/* Coverages */}
+        <div className="mt-10 border-t border-hairline pt-8">
+          <p className="caps mb-4 text-[0.6rem] font-medium text-ink-faint">Coverages on certificate</p>
+          <ul className="divide-y divide-hairline">
+            {(policies ?? []).map((p, i) => {
+              const expired = p.exp_date < today;
+              return (
+                <li key={i} className="py-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <span className="font-medium text-[0.9rem] text-ink">
+                    {TYPE_LABEL[p.type] ?? p.type}
+                  </span>
+                  <span
+                    className={`font-mono text-[0.75rem] ${
+                      expired ? 'text-danger' : 'text-ink-muted'
+                    }`}
+                  >
+                    {formatDate(p.eff_date)} – {formatDate(p.exp_date)}
+                    {expired && ' · EXPIRED'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        {/* Issue info */}
+        <div className="mt-10 border-t border-hairline pt-8 text-[0.78rem] text-ink-muted">
+          <p>
+            Issued by{' '}
+            <span className="font-medium text-ink">{cert.agency?.name ?? 'The Policy Place'}</span>
+            {cert.agency?.email && (
+              <> · <a href={`mailto:${cert.agency.email}`} className="underline-offset-2 hover:underline">{cert.agency.email}</a></>
+            )}
+          </p>
+          {cert.sent_at && (
+            <p className="mt-1">
+              Certificate sent{' '}
+              {new Date(cert.sent_at).toLocaleDateString(undefined, {
+                month: 'long', day: 'numeric', year: 'numeric',
+              })}
+            </p>
+          )}
+        </div>
+
+        <p className="mt-12 text-[0.7rem] text-ink-faint">
+          This page verifies the issuance status of the referenced certificate. Confirm coverage
+          limits and endorsements on the certificate document itself. For questions, contact the
+          issuing agency directly.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function InvalidCert({ certNumber }: { certNumber: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-paper px-6">
+      <div className="max-w-md text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-danger/30 bg-danger-soft/40">
+          <span className="h-4 w-4 rounded-full bg-danger" />
+        </div>
+        <p className="caps text-[0.65rem] font-semibold text-danger">Certificate not found</p>
+        <h1 className="font-display mt-3 text-2xl font-medium text-ink">
+          We couldn't verify this certificate.
+        </h1>
+        <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+          Certificate <span className="font-mono text-ink">{certNumber}</span> was not found in
+          our records, or has not yet been issued.
+          <br /><br />
+          If you received this certificate recently, try again in a few minutes. Otherwise, contact
+          the issuing agency to confirm.
+        </p>
+      </div>
+    </div>
+  );
+}

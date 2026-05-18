@@ -1,0 +1,7 @@
+{"t":0,"agent":"system","event":"skill_activated","skill_name":"OIOS Routing Override","skill_source":"user"}
+{"t":0,"agent":"a551570","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a359963","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"adaf451","agent_type":"compound-engineering:research:ce-web-researcher","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a551570","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":67731}
+{"t":0,"agent":"a359963","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":70780}
+{"t":0,"agent":"adaf451","agent_type":"compound-engineering:research:ce-web-researcher","event":"agent_stop","success":true,"duration_ms":164887}
