@@ -16,7 +16,8 @@
     "rasterize": "tsx scripts/rasterizeTemplate.ts",
     "regen-sheffer": "tsx scripts/regenSheffer.ts",
     "calibrate": "tsx scripts/calibrate.ts",
-    "extract-anchors": "tsx scripts/extractAnchors.ts"
+    "extract-anchors": "tsx scripts/extractAnchors.ts",
+    "extract-signature": "tsx scripts/extractSignature.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
@@ -37,6 +38,7 @@
     "autoprefixer": "^10.5.0",
     "pdfjs-dist": "^5.7.284",
     "postcss": "^8.5.14",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.3.0",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
