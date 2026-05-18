@@ -193,7 +193,7 @@ export const COORDS = {
   // WC row — PER STATUTE checkbox + Y/N officer-excluded character
   // ====================================================================
   WC_CHK_PER_STATUTE:   declare('WC_CHK_PER_STATUTE', { anchor: 'PER', side: 'left', dx: -10, dy: -0.5, size: 9 }),
-  WC_OFFICER_YN:        abs({ x: 200, y: 287, size: 8 }),
+  WC_OFFICER_YN:        abs({ x: 168, y: 287, size: 8 }),
   WC_INSR_LTR:          declare('WC_INSR_LTR',      { anchor: 'WORKERS COMPENSATION', side: 'row', dx:  28, dy: -9, size: 7.5 }),
   WC_POLICY_NUMBER:     declare('WC_POLICY_NUMBER', { anchor: 'WORKERS COMPENSATION', side: 'row', dx: 223, dy: -9, size: 7.5, maxWidth: 92 }),
   WC_EFF_DATE:          declare('WC_EFF_DATE',      { anchor: 'WORKERS COMPENSATION', side: 'row', dx: 322, dy: -9, size: 7.5 }),
