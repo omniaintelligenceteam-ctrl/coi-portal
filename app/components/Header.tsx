@@ -13,7 +13,7 @@ export function Header({
 }) {
   return (
     <header className="pt-safe sticky top-0 z-20 border-b border-hairline bg-paper/85 backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:gap-6 sm:px-8 sm:py-5 lg:px-12">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4 sm:gap-6 sm:px-10 sm:py-5 lg:px-16 xl:px-24">
         <Link
           href="/"
           className="focus-ring -m-1 rounded-md p-1"

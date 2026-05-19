@@ -92,7 +92,7 @@ export default async function HomePage() {
     <>
       <Header email={user.email} showMyCerts />
 
-      <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+      <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
         {/* Insured identity — bordered editorial card with corner seal mark */}
         <section className="relative mb-10 overflow-hidden border border-hairline bg-card px-5 py-6 sm:mb-14 sm:px-8 sm:py-8">
           <span

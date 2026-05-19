@@ -102,7 +102,7 @@ export default async function ResultPage({ params }: PageProps) {
       <Header email={user.email} />
       <AutoRefresh status={req.status} />
 
-      <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+      <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
         <div className="mx-auto max-w-4xl">
         <Link
           href="/certificates"

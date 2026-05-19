@@ -165,7 +165,7 @@ export default async function VerifyPage({ params }: PageProps) {
   });
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
       {/* When any covered policy has lapsed, drain the page of colour so a
           verifier reading on a phone instantly clocks that the cert is no
           longer current. The status banner stays full-colour for legibility. */}

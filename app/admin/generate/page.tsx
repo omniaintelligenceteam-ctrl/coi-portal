@@ -39,7 +39,7 @@ export default async function GenerateLandingPage() {
   const rows = clients ?? [];
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
       <header className="mb-10">
         <p className="caps text-[0.65rem] font-semibold text-seal-deep">Generate on behalf of</p>
         <h1 className="font-display mt-3 text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink">

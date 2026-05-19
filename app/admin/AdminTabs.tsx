@@ -31,7 +31,7 @@ export function AdminTabs() {
       aria-label="Admin sections"
       className="border-b border-hairline bg-paper/70 backdrop-blur-sm"
     >
-      <div className="mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto px-5 sm:px-8 lg:px-12">
+      <div className="mx-auto flex w-full max-w-5xl gap-1 overflow-x-auto px-6 sm:px-10 lg:px-16 xl:px-24">
         {TABS.map((t) => {
           const active = t.match(pathname);
           return (

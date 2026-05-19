@@ -81,7 +81,7 @@ export default function LoginPage() {
         </Link>
       </div>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
