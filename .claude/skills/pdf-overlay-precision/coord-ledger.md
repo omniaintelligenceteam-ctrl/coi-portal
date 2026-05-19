@@ -67,15 +67,15 @@ Columns: `anchor` · `side` · `dx` · `dy` · `nearY` · `last verified` · `la
 
 | Field | Anchor | Side | dx | dy | nearY | Last verified | Last cert | Notes |
 |---|---|---|---|---|---|---|---|---|
-| GL_CHK_TYPE | COMMERCIAL GENERAL LIABILITY | left | **-6.5** | **1.5** | — | 2026-05-18 | PP-20260519-0002 | **Centered X in checkbox (was -8/0)** |
-| GL_CHK_OCCUR | OCCUR | left | **-6.5** | **1.5** | 470 | 2026-05-18 | PP-20260519-0002 | **Centered X in checkbox (was -8/0)** |
-| GL_CHK_AGG_POLICY | POLICY | left | **-6.5** | **1.5** | 422 | 2026-05-18 | PP-20260519-0002 | **Centered X in checkbox (was -8/0)** |
+| GL_CHK_TYPE | COMMERCIAL GENERAL LIABILITY | left | **-9** | **0** | — | 2026-05-18 | PP-20260519-0002 | **Second pass: Wes wanted X further left + lower. -6.5/1.5 → -9/0** |
+| GL_CHK_OCCUR | OCCUR | left | **-9** | **0** | 470 | 2026-05-18 | PP-20260519-0002 | **Second pass: -6.5/1.5 → -9/0** |
+| GL_CHK_AGG_POLICY | POLICY | left | **-9** | **0** | 422 | 2026-05-18 | PP-20260519-0002 | **Second pass: -6.5/1.5 → -9/0** |
 | GL_INSR_LTR | COMMERCIAL GENERAL LIABILITY | row | 28 | -6 | — | 2026-05-18 | PP-20260408-0001 | — |
 | GL_POLICY_NUMBER | COMMERCIAL GENERAL LIABILITY | row | 223 | -6 | — | 2026-05-18 | PP-20260408-0001 | maxWidth 92 |
-| GL_EFF_DATE | COMMERCIAL GENERAL LIABILITY | row | **328** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 322) — Wes flagged dates need to move right inside the column** |
-| GL_EXP_DATE | COMMERCIAL GENERAL LIABILITY | row | **374** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 368) — same reason** |
+| GL_EFF_DATE | COMMERCIAL GENERAL LIABILITY | row | **334** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Second pass 328→334 — Wes flagged GL dates still left of others; matched OTHER row** |
+| GL_EXP_DATE | COMMERCIAL GENERAL LIABILITY | row | **380** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Second pass 374→380 — matched OTHER row** |
 | GL_LIMIT_EACH_OCC | EACH OCCURRENCE | row | 523 | 0 | 482 | 2026-05-18 | PP-20260408-0001 | nearY pins to GL row |
-| GL_LIMIT_DAMAGE_RENT | DAMAGE TO RENTED | row | 523 | **-8** | — | 2026-05-18 | PP-20260519-0002 | **Dropped onto value baseline (was 0) — anchor is top line of two-line label** |
+| GL_LIMIT_DAMAGE_RENT | DAMAGE TO RENTED | row | 523 | **-6** | — | 2026-05-18 | PP-20260519-0002 | **Nudged up -8 → -6 — Wes flagged still a hair low after first drop** |
 | GL_LIMIT_MED_EXP | MED EXP (Any one person) | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
 | GL_LIMIT_PERS_ADV_INJ | PERSONAL & ADV INJURY | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
 | GL_LIMIT_GEN_AGG | GENERAL AGGREGATE | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
@@ -87,8 +87,8 @@ Columns: `anchor` · `side` · `dx` · `dy` · `nearY` · `last verified` · `la
 |---|---|---|---|---|---|---|---|---|
 | AUTO_INSR_LTR | AUTOMOBILE LIABILITY | row | 28 | -6 | — | 2026-05-18 | PP-20260408-0001 | — |
 | AUTO_POLICY_NUMBER | AUTOMOBILE LIABILITY | row | 223 | -6 | — | 2026-05-18 | PP-20260408-0001 | maxWidth 92 |
-| AUTO_EFF_DATE | AUTOMOBILE LIABILITY | row | **328** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 322)** |
-| AUTO_EXP_DATE | AUTOMOBILE LIABILITY | row | **374** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 368)** |
+| AUTO_EFF_DATE | AUTOMOBILE LIABILITY | row | **334** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Second pass 328→334 — column alignment with OTHER/GL** |
+| AUTO_EXP_DATE | AUTOMOBILE LIABILITY | row | **380** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Second pass 374→380** |
 | AUTO_LIMIT_CSL | COMBINED SINGLE LIMIT | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
 | AUTO_LIMIT_BI_PER_PERS | BODILY INJURY (Per person) | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
 | AUTO_LIMIT_BI_PER_ACC | BODILY INJURY (Per accident) | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
@@ -100,8 +100,8 @@ Columns: `anchor` · `side` · `dx` · `dy` · `nearY` · `last verified` · `la
 |---|---|---|---|---|---|---|---|---|
 | UMB_INSR_LTR | UMBRELLA LIAB | row | 28 | -6 | — | 2026-05-18 | PP-20260408-0001 | — |
 | UMB_POLICY_NUMBER | UMBRELLA LIAB | row | 223 | -6 | — | 2026-05-18 | PP-20260408-0001 | maxWidth 92 |
-| UMB_EFF_DATE | UMBRELLA LIAB | row | **328** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 322)** |
-| UMB_EXP_DATE | UMBRELLA LIAB | row | **374** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 368)** |
+| UMB_EFF_DATE | UMBRELLA LIAB | row | **334** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Second pass 328→334 — column alignment** |
+| UMB_EXP_DATE | UMBRELLA LIAB | row | **380** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Second pass 374→380** |
 | UMB_LIMIT_EACH_OCC | EACH OCCURRENCE | row | 523 | 0 | 338 | 2026-05-18 | PP-20260408-0001 | nearY pins to UMB row (GL is at y≈482) |
 | UMB_LIMIT_AGG | AGGREGATE | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
 
@@ -109,12 +109,12 @@ Columns: `anchor` · `side` · `dx` · `dy` · `nearY` · `last verified` · `la
 
 | Field | Anchor | Side | dx | dy | nearY | Last verified | Last cert | Notes |
 |---|---|---|---|---|---|---|---|---|
-| WC_CHK_PER_STATUTE | PER | left | **-6.5** | **1.5** | — | 2026-05-18 | PP-20260519-0002 | **Centered X in checkbox (was -8/0)** |
+| WC_CHK_PER_STATUTE | PER | left | **-9** | **0** | — | 2026-05-18 | PP-20260519-0002 | **Second pass with GL checks: -6.5/1.5 → -9/0** |
 | WC_OFFICER_YN | WC_OFFICER_BOX | inside | 3.5 | 3 | — | 2026-05-18 | PP-20260519-0002 | Region-anchored. Value sourced via `coiInputBuilder` (officerExcluded: true → "Y") |
 | WC_INSR_LTR | WORKERS COMPENSATION | row | 28 | -9 | — | 2026-05-18 | PP-20260408-0001 | — |
 | WC_POLICY_NUMBER | WORKERS COMPENSATION | row | 223 | -9 | — | 2026-05-18 | PP-20260408-0001 | maxWidth 92 |
-| WC_EFF_DATE | WORKERS COMPENSATION | row | **328** | -9 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 322)** |
-| WC_EXP_DATE | WORKERS COMPENSATION | row | **374** | -9 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 368)** |
+| WC_EFF_DATE | WORKERS COMPENSATION | row | **334** | -9 | — | 2026-05-18 | PP-20260519-0002 | **Second pass 328→334 — column alignment** |
+| WC_EXP_DATE | WORKERS COMPENSATION | row | **380** | -9 | — | 2026-05-18 | PP-20260519-0002 | **Second pass 374→380** |
 | WC_LIMIT_EACH_ACC | E.L. EACH ACCIDENT | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
 | WC_LIMIT_DIS_EA_EMPL | E.L. DISEASE - EA EMPLOYEE | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
 | WC_LIMIT_DIS_POL_LIM | E.L. DISEASE - POLICY LIMIT | row | 523 | 0 | — | 2026-05-18 | PP-20260408-0001 | — |
@@ -126,10 +126,10 @@ All anchor to `E.L. DISEASE - POLICY LIMIT` with `dy: -26` (one row below WC).
 | Field | Anchor | Side | dx | dy | nearY | Last verified | Last cert | Notes |
 |---|---|---|---|---|---|---|---|---|
 | OTHER_INSR_LTR | E.L. DISEASE - POLICY LIMIT | row | 28 | -26 | — | 2026-05-18 | PP-20260408-0001 | — |
-| OTHER_DESCRIPTION | E.L. DISEASE - POLICY LIMIT | row | 57 | -26 | — | 2026-05-18 | PP-20260408-0001 | maxWidth 155 |
+| OTHER_DESCRIPTION | E.L. DISEASE - POLICY LIMIT | row | **52** | -26 | — | 2026-05-18 | PP-20260519-0002 | **Nudged left 57→52 — Wes flagged Contractors text too far right** |
 | OTHER_POLICY_NUMBER | E.L. DISEASE - POLICY LIMIT | row | 223 | -26 | — | 2026-05-18 | PP-20260408-0001 | maxWidth 92 |
-| OTHER_EFF_DATE | E.L. DISEASE - POLICY LIMIT | row | **328** | -26 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 322)** |
-| OTHER_EXP_DATE | E.L. DISEASE - POLICY LIMIT | row | **374** | -26 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right (was 368)** |
+| OTHER_EFF_DATE | E.L. DISEASE - POLICY LIMIT | row | **334** | -26 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right 328→334 — second nudge on Wes's OTHER row feedback** |
+| OTHER_EXP_DATE | E.L. DISEASE - POLICY LIMIT | row | **380** | -26 | — | 2026-05-18 | PP-20260519-0002 | **Shifted right 374→380 — second nudge on Wes's OTHER row feedback** |
 | OTHER_LIMIT | E.L. DISEASE - POLICY LIMIT | row | 523 | -26 | — | 2026-05-18 | PP-20260408-0001 | — |
 
 ## DESCRIPTION
