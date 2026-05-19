@@ -47,7 +47,8 @@ export default async function ClientOverridesPage({
     .returns<OverrideRow[]>();
 
   return (
-    <main className="mx-auto max-w-3xl px-6 pb-24 pt-12 sm:px-10 lg:pt-16">
+    <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+      <div className="mx-auto max-w-2xl">
       <Link
         href="/admin/settings/clients"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
@@ -70,6 +71,7 @@ export default async function ClientOverridesPage({
       <Hairline className="mb-8" />
 
       <OverridesEditor clientId={client.id} initial={overrides ?? []} />
+      </div>
     </main>
   );
 }

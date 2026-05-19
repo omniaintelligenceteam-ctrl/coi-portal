@@ -165,11 +165,11 @@ export default async function VerifyPage({ params }: PageProps) {
   });
 
   return (
-    <div className="min-h-screen bg-paper px-6 py-16 sm:px-10">
+    <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
       {/* When any covered policy has lapsed, drain the page of colour so a
           verifier reading on a phone instantly clocks that the cert is no
           longer current. The status banner stays full-colour for legibility. */}
-      <div className={`mx-auto max-w-xl ${isExpired ? 'opacity-90 [&_*:not(.expired-banner)]:grayscale' : ''}`}>
+      <div className={`mx-auto max-w-2xl ${isExpired ? 'opacity-90 [&_*:not(.expired-banner)]:grayscale' : ''}`}>
         {/* Agency header — branded card. DB values win when present, else fall
             back to The Policy Place defaults so external verifiers always see
             a trust-establishing block. */}
@@ -302,7 +302,7 @@ export default async function VerifyPage({ params }: PageProps) {
           issuing agency directly.
         </p>
       </div>
-    </div>
+    </main>
   );
 }
 

@@ -102,7 +102,8 @@ export default async function ResultPage({ params }: PageProps) {
       <Header email={user.email} />
       <AutoRefresh status={req.status} />
 
-      <main className="mx-auto max-w-5xl px-6 pb-24 pt-12 sm:px-10 lg:pt-16">
+      <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+        <div className="mx-auto max-w-4xl">
         <Link
           href="/certificates"
           className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
@@ -296,6 +297,7 @@ export default async function ResultPage({ params }: PageProps) {
             </a>{' '}
             with this reference number and we'll sort it.
           </p>
+        </div>
         </div>
       </main>
     </>

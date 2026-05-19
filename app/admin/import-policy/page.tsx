@@ -34,14 +34,14 @@ export default async function ImportPolicyPage() {
 
   if (!clients?.length) {
     return (
-      <main className="mx-auto max-w-3xl px-6 pb-24 pt-12 sm:px-10">
+      <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
         <p className="text-sm text-ink-muted">No active clients found. Add a client first.</p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 pb-24 pt-12 sm:px-10 lg:pt-16">
+    <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
       <Link
         href="/admin/queue"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"

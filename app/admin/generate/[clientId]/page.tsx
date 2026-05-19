@@ -91,7 +91,8 @@ export default async function GenerateForClientPage({
   }));
 
   return (
-    <main className="mx-auto max-w-3xl px-5 pb-24 pt-8 sm:px-10 sm:pt-14 lg:pt-16">
+    <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+      <div className="mx-auto max-w-2xl">
       <Link
         href="/admin/generate"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
@@ -142,6 +143,7 @@ export default async function GenerateForClientPage({
       )}
 
       <Hairline className="mt-16" />
+      </div>
     </main>
   );
 }

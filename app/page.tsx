@@ -92,7 +92,7 @@ export default async function HomePage() {
     <>
       <Header email={user.email} showMyCerts />
 
-      <main className="mx-auto max-w-3xl px-5 pb-24 pt-8 sm:px-10 sm:pt-14 lg:pt-16">
+      <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
         {/* Insured identity — bordered editorial card with corner seal mark */}
         <section className="relative mb-10 overflow-hidden border border-hairline bg-card px-5 py-6 sm:mb-14 sm:px-8 sm:py-8">
           <span
@@ -172,7 +172,9 @@ function NoClientFound({ email }: { email: string }) {
         </Link>
       </div>
 
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-24 sm:px-10">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+        <div className="mx-auto max-w-2xl">
+
         <p className="caps text-[0.65rem] font-semibold text-danger">Account not found</p>
         <h1 className="font-display mt-4 text-[2.25rem] font-medium leading-[1.05] tracking-display text-ink">
           We can't place this email yet.
@@ -198,6 +200,7 @@ function NoClientFound({ email }: { email: string }) {
           </a>{' '}
           and we'll get you on file.
         </p>
+        </div>
       </main>
     </div>
   );

@@ -39,7 +39,7 @@ export default async function GenerateLandingPage() {
   const rows = clients ?? [];
 
   return (
-    <main className="mx-auto max-w-3xl px-6 pb-24 pt-12 sm:px-10 lg:pt-16">
+    <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
       <header className="mb-10">
         <p className="caps text-[0.65rem] font-semibold text-seal-deep">Generate on behalf of</p>
         <h1 className="font-display mt-3 text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink">
@@ -58,33 +58,32 @@ export default async function GenerateLandingPage() {
           No active clients found. Add one before generating a certificate.
         </p>
       ) : (
-        <ul className="divide-y divide-hairline border-y border-hairline">
+        <div className="grid gap-3 sm:grid-cols-2">
           {rows.map((c) => (
-            <li key={c.id}>
-              <Link
-                href={`/admin/generate/${c.id}`}
-                className="focus-ring flex items-center justify-between gap-4 px-1 py-4 transition-colors hover:bg-paper-deep/40"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-ink">{c.business_name}</p>
-                  <p className="mt-0.5 truncate font-mono text-[0.72rem] text-ink-muted">
-                    {c.contact_email ?? '—'}
-                    {c.business_address1 && (
-                      <>
-                        <span className="text-ink-faint">{'  ·  '}</span>
-                        {c.business_address1}
-                      </>
-                    )}
-                  </p>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
-              </Link>
-            </li>
+            <Link
+              key={c.id}
+              href={`/admin/generate/${c.id}`}
+              className="focus-ring group flex items-center justify-between gap-4 rounded-lg border border-hairline bg-card px-5 py-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-hairline-strong hover:shadow-lift"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium text-ink">{c.business_name}</p>
+                <p className="mt-0.5 truncate font-mono text-[0.72rem] text-ink-muted">
+                  {c.contact_email ?? '—'}
+                  {c.business_address1 && (
+                    <>
+                      <span className="text-ink-faint">{'  ·  '}</span>
+                      {c.business_address1}
+                    </>
+                  )}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint transition-colors group-hover:text-brand" />
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
 
-      <p className="caps mt-5 text-[0.6rem] font-medium text-ink-faint">
+      <p className="caps mt-8 text-[0.6rem] font-medium text-ink-faint">
         {rows.length} active {rows.length === 1 ? 'client' : 'clients'}
       </p>
     </main>

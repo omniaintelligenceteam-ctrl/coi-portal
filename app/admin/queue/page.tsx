@@ -18,7 +18,7 @@ export default async function QueuePage() {
   const rows = requests ?? [];
 
   return (
-    <main className="mx-auto max-w-6xl px-6 pb-24 pt-12 sm:px-10 lg:pt-16">
+    <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
       <header className="mb-10">
         <p className="caps text-[0.65rem] font-semibold text-seal-deep">Approval Ledger</p>
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-6">

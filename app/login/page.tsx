@@ -81,12 +81,12 @@ export default function LoginPage() {
         </Link>
       </div>
 
-      <main className="flex flex-1 items-center justify-center px-6 py-16 sm:py-24">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-md"
+          className="mx-auto w-full max-w-2xl"
         >
           <AnimatePresence mode="wait">
             {status === 'sent' ? (

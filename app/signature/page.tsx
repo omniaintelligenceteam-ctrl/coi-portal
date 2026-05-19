@@ -21,8 +21,8 @@ export default async function SignaturePreview() {
   }
 
   return (
-    <main className="min-h-screen bg-paper px-6 py-16 sm:px-10">
-      <div className="mx-auto max-w-3xl">
+    <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+      <div className="mx-auto max-w-2xl">
         <p className="caps text-[0.65rem] font-semibold text-seal-deep">Asset preview</p>
         <h1 className="font-display mt-3 text-[2.25rem] font-medium leading-[1.05] tracking-display text-ink">
           Brook's signature
