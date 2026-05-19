@@ -50,15 +50,24 @@ $$;
 -- Run manually or via pg_cron once the table grows.
 -- delete from cert_number_seq where updated_at < now() - interval '90 days';
 
--- Backfill from existing coi_audit / cert_requests so the sequence doesn't
--- regress on the day of deploy. Safe to run multiple times.
+-- Backfill from existing cert_requests so the sequence doesn't regress on
+-- the day of deploy. Safe to run multiple times.
+--
+-- IMPORTANT: cert_number values may carry an optional 3-char checksum suffix
+-- (`PP-YYYYMMDD-NNNN-XXX`) added by lib/issueCert.ts::withChecksum. The
+-- original regex `^PP-\d{8}-\d{4}$` missed those rows, which on a day with
+-- mixed legacy + checksummed certs caused last_seq to lag behind reality and
+-- the next RPC allocation to collide with an existing checksum row. The
+-- regex below accepts both shapes, and the substring window is pinned to
+-- positions 12-15 so the cast works either way. Fixed in companion migration
+-- 20260519_0001_d2_backfill_fix_checksum_suffix.
 insert into cert_number_seq (date_key, prefix, last_seq)
 select
   substring(cert_number from 4 for 8) as date_key,
   'PP-' as prefix,
-  max(substring(cert_number from 13)::int) as last_seq
+  max(substring(cert_number from 12 for 4)::int) as last_seq
 from cert_requests
-where cert_number ~ '^PP-\d{8}-\d{4}$'
+where cert_number ~ '^PP-\d{8}-\d{4}(-[A-Z0-9]{3})?$'
 group by 1
 on conflict (date_key) do update
   set last_seq = greatest(cert_number_seq.last_seq, excluded.last_seq);
