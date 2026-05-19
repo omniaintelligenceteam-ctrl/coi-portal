@@ -20,11 +20,11 @@
   --color-hairline-cool: #e5e7eb;
   --color-hairline-strong: #d6d1c4;
 
-  /* Brand — Kentucky blue, kept */
-  --color-brand: #003da5;
-  --color-brand-deep: #001842;
-  --color-brand-near: #000c21;
-  --color-brand-soft: #e6eef9;
+  /* Brand — Policy Place teal, matches logo wordmark */
+  --color-brand: #5c8e97;
+  --color-brand-deep: #3d6b73;
+  --color-brand-near: #1f3a40;
+  --color-brand-soft: #eaf1f2;
 
   /* Accent — muted gold, "issued" moments */
   --color-seal: #b8923a;
@@ -39,18 +39,18 @@
   --color-danger: #b91c1c;
   --color-danger-soft: #fbe7e7;
 
-  /* Legacy kyblue scale — kept for backward compatibility */
-  --color-kyblue: #003da5;
-  --color-kyblue-50: #e6eef9;
-  --color-kyblue-100: #ccdcf3;
-  --color-kyblue-200: #99bae7;
-  --color-kyblue-300: #6697db;
-  --color-kyblue-400: #3375cf;
-  --color-kyblue-500: #003da5;
-  --color-kyblue-600: #003184;
-  --color-kyblue-700: #002463;
-  --color-kyblue-800: #001842;
-  --color-kyblue-900: #000c21;
+  /* Legacy kyblue scale — retoned to teal ramp; key name kept for backward compatibility */
+  --color-kyblue: #5c8e97;
+  --color-kyblue-50: #eaf1f2;
+  --color-kyblue-100: #d5e3e6;
+  --color-kyblue-200: #abc8cd;
+  --color-kyblue-300: #82adb4;
+  --color-kyblue-400: #6e9ba3;
+  --color-kyblue-500: #5c8e97;
+  --color-kyblue-600: #4a767e;
+  --color-kyblue-700: #3d6b73;
+  --color-kyblue-800: #2d5258;
+  --color-kyblue-900: #1f3a40;
 
   /* Type families — bound to next/font CSS variables */
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -145,6 +145,47 @@ a {
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
 }
 
+/* Safe-area aware top padding for sticky headers under the iPhone notch / Dynamic Island. */
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top, 0px), 0px);
+}
+
+/* Mobile card pattern — used to stack table rows as readable cards on phones. */
+.mobile-card {
+  display: block;
+  background: var(--color-card);
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+}
+.mobile-card + .mobile-card {
+  margin-top: 0.75rem;
+}
+.mobile-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.375rem 0;
+  font-size: 0.875rem;
+}
+.mobile-card-row + .mobile-card-row {
+  border-top: 1px dashed var(--color-hairline);
+}
+.mobile-card-row dt {
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+.mobile-card-row dd {
+  color: var(--color-ink);
+  text-align: right;
+  word-break: break-word;
+}
+
 /* Focus ring — refined */
 .focus-ring:focus-visible {
   outline: none;
@@ -168,5 +209,94 @@ a {
 @media print {
   body {
     background: white;
+  }
+}
+
+/* === @media print rules — Tier 5 polish === */
+/* Strip site chrome so Ctrl+P from the result page prints the bare cert.
+   Targets header/nav/footer chrome by element + class. The result-page
+   iframe and surrounding card print clean: no shadows, no admin controls,
+   no sticky bars. */
+@media print {
+  /* Page setup — half-inch margin all sides */
+  @page {
+    margin: 0.5in;
+  }
+
+  /* Editorial palette swaps to pure ink-on-white for printer economy */
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    max-width: none !important;
+  }
+
+  /* Hide site chrome aggressively. Anything decorative, navigational, or
+     interactive that doesn't belong on a printed certificate. */
+  header,
+  nav,
+  footer,
+  aside[role='navigation'],
+  .no-print,
+  [data-print-hide='true'],
+  [aria-label='Lifecycle timeline'] {
+    display: none !important;
+  }
+
+  /* Strip shadows + borders from cards/containers so they don't print as
+     gray boxes — the certificate iframe itself carries the visual weight. */
+  .border,
+  .border-hairline,
+  .bg-card,
+  .bg-paper,
+  .bg-paper-deep,
+  .shadow-card,
+  .shadow-lift,
+  .shadow-seal,
+  .shadow-sticky {
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  /* Hide sticky bars / floating actions (download/CTA buttons). */
+  .sticky,
+  [class*='fixed'],
+  button,
+  a[class*='bg-brand'],
+  a[class*='bg-seal'] {
+    display: none !important;
+  }
+
+  /* Keep the cert iframe + cert-number header visible.
+     The iframe is the actual certificate; everything else is portal chrome. */
+  iframe {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 95vh !important;
+    border: 0 !important;
+    page-break-inside: avoid;
+  }
+
+  /* Result-page-specific: the back-link, status pill row, and admin
+     status callouts are portal chrome — drop them from print. */
+  a[href='/certificates'],
+  [class*='border-l-2'],
+  [class*='caps'] {
+    display: none !important;
+  }
+
+  /* Keep the cert number heading visible — it's the document title. */
+  h1 {
+    color: #000000 !important;
+    font-size: 18pt !important;
+    margin-bottom: 0.25in !important;
+  }
+
+  /* Ensure links print as plain text (no underlines, no URL annotations). */
+  a {
+    color: #000000 !important;
+    text-decoration: none !important;
   }
 }

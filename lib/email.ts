@@ -66,7 +66,7 @@ ${insured} to ${holder}.</p>
 <p>If anything looks wrong, reply to this email and we'll sort it out right away.</p>
 ${input.verifyUrl ? `<p style="margin-top:16px;font-size:12px;color:#6b7280;">
 Holders can verify this certificate is current at:<br/>
-<a href="${escapeHtml(input.verifyUrl)}" style="color:#2563eb;">${escapeHtml(input.verifyUrl)}</a>
+<a href="${escapeHtml(input.verifyUrl)}" style="color:#3d6b73;">${escapeHtml(input.verifyUrl)}</a>
 </p>` : ''}
 <p style="margin-top:24px;">— The Policy Place<br/>
 908 Poplar St, Benton, KY 42025<br/>
@@ -223,7 +223,7 @@ function buildRejectionHtml(input: RejectionEmailInput): string {
 ${reasonHtml}
 </p>
 <p>When you're ready, you can submit a new request here:<br/>
-<a href="${url}" style="color:#2563eb;text-decoration:underline;">${url}</a></p>
+<a href="${url}" style="color:#3d6b73;text-decoration:underline;">${url}</a></p>
 <p>Questions? Just reply to this email — Brook will jump in.</p>
 <p style="margin-top:24px;">— The Policy Place<br/>
 908 Poplar St, Benton, KY 42025<br/>
