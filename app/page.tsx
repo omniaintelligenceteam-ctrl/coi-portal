@@ -175,30 +175,38 @@ function NoClientFound({ email }: { email: string }) {
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
         <div className="mx-auto max-w-2xl">
 
-        <p className="caps text-[0.65rem] font-semibold text-danger">Account not found</p>
+        <p className="caps text-[0.65rem] font-semibold text-warning">Access pending</p>
         <h1 className="font-display mt-4 text-[2.25rem] font-medium leading-[1.05] tracking-display text-ink">
           We can't place this email yet.
         </h1>
         <p className="mt-5 text-base leading-relaxed text-ink-muted">
           No Policy Place account is linked to{' '}
-          <span className="font-mono text-ink">{email}</span>.
+          <span className="font-mono text-ink">{email}</span> yet. If you've already requested
+          access, Brook or Wes is reviewing — you'll get a sign-in email as soon as it's approved.
         </p>
-        <p className="mt-3 text-base leading-relaxed text-ink-muted">
-          If you should have access, reach out to{' '}
-          <a
-            className="font-medium text-brand underline-offset-4 hover:underline"
-            href="mailto:brook@yourpolicyplace.com"
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link
+            href="/signup"
+            className="focus-ring inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-deep"
           >
-            brook@yourpolicyplace.com
-          </a>{' '}
-          or{' '}
+            Request access →
+          </Link>
+          <a
+            href="mailto:brook@yourpolicyplace.com"
+            className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline-strong bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-paper-deep/40"
+          >
+            Email Brook
+          </a>
+        </div>
+        <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+          Or call{' '}
           <a
             className="font-medium text-brand underline-offset-4 hover:underline"
             href="tel:+12704102015"
           >
             (270) 410-2015
-          </a>{' '}
-          and we'll get you on file.
+          </a>
+          .
         </p>
         </div>
       </main>

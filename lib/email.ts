@@ -321,6 +321,190 @@ export async function sendInboundReply(input: InboundReplyInput): Promise<CoiEma
   return resendPost(apiKey, fromEmail, payload);
 }
 
+// ─── Access requests (signup + invite) ─────────────────────────────────────
+
+function adminNotifyList(): string[] {
+  return (process.env.ADMIN_EMAILS ?? 'wesoverstreet@gmail.com')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function portalBase(): string {
+  return (
+    process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ??
+    'https://coi-portal.vercel.app'
+  );
+}
+
+export type AccessRequestNotificationInput = {
+  requestId: string;
+  email: string;
+  businessName: string;
+  contactName: string | null;
+  phone: string | null;
+  message: string | null;
+};
+
+export async function sendAccessRequestNotification(
+  input: AccessRequestNotificationInput,
+): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) return;
+
+  const reviewUrl = `${portalBase()}/admin/access-requests`;
+  const text = `New access request waiting for review.
+
+Business:  ${input.businessName}
+Email:     ${input.email}
+Name:      ${input.contactName ?? '—'}
+Phone:     ${input.phone ?? '—'}
+
+Message:
+${input.message ?? '(none)'}
+
+Review and approve: ${reviewUrl}`;
+
+  const html = `<!doctype html>
+<html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;color:#1f2937;">
+<h2 style="margin:0 0 12px 0;color:#1f2937;">New access request</h2>
+<p><strong>Business:</strong> ${escapeHtml(input.businessName)}<br/>
+<strong>Email:</strong> ${escapeHtml(input.email)}<br/>
+<strong>Name:</strong> ${escapeHtml(input.contactName ?? '—')}<br/>
+<strong>Phone:</strong> ${escapeHtml(input.phone ?? '—')}</p>
+${input.message ? `<p><strong>Message:</strong></p>
+<blockquote style="border-left:3px solid #3d6b73;background:#f5f8f8;padding:10px 14px;margin:8px 0;white-space:pre-wrap;">${escapeHtml(input.message)}</blockquote>` : ''}
+<p style="margin-top:20px;">
+  <a href="${escapeHtml(reviewUrl)}" style="display:inline-block;background:#3d6b73;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;">Review and approve</a>
+</p>
+</body></html>`;
+
+  await fetch(RESEND_ENDPOINT, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: `The Policy Place <${fromEmail}>`,
+      to: adminNotifyList(),
+      subject: `[Access request] ${input.businessName} (${input.email})`,
+      text,
+      html,
+    }),
+  });
+}
+
+export type AccessApprovedEmailInput = {
+  to: string;
+  businessName: string;
+  source: 'self_signup' | 'admin_invite';
+};
+
+export async function sendAccessApprovedEmail(
+  input: AccessApprovedEmailInput,
+): Promise<CoiEmailResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey) throw new Error('RESEND_API_KEY not set.');
+  if (!fromEmail) throw new Error('RESEND_FROM_EMAIL not set.');
+
+  const signInUrl = `${portalBase()}/login`;
+  const opener =
+    input.source === 'admin_invite'
+      ? `Brook set up a Policy Place account for ${escapeHtml(input.businessName)} so you can request certificates yourself, anytime.`
+      : `You're approved. ${escapeHtml(input.businessName)} is now set up on the Policy Place portal.`;
+
+  const text = `Hi,
+
+${input.source === 'admin_invite'
+  ? `Brook set up a Policy Place account for ${input.businessName} so you can request certificates yourself, anytime.`
+  : `You're approved. ${input.businessName} is now set up on the Policy Place portal.`}
+
+To sign in, go here and enter this email address — we'll send you a one-click link:
+${signInUrl}
+
+If you have any questions, just reply to this email — Brook will jump in.
+
+— The Policy Place
+908 Poplar St, Benton, KY 42025
+brook@yourpolicyplace.com · 270-410-2015
+`;
+
+  const html = `<!doctype html>
+<html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;color:#1f2937;">
+<p>Hi,</p>
+<p>${opener}</p>
+<p style="margin:20px 0;">
+  <a href="${escapeHtml(signInUrl)}" style="display:inline-block;background:#3d6b73;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:600;">Sign in to the portal</a>
+</p>
+<p style="font-size:13px;color:#6b7280;">Enter this email address (${escapeHtml(input.to)}) on the sign-in screen and we'll send you a one-click link.</p>
+<p>Questions? Just reply to this email — Brook will jump in.</p>
+<p style="margin-top:24px;">— The Policy Place<br/>
+908 Poplar St, Benton, KY 42025<br/>
+<a href="mailto:brook@yourpolicyplace.com">brook@yourpolicyplace.com</a> · 270-410-2015
+</p>
+</body></html>`;
+
+  return resendPost(apiKey, fromEmail, {
+    to: [input.to],
+    subject:
+      input.source === 'admin_invite'
+        ? `You're set up on the Policy Place — ${input.businessName}`
+        : `You're approved on the Policy Place — ${input.businessName}`,
+    text,
+    html,
+  });
+}
+
+export type AccessRejectedEmailInput = {
+  to: string;
+  businessName: string;
+  reason: string;
+};
+
+export async function sendAccessRejectedEmail(
+  input: AccessRejectedEmailInput,
+): Promise<CoiEmailResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey) throw new Error('RESEND_API_KEY not set.');
+  if (!fromEmail) throw new Error('RESEND_FROM_EMAIL not set.');
+
+  const reasonText = input.reason.trim() || "We weren't able to set up an account at this time.";
+  const reasonHtml = escapeHtml(reasonText).replace(/\n/g, '<br/>');
+
+  const text = `Hi,
+
+Thanks for reaching out about a Policy Place account for ${input.businessName}.
+
+${reasonText}
+
+If you think this is a mistake or want to talk it through, just reply to this email — Brook will get back to you.
+
+— The Policy Place
+908 Poplar St, Benton, KY 42025
+brook@yourpolicyplace.com · 270-410-2015
+`;
+
+  const html = `<!doctype html>
+<html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;color:#1f2937;">
+<p>Hi,</p>
+<p>Thanks for reaching out about a Policy Place account for <strong>${escapeHtml(input.businessName)}</strong>.</p>
+<p style="margin:20px 0;padding:14px 16px;border-left:3px solid #c97a4a;background:#fbf6f0;color:#1f2937;">${reasonHtml}</p>
+<p>If you think this is a mistake or want to talk it through, just reply to this email — Brook will get back to you.</p>
+<p style="margin-top:24px;">— The Policy Place<br/>
+908 Poplar St, Benton, KY 42025<br/>
+<a href="mailto:brook@yourpolicyplace.com">brook@yourpolicyplace.com</a> · 270-410-2015
+</p>
+</body></html>`;
+
+  return resendPost(apiKey, fromEmail, {
+    to: [input.to],
+    subject: `Re: Policy Place account request — ${input.businessName}`,
+    text,
+    html,
+  });
+}
+
 export async function sendCoiEmail(input: CoiEmailInput): Promise<CoiEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;

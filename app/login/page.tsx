@@ -203,7 +203,10 @@ function SignInForm({
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </button>
           <p className="caps mt-4 text-[0.6rem] font-medium text-ink-faint">
-            Authorized clients only · No account? Contact Brook.
+            No account?{' '}
+            <Link href="/signup" className="text-brand underline-offset-4 hover:underline">
+              Request access →
+            </Link>
           </p>
         </div>
       </form>

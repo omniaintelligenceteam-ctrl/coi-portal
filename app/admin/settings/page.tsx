@@ -49,12 +49,20 @@ export default async function SettingsPage() {
           Roster of every insured on file with policy counts, last-issued activity, and a way to
           manage reviewer overrides per client.
         </p>
-        <Link
-          href="/admin/settings/clients"
-          className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline-strong bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-paper-deep/40"
-        >
-          Manage clients &amp; overrides
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/admin/settings/clients"
+            className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline-strong bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-paper-deep/40"
+          >
+            Manage clients &amp; overrides
+          </Link>
+          <Link
+            href="/admin/access-requests"
+            className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline-strong bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-paper-deep/40"
+          >
+            Access requests &amp; invites
+          </Link>
+        </div>
       </section>
 
       <section className="mb-16">
