@@ -1,16 +1,10 @@
 {
   "sessions": {
-    "05278920-717a-46fb-a22b-6ca627bd88b6": {
+    "e499e477-530b-4d01-9395-94e4eae0b4ea": {
       "injectedPaths": [
         "C:\\Users\\default.DESKTOP-ON29PVN\\.claude\\skills\\omc-learned\\oios-routing-override.md"
       ],
-      "timestamp": 1779143134850
-    },
-    "74ce9fd9-1dc4-4acc-a492-b68977e3ad5d": {
-      "injectedPaths": [
-        "C:\\Users\\default.DESKTOP-ON29PVN\\.claude\\skills\\omc-learned\\oios-routing-override.md"
-      ],
-      "timestamp": 1779143296160
+      "timestamp": 1779150168869
     }
   }
 }

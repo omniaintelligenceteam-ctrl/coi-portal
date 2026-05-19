@@ -15,12 +15,14 @@ export function SectionLabel({
 
   const numberColor =
     state === 'done' ? 'text-seal' : state === 'pending' ? 'text-ink-faint' : 'text-brand';
-  const labelColor =
-    state === 'pending' ? 'text-ink-faint' : 'text-ink';
+  const labelColor = state === 'pending' ? 'text-ink-faint' : 'text-ink';
 
   return (
     <div className="flex items-baseline gap-3">
-      <span className={`font-mono text-[0.78rem] font-medium tabular-nums ${numberColor}`}>
+      <span
+        className={`font-mono text-[0.95rem] font-medium tabular-nums ${numberColor}`}
+        aria-hidden="true"
+      >
         {n}
       </span>
       <span className={`caps text-[0.72rem] font-semibold ${labelColor}`}>{children}</span>

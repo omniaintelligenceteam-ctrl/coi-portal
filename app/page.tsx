@@ -4,8 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { selectableCoverages, type DbPolicy } from '@/lib/getClientPolicies';
 import { CoverageForm, type PolicyForForm, type SavedHolder } from './CoverageForm';
 import { Header } from './components/Header';
-import { Hairline } from './components/Hairline';
-import { ShieldMark } from './components/Logo';
+import { Logo } from './components/Logo';
 
 type ClientRow = {
   id: string;
@@ -76,34 +75,38 @@ export default async function HomePage() {
 
   return (
     <>
-      <Header email={user.email} />
+      <Header email={user.email} showMyCerts />
 
-      <main className="mx-auto max-w-3xl px-6 pb-24 pt-16 sm:px-10 lg:pt-20">
-        {/* Insured identity — editorial hero card */}
-        <section className="mb-14">
-          <div className="flex items-start justify-between gap-6">
-            <div>
-              <p className="caps text-[0.65rem] font-semibold text-seal-deep">Insured</p>
-              <h1 className="font-display mt-4 text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[3rem]">
-                {client.business_name}
-              </h1>
-              {client.business_address1 && (
-                <p className="mt-4 font-mono text-sm text-ink-muted">
-                  {client.business_address1}
-                  {client.business_address2 ? `  ·  ${client.business_address2}` : ''}
-                </p>
+      <main className="mx-auto max-w-3xl px-5 pb-24 pt-8 sm:px-10 sm:pt-14 lg:pt-16">
+        {/* Insured identity — bordered editorial card with corner seal mark */}
+        <section className="relative mb-10 overflow-hidden border border-hairline bg-card px-5 py-6 sm:mb-14 sm:px-8 sm:py-8">
+          <span
+            aria-hidden="true"
+            className="caps absolute right-3 top-3 hidden text-[0.5rem] font-semibold tracking-[0.35em] text-seal/60 sm:right-4 sm:top-4 sm:block"
+          >
+            · POLICY PLACE ·
+          </span>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full border-[3px] border-seal/15 sm:-right-12 sm:-top-12 sm:h-44 sm:w-44 sm:border-[4px]"
+          />
+
+          <p className="caps text-[0.62rem] font-semibold text-seal-deep">Insured</p>
+          <h1 className="font-display mt-3 text-[2rem] font-medium leading-[1.05] tracking-display text-ink sm:mt-4 sm:text-[3rem]">
+            {client.business_name}
+          </h1>
+          {client.business_address1 && (
+            <p className="mt-3 font-mono text-[0.78rem] leading-relaxed text-ink-muted sm:mt-4 sm:text-sm">
+              <span className="block sm:inline">{client.business_address1}</span>
+              {client.business_address2 && (
+                <>
+                  <span className="hidden text-ink-faint sm:inline">{'  ·  '}</span>
+                  <span className="block sm:inline">{client.business_address2}</span>
+                </>
               )}
-            </div>
-            <Link
-              href="/certificates"
-              className="focus-ring caps mt-2 inline-flex shrink-0 items-center gap-1.5 rounded-md border border-hairline-strong bg-white px-3 py-1.5 text-[0.62rem] font-semibold text-ink hover:bg-paper-deep/40"
-            >
-              My certificates →
-            </Link>
-          </div>
+            </p>
+          )}
         </section>
-
-        <Hairline label="Request a certificate" className="mb-10" />
 
         {policiesForForm.length === 0 ? (
           <NoActivePolicies />
@@ -112,7 +115,7 @@ export default async function HomePage() {
         )}
 
         {/* Info callout */}
-        <aside className="mt-16 border-l-2 border-seal/40 pl-5">
+        <aside className="mt-14 border-l-2 border-seal/40 bg-seal-soft/30 py-4 pl-5 pr-4 sm:mt-16 sm:bg-transparent sm:py-0 sm:pr-0">
           <p className="caps text-[0.6rem] font-semibold text-seal-deep">A note from Brook</p>
           <p className="mt-2 text-sm leading-relaxed text-ink-muted">
             If your contract requires Additional Insured status, Waiver of Subrogation, or custom
@@ -123,6 +126,13 @@ export default async function HomePage() {
               href="mailto:brook@yourpolicyplace.com"
             >
               brook@yourpolicyplace.com
+            </a>{' '}
+            or{' '}
+            <a
+              className="font-medium text-brand underline-offset-4 hover:underline"
+              href="tel:+12704102015"
+            >
+              (270) 410-2015
             </a>
             .
           </p>
@@ -136,13 +146,12 @@ function NoClientFound({ email }: { email: string }) {
   return (
     <div className="flex min-h-screen flex-col">
       <div className="mx-auto w-full max-w-5xl px-6 pt-10 sm:px-10">
-        <Link href="/" className="focus-ring inline-flex items-center gap-2 -m-1 rounded p-1">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand">
-            <ShieldMark className="h-3.5 w-3.5 text-white" />
-          </span>
-          <span className="font-display text-base font-semibold tracking-tight text-ink">
-            The Policy Place
-          </span>
+        <Link
+          href="/"
+          aria-label="The Policy Place — home"
+          className="focus-ring -m-1 inline-flex rounded p-1"
+        >
+          <Logo tone="dark" />
         </Link>
       </div>
 
@@ -162,6 +171,13 @@ function NoClientFound({ email }: { email: string }) {
             href="mailto:brook@yourpolicyplace.com"
           >
             brook@yourpolicyplace.com
+          </a>{' '}
+          or{' '}
+          <a
+            className="font-medium text-brand underline-offset-4 hover:underline"
+            href="tel:+12704102015"
+          >
+            (270) 410-2015
           </a>{' '}
           and we'll get you on file.
         </p>

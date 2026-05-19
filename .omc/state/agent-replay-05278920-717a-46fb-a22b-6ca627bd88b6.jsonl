@@ -5,3 +5,5 @@
 {"t":0,"agent":"a551570","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":67731}
 {"t":0,"agent":"a359963","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":70780}
 {"t":0,"agent":"adaf451","agent_type":"compound-engineering:research:ce-web-researcher","event":"agent_stop","success":true,"duration_ms":164887}
+{"t":0,"agent":"a81a400","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"system","event":"skill_invoked","skill_name":"superpowers:using-superpowers"}

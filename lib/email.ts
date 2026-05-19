@@ -35,6 +35,12 @@ export type CoiEmailInput = {
   insuredBusinessName: string;
   /** Public URL for the holder to verify this certificate is current. */
   verifyUrl?: string;
+  /** RFC822 Message-ID of the inbound email we are replying to (no angle brackets needed; we add them). */
+  inReplyTo?: string;
+  /** Existing References header from the inbound thread. We append inReplyTo to it. */
+  references?: string;
+  /** Override the subject line. Useful when threading a reply ("Re: ..."). */
+  subjectOverride?: string;
 };
 
 export type CoiEmailResult = { id: string };
@@ -279,17 +285,65 @@ export async function sendRejectionEmail(input: RejectionEmailInput): Promise<Co
   return { id: body.id };
 }
 
+// ─── Thread-aware simple replies (no PDF attached) ──────────────────────────
+
+export type InboundReplyInput = {
+  to: string;
+  subject: string;
+  bodyHtml: string;
+  bodyText: string;
+  inReplyTo?: string;
+  references?: string;
+};
+
+export async function sendInboundReply(input: InboundReplyInput): Promise<CoiEmailResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey) throw new Error('RESEND_API_KEY not set.');
+  if (!fromEmail) throw new Error('RESEND_FROM_EMAIL not set.');
+
+  const wrap = (mid: string) => (mid.startsWith('<') ? mid : `<${mid}>`);
+  const headers: Record<string, string> = {};
+  if (input.inReplyTo) {
+    const replyId = wrap(input.inReplyTo);
+    headers['In-Reply-To'] = replyId;
+    headers['References'] = input.references ? `${input.references} ${replyId}`.trim() : replyId;
+  }
+
+  const payload: Record<string, unknown> = {
+    to: [input.to],
+    subject: input.subject,
+    html: input.bodyHtml,
+    text: input.bodyText,
+  };
+  if (Object.keys(headers).length > 0) payload.headers = headers;
+
+  return resendPost(apiKey, fromEmail, payload);
+}
+
 export async function sendCoiEmail(input: CoiEmailInput): Promise<CoiEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   if (!apiKey) throw new Error('RESEND_API_KEY not set.');
   if (!fromEmail) throw new Error('RESEND_FROM_EMAIL not set.');
 
-  const payload = {
-    from: `The Policy Place <${fromEmail}>`,
+  // RFC822 headers must be wrapped in angle brackets if not already.
+  const wrap = (mid: string) => (mid.startsWith('<') ? mid : `<${mid}>`);
+  const headers: Record<string, string> = {};
+  if (input.inReplyTo) {
+    const replyId = wrap(input.inReplyTo);
+    headers['In-Reply-To'] = replyId;
+    headers['References'] = input.references ? `${input.references} ${replyId}`.trim() : replyId;
+  }
+
+  const subject =
+    input.subjectOverride ??
+    `Certificate of Insurance ${input.certNumber} — ${input.insuredBusinessName}`;
+
+  const payload: Record<string, unknown> = {
     to: [input.to],
     cc: input.cc.length ? input.cc : undefined,
-    subject: `Certificate of Insurance ${input.certNumber} — ${input.insuredBusinessName}`,
+    subject,
     html: buildHtml(input),
     text: buildText(input),
     attachments: [
@@ -299,23 +353,7 @@ export async function sendCoiEmail(input: CoiEmailInput): Promise<CoiEmailResult
       },
     ],
   };
+  if (Object.keys(headers).length > 0) payload.headers = headers;
 
-  const res = await fetch(RESEND_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Resend send failed: ${res.status} ${errText}`);
-  }
-  const body = (await res.json()) as { id?: string };
-  if (!body.id) {
-    throw new Error('Resend returned no id field');
-  }
-  return { id: body.id };
+  return resendPost(apiKey, fromEmail, payload);
 }

@@ -207,15 +207,39 @@
   "hotPaths": [
     {
       "path": "lib\\coords.ts",
-      "accessCount": 16,
-      "lastAccessed": 1779146167388,
+      "accessCount": 41,
+      "lastAccessed": 1779151440277,
+      "type": "file"
+    },
+    {
+      "path": "app\\page.tsx",
+      "accessCount": 21,
+      "lastAccessed": 1779151084548,
       "type": "file"
     },
     {
       "path": "lib\\fillAcord25.ts",
-      "accessCount": 14,
-      "lastAccessed": 1779146648175,
+      "accessCount": 17,
+      "lastAccessed": 1779151090061,
       "type": "file"
+    },
+    {
+      "path": "app\\CoverageForm.tsx",
+      "accessCount": 16,
+      "lastAccessed": 1779151084747,
+      "type": "file"
+    },
+    {
+      "path": "lib\\email.ts",
+      "accessCount": 15,
+      "lastAccessed": 1779151700368,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 12,
+      "lastAccessed": 1779150341660,
+      "type": "directory"
     },
     {
       "path": "app\\admin\\queue\\[id]\\page.tsx",
@@ -224,15 +248,27 @@
       "type": "file"
     },
     {
-      "path": "app\\page.tsx",
+      "path": "app\\result\\[certNumber]\\page.tsx",
       "accessCount": 11,
-      "lastAccessed": 1779145769193,
+      "lastAccessed": 1779151090378,
+      "type": "file"
+    },
+    {
+      "path": "app\\layout.tsx",
+      "accessCount": 10,
+      "lastAccessed": 1779148733343,
+      "type": "file"
+    },
+    {
+      "path": "app\\login\\page.tsx",
+      "accessCount": 10,
+      "lastAccessed": 1779149056761,
       "type": "file"
     },
     {
       "path": "package.json",
-      "accessCount": 9,
-      "lastAccessed": 1779145394544,
+      "accessCount": 10,
+      "lastAccessed": 1779151078606,
       "type": "file"
     },
     {
@@ -242,33 +278,33 @@
       "type": "file"
     },
     {
-      "path": "app\\layout.tsx",
+      "path": "app",
       "accessCount": 9,
-      "lastAccessed": 1779145909409,
-      "type": "file"
+      "lastAccessed": 1779148752500,
+      "type": "directory"
     },
     {
-      "path": "lib\\email.ts",
+      "path": "app\\components\\Header.tsx",
       "accessCount": 9,
-      "lastAccessed": 1779146754639,
-      "type": "file"
-    },
-    {
-      "path": "app\\result\\[certNumber]\\page.tsx",
-      "accessCount": 8,
-      "lastAccessed": 1779145168360,
-      "type": "file"
-    },
-    {
-      "path": "app\\CoverageForm.tsx",
-      "accessCount": 8,
-      "lastAccessed": 1779145674779,
+      "lastAccessed": 1779149061425,
       "type": "file"
     },
     {
       "path": "app\\api\\generate-coi\\route.ts",
+      "accessCount": 9,
+      "lastAccessed": 1779151085276,
+      "type": "file"
+    },
+    {
+      "path": "lib\\types.ts",
       "accessCount": 8,
-      "lastAccessed": 1779146733119,
+      "lastAccessed": 1779151085128,
+      "type": "file"
+    },
+    {
+      "path": "lib\\coiInputBuilder.ts",
+      "accessCount": 8,
+      "lastAccessed": 1779151567302,
       "type": "file"
     },
     {
@@ -278,21 +314,15 @@
       "type": "file"
     },
     {
-      "path": "lib\\types.ts",
+      "path": "assets\\template-anchors.json",
       "accessCount": 7,
-      "lastAccessed": 1779146615113,
+      "lastAccessed": 1779150656032,
       "type": "file"
     },
     {
-      "path": "app",
-      "accessCount": 6,
-      "lastAccessed": 1779143372565,
-      "type": "directory"
-    },
-    {
-      "path": "app\\login\\page.tsx",
-      "accessCount": 6,
-      "lastAccessed": 1779143739541,
+      "path": "lib\\sendApprovedCert.ts",
+      "accessCount": 7,
+      "lastAccessed": 1779151495951,
       "type": "file"
     },
     {
@@ -308,39 +338,21 @@
       "type": "file"
     },
     {
-      "path": "",
+      "path": "app\\globals.css",
       "accessCount": 6,
-      "lastAccessed": 1779146560828,
-      "type": "directory"
-    },
-    {
-      "path": "lib\\coiInputBuilder.ts",
-      "accessCount": 6,
-      "lastAccessed": 1779146631320,
+      "lastAccessed": 1779148667267,
       "type": "file"
     },
     {
-      "path": "app\\components\\Header.tsx",
-      "accessCount": 5,
-      "lastAccessed": 1779144930380,
+      "path": "lib\\anchors.ts",
+      "accessCount": 6,
+      "lastAccessed": 1779150835820,
       "type": "file"
     },
     {
       "path": "scripts\\rasterizeTemplate.ts",
       "accessCount": 5,
       "lastAccessed": 1779146346888,
-      "type": "file"
-    },
-    {
-      "path": "lib\\sendApprovedCert.ts",
-      "accessCount": 5,
-      "lastAccessed": 1779146759223,
-      "type": "file"
-    },
-    {
-      "path": "lib\\anchors.ts",
-      "accessCount": 4,
-      "lastAccessed": 1779144934155,
       "type": "file"
     },
     {
@@ -362,21 +374,33 @@
       "type": "file"
     },
     {
-      "path": "README.md",
-      "accessCount": 3,
-      "lastAccessed": 1779143382514,
+      "path": "app\\components\\Logo.tsx",
+      "accessCount": 4,
+      "lastAccessed": 1779149276910,
       "type": "file"
+    },
+    {
+      "path": "scripts\\calibrate.ts",
+      "accessCount": 4,
+      "lastAccessed": 1779150629218,
+      "type": "file"
+    },
+    {
+      "path": "lib",
+      "accessCount": 4,
+      "lastAccessed": 1779151105671,
+      "type": "directory"
     },
     {
       "path": "lib\\reviewerAgent.ts",
-      "accessCount": 3,
-      "lastAccessed": 1779143395210,
+      "accessCount": 4,
+      "lastAccessed": 1779151705586,
       "type": "file"
     },
     {
-      "path": "app\\globals.css",
+      "path": "README.md",
       "accessCount": 3,
-      "lastAccessed": 1779143589001,
+      "lastAccessed": 1779143382514,
       "type": "file"
     },
     {
@@ -393,15 +417,9 @@
     },
     {
       "path": "tests\\fixtures\\sheffer.ts",
-      "accessCount": 2,
-      "lastAccessed": 1779143204723,
+      "accessCount": 3,
+      "lastAccessed": 1779150343983,
       "type": "file"
-    },
-    {
-      "path": "lib",
-      "accessCount": 2,
-      "lastAccessed": 1779143218758,
-      "type": "directory"
     },
     {
       "path": "supabase\\migrations\\20260518_0001_coi_schema.sql",
@@ -425,12 +443,6 @@
       "path": "lib\\getClientPolicies.ts",
       "accessCount": 2,
       "lastAccessed": 1779143415576,
-      "type": "file"
-    },
-    {
-      "path": "scripts\\calibrate.ts",
-      "accessCount": 2,
-      "lastAccessed": 1779143424180,
       "type": "file"
     },
     {
@@ -464,12 +476,6 @@
       "type": "file"
     },
     {
-      "path": "assets\\template-anchors.json",
-      "accessCount": 1,
-      "lastAccessed": 1779143191848,
-      "type": "file"
-    },
-    {
       "path": "tests",
       "accessCount": 1,
       "lastAccessed": 1779143219320,
@@ -497,12 +503,6 @@
       "path": "app\\components\\PaperTexture.tsx",
       "accessCount": 1,
       "lastAccessed": 1779143619539,
-      "type": "file"
-    },
-    {
-      "path": "app\\components\\Logo.tsx",
-      "accessCount": 1,
-      "lastAccessed": 1779143628547,
       "type": "file"
     }
   ],

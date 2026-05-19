@@ -188,8 +188,10 @@ export function CoverageForm({
 
   const showSuggest = suggestOpen && filteredSuggestions.length > 0;
 
+  const quickHolders = savedHolders.slice(0, 3);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-14 pb-28 sm:pb-0">
+    <form onSubmit={handleSubmit} className="space-y-10 pb-28 sm:space-y-14 sm:pb-0">
       {/* Restore banners */}
       <AnimatePresence>
         {(showPrefillBanner || showDraftBanner) && (
@@ -253,9 +255,30 @@ export function CoverageForm({
       <section>
         <SectionLabel number={2}>Certificate Holder</SectionLabel>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-          The company or person this certificate is issued to. This is the name your contract
-          requires the certificate to be made out to.
+          The company or person this certificate is issued to — the name your contract requires it
+          to be made out to.
         </p>
+
+        {/* Quick-pick lane: recent holders for one-tap fill on mobile */}
+        {quickHolders.length > 0 && (
+          <div className="mt-5">
+            <p className="caps mb-2 text-[0.6rem] font-medium text-ink-faint">Recent holders</p>
+            <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+              {quickHolders.map((h, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => applyHolder(h)}
+                  className="focus-ring group inline-flex shrink-0 max-w-[15rem] items-center gap-2 rounded-full border border-hairline-strong bg-white px-3 py-2 text-left text-[0.78rem] text-ink transition-colors hover:border-brand hover:bg-brand-soft/50"
+                  aria-label={`Use ${h.name}`}
+                >
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-seal" aria-hidden="true" />
+                  <span className="truncate font-medium">{h.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 space-y-6">
           {/* Holder name with saved-holder suggest dropdown */}
@@ -266,7 +289,8 @@ export function CoverageForm({
               required
               value={holderName}
               onChange={setHolderName}
-              placeholder="Sheffer Construction & Development LLC"
+              placeholder="Name on the contract"
+              autoComplete="organization"
               onFocus={() => setSuggestOpen(true)}
               onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
             />
@@ -304,18 +328,20 @@ export function CoverageForm({
 
           <UnderlinedField
             id="holder-addr1"
-            label="Address line 1"
+            label="Street address"
             required
             value={holderAddress1}
             onChange={setHolderAddress1}
-            placeholder="1425 N. Royal Ave."
+            placeholder="123 Main Street"
+            autoComplete="address-line1"
           />
           <UnderlinedField
             id="holder-addr2"
-            label="Address line 2"
+            label="City, State ZIP"
             value={holderAddress2}
             onChange={setHolderAddress2}
-            placeholder="Evansville, IN 47711"
+            placeholder="City, ST 00000"
+            autoComplete="address-line2"
           />
         </div>
       </section>
@@ -327,11 +353,21 @@ export function CoverageForm({
       )}
 
       {/* Submit — sticky on mobile, inline on sm+ */}
-      <section className="sticky bottom-0 -mx-6 border-t border-hairline bg-paper/95 px-6 pb-safe pb-4 pt-4 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-2 sm:backdrop-blur-none">
+      <section
+        className="sticky bottom-0 -mx-6 bg-paper/95 px-6 pb-safe pt-3 backdrop-blur-md sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-2 sm:backdrop-blur-none"
+        style={{ boxShadow: 'var(--shadow-sticky)' }}
+      >
+        {/* Trust microcopy sits above the button on mobile so the button is the last thing under the thumb */}
+        <p className="caps mb-3 flex items-center gap-1.5 text-[0.6rem] font-medium text-ink-faint sm:order-2 sm:mb-0 sm:mt-4">
+          <ShieldGlyph className="h-3 w-3 text-seal" />
+          Reviewed by a licensed agent before issue
+        </p>
         <button
           type="submit"
           disabled={state.kind === 'submitting'}
-          className="focus-ring group inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-6 py-4 text-sm font-semibold text-white transition-all hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[260px]"
+          aria-busy={state.kind === 'submitting'}
+          aria-disabled={state.kind === 'submitting'}
+          className="focus-ring group inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-6 py-4 text-[0.95rem] font-semibold text-white shadow-sm transition-all hover:bg-brand-deep active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 sm:order-1 sm:w-auto sm:min-w-[280px] sm:text-sm"
         >
           {state.kind === 'submitting' ? (
             <>
@@ -345,9 +381,6 @@ export function CoverageForm({
             </>
           )}
         </button>
-        <p className="caps mt-4 text-[0.6rem] font-medium text-ink-faint">
-          Reviewed by a licensed agent before any certificate is issued.
-        </p>
       </section>
     </form>
   );
@@ -365,18 +398,19 @@ function CoverageRow({
   return (
     <li>
       <label
-        className={`group relative flex cursor-pointer items-start gap-5 py-5 transition-colors ${
-          isSelected ? 'bg-paper-deep/40' : 'hover:bg-paper-deep/30'
+        className={`group relative flex cursor-pointer items-start gap-4 py-5 pl-3 pr-2 transition-colors sm:gap-5 sm:pl-4 ${
+          isSelected ? 'bg-paper-deep/50' : 'hover:bg-paper-deep/30'
         }`}
       >
         <span
           aria-hidden="true"
-          className={`absolute left-[-1px] top-5 h-[calc(100%-2.5rem)] w-[2px] transition-colors ${
+          className={`absolute left-0 top-5 h-[calc(100%-2.5rem)] w-[2px] transition-colors ${
             isSelected ? 'bg-brand' : 'bg-transparent'
           }`}
         />
 
-        <span className="relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
+        {/* 44×44 tap target wrapping the visible 22×22 checkbox */}
+        <span className="tap-target relative -m-2 flex shrink-0 items-center justify-center p-2">
           <input
             type="checkbox"
             checked={isSelected}
@@ -384,7 +418,7 @@ function CoverageRow({
             className="sr-only"
           />
           <span
-            className={`flex h-5 w-5 items-center justify-center rounded-[3px] border transition-all ${
+            className={`flex h-[22px] w-[22px] items-center justify-center rounded-[4px] border transition-all ${
               isSelected
                 ? 'border-brand bg-brand'
                 : 'border-hairline-strong bg-white group-hover:border-ink-muted'
@@ -397,7 +431,7 @@ function CoverageRow({
                   animate={{ pathLength: 1, opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25, ease: 'easeOut' }}
-                  className="h-3 w-3 text-white"
+                  className="h-3.5 w-3.5 text-white"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth={3}
@@ -414,24 +448,32 @@ function CoverageRow({
           </span>
         </span>
 
-        <div className="flex-1 min-w-0 pl-1">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <div className="min-w-0 flex-1">
+          {/* Row 1 — coverage name + type chip */}
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <span className="font-display text-[1.05rem] font-semibold tracking-tight text-ink">
               {TYPE_LABEL[policy.type]}
             </span>
-            <span className="caps text-[0.6rem] font-medium text-ink-faint">{policy.type}</span>
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.78rem] text-ink-muted">
-            <span>{policy.insurerName}</span>
-            <span className="text-hairline-strong">·</span>
-            <MonoTag size="sm" tone="subtle">{policy.policyNumber}</MonoTag>
-            <span className="text-hairline-strong">·</span>
-            <span className="font-mono">
-              {formatDate(policy.effDate)} → {formatDate(policy.expDate)}
+            <span className="caps inline-flex items-center rounded-[3px] bg-paper-deep px-1.5 py-0.5 text-[0.58rem] font-semibold text-ink-muted">
+              {policy.type}
             </span>
           </div>
 
+          {/* Row 2 — insurer (own line on mobile) */}
+          <p className="mt-2 text-[0.82rem] text-ink-muted">{policy.insurerName}</p>
+
+          {/* Row 3 — policy # + date range (own line, never bullet-wraps weird) */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.74rem]">
+            <MonoTag size="sm" tone="subtle">
+              {policy.policyNumber}
+            </MonoTag>
+            <span className="font-mono text-ink-muted">
+              {formatDate(policy.effDate)} <span className="text-ink-faint">→</span>{' '}
+              {formatDate(policy.expDate)}
+            </span>
+          </div>
+
+          {/* Row 4 — endorsement chips on their own line */}
           {(policy.addlInsuredBlanket || policy.subrogationWaived || policy.description) && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {policy.addlInsuredBlanket && (
@@ -466,6 +508,7 @@ function UnderlinedField({
   value,
   onChange,
   placeholder,
+  autoComplete,
   onFocus,
   onBlur,
 }: {
@@ -475,6 +518,7 @@ function UnderlinedField({
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  autoComplete?: string;
   onFocus?: () => void;
   onBlur?: () => void;
 }) {
@@ -482,12 +526,12 @@ function UnderlinedField({
     <div>
       <label
         htmlFor={id}
-        className="caps flex items-center gap-2 text-[0.62rem] font-semibold text-ink-muted"
+        className="caps flex items-baseline gap-1 text-[0.62rem] font-semibold text-ink-muted"
       >
         <span>{label}</span>
         {required && (
-          <span className="text-[0.55rem] font-medium text-danger" aria-hidden="true">
-            required
+          <span className="text-danger" aria-label="required">
+            *
           </span>
         )}
       </label>
@@ -500,8 +544,8 @@ function UnderlinedField({
         placeholder={placeholder}
         onFocus={onFocus}
         onBlur={onBlur}
-        autoComplete="off"
-        className="field-underline mt-2 block w-full text-base text-ink"
+        autoComplete={autoComplete ?? 'off'}
+        className="field-underline mt-1 block w-full text-ink"
       />
     </div>
   );
@@ -590,6 +634,19 @@ function ArrowRight({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+    </svg>
+  );
+}
+
+function ShieldGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M12 2l8 3v6c0 5-3.5 9.3-8 11-4.5-1.7-8-6-8-11V5l8-3z" />
     </svg>
   );
 }

@@ -126,9 +126,9 @@ export const COORDS = {
   // CONTACT column — each sub-row anchors to its own label
   // ====================================================================
   CONTACT_NAME:  declare('CONTACT_NAME',  { anchor: 'NAME:', side: 'right', dx: 15, dy: 0, size: 7.5, maxWidth: 220 }),
-  CONTACT_PHONE: declare('CONTACT_PHONE', { anchor: 'PHONE', side: 'right', dx: 13, dy: 0, size: 7.5, maxWidth: 100 }),
-  CONTACT_FAX:   declare('CONTACT_FAX',   { anchor: 'FAX',   side: 'right', dx:  4, dy: -0.6, size: 7.5, maxWidth: 75 }),
-  CONTACT_EMAIL: declare('CONTACT_EMAIL', { anchor: 'E-MAIL', side: 'right', dx: 14, dy: 0, size: 7.5, maxWidth: 230 }),
+  CONTACT_PHONE: declare('CONTACT_PHONE', { anchor: 'PHONE', side: 'right', dx: 13, dy: -2.5, size: 7.5, maxWidth: 100 }),
+  CONTACT_FAX:   declare('CONTACT_FAX',   { anchor: 'FAX',   side: 'right', dx:  4, dy: -2.5, size: 7.5, maxWidth: 75 }),
+  CONTACT_EMAIL: declare('CONTACT_EMAIL', { anchor: 'E-MAIL', side: 'right', dx: 14, dy: -2.5, size: 7.5, maxWidth: 230 }),
 
   // ====================================================================
   // INSURERS block — anchored to each insurer's label
@@ -166,19 +166,19 @@ export const COORDS = {
   // Limits anchor to each limit-label individually
   // Checkboxes: X marks sit left of their labels (the form's checkbox glyphs).
   // ====================================================================
-  GL_CHK_TYPE:           declare('GL_CHK_TYPE',         { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'left', dx: -11, dy: -0.5, size: 9 }),
-  GL_CHK_OCCUR:          declare('GL_CHK_OCCUR',        { anchor: 'OCCUR',                        side: 'left', dx: -10, dy: -0.5, size: 9, nearY: 470 }),
-  GL_CHK_AGG_POLICY:     declare('GL_CHK_AGG_POLICY',   { anchor: 'POLICY',                       side: 'left', dx: -11, dy: -0.5, size: 9, nearY: 422 }),
+  GL_CHK_TYPE:           declare('GL_CHK_TYPE',         { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'left', dx: -8, dy: 0, size: 9 }),
+  GL_CHK_OCCUR:          declare('GL_CHK_OCCUR',        { anchor: 'OCCUR',                        side: 'left', dx: -8, dy: 0, size: 9, nearY: 470 }),
+  GL_CHK_AGG_POLICY:     declare('GL_CHK_AGG_POLICY',   { anchor: 'POLICY',                       side: 'left', dx: -8, dy: 0, size: 9, nearY: 422 }),
   GL_INSR_LTR:           declare('GL_INSR_LTR',      { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx:  28, dy: -6, size: 7.5 }),
   GL_POLICY_NUMBER:      declare('GL_POLICY_NUMBER', { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx: 223, dy: -6, size: 7.5, maxWidth: 92 }),
   GL_EFF_DATE:           declare('GL_EFF_DATE',      { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx: 322, dy: -6, size: 7.5 }),
   GL_EXP_DATE:           declare('GL_EXP_DATE',      { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx: 368, dy: -6, size: 7.5 }),
-  GL_LIMIT_EACH_OCC:     declare('GL_LIMIT_EACH_OCC',     { anchor: 'EACH OCCURRENCE',         side: 'right', dx: 72.5, dy: 0, size: 7.5, maxWidth: 45, nearY: 482 }),
-  GL_LIMIT_DAMAGE_RENT:  declare('GL_LIMIT_DAMAGE_RENT',  { anchor: 'DAMAGE TO RENTED',        side: 'right', dx: 71.4, dy: 0, size: 7.5, maxWidth: 45 }),
-  GL_LIMIT_MED_EXP:      declare('GL_LIMIT_MED_EXP',      { anchor: 'MED EXP (Any one person)',side: 'right', dx: 58.9, dy: 0, size: 7.5, maxWidth: 45 }),
-  GL_LIMIT_PERS_ADV_INJ: declare('GL_LIMIT_PERS_ADV_INJ', { anchor: 'PERSONAL & ADV INJURY',   side: 'right', dx: 58.2, dy: 0, size: 7.5, maxWidth: 45 }),
-  GL_LIMIT_GEN_AGG:      declare('GL_LIMIT_GEN_AGG',      { anchor: 'GENERAL AGGREGATE',       side: 'right', dx: 65.4, dy: 0, size: 7.5, maxWidth: 45 }),
-  GL_LIMIT_PROD_COMP_OP: declare('GL_LIMIT_PROD_COMP_OP', { anchor: 'PRODUCTS - COMP/OP AGG',  side: 'right', dx: 51.4, dy: 0, size: 7.5, maxWidth: 45 }),
+  GL_LIMIT_EACH_OCC:     declare('GL_LIMIT_EACH_OCC',     { anchor: 'EACH OCCURRENCE',         side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60, nearY: 482 }),
+  GL_LIMIT_DAMAGE_RENT:  declare('GL_LIMIT_DAMAGE_RENT',  { anchor: 'DAMAGE TO RENTED',        side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  GL_LIMIT_MED_EXP:      declare('GL_LIMIT_MED_EXP',      { anchor: 'MED EXP (Any one person)',side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  GL_LIMIT_PERS_ADV_INJ: declare('GL_LIMIT_PERS_ADV_INJ', { anchor: 'PERSONAL & ADV INJURY',   side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  GL_LIMIT_GEN_AGG:      declare('GL_LIMIT_GEN_AGG',      { anchor: 'GENERAL AGGREGATE',       side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  GL_LIMIT_PROD_COMP_OP: declare('GL_LIMIT_PROD_COMP_OP', { anchor: 'PRODUCTS - COMP/OP AGG',  side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
 
   // ====================================================================
   // AUTO row
@@ -187,10 +187,10 @@ export const COORDS = {
   AUTO_POLICY_NUMBER:     declare('AUTO_POLICY_NUMBER', { anchor: 'AUTOMOBILE LIABILITY', side: 'row', dx: 223, dy: -6, size: 7.5, maxWidth: 92 }),
   AUTO_EFF_DATE:          declare('AUTO_EFF_DATE',      { anchor: 'AUTOMOBILE LIABILITY', side: 'row', dx: 322, dy: -6, size: 7.5 }),
   AUTO_EXP_DATE:          declare('AUTO_EXP_DATE',      { anchor: 'AUTOMOBILE LIABILITY', side: 'row', dx: 368, dy: -6, size: 7.5 }),
-  AUTO_LIMIT_CSL:         declare('AUTO_LIMIT_CSL',         { anchor: 'COMBINED SINGLE LIMIT',         side: 'right', dx: 60.8, dy: 0, size: 7.5, maxWidth: 45 }),
-  AUTO_LIMIT_BI_PER_PERS: declare('AUTO_LIMIT_BI_PER_PERS', { anchor: 'BODILY INJURY (Per person)',    side: 'right', dx: 53.1, dy: 0, size: 7.5, maxWidth: 45 }),
-  AUTO_LIMIT_BI_PER_ACC:  declare('AUTO_LIMIT_BI_PER_ACC',  { anchor: 'BODILY INJURY (Per accident)',  side: 'right', dx: 49.0, dy: 0, size: 7.5, maxWidth: 45 }),
-  AUTO_LIMIT_PD:          declare('AUTO_LIMIT_PD',          { anchor: 'PROPERTY DAMAGE',               side: 'right', dx: 73.2, dy: 0, size: 7.5, maxWidth: 45 }),
+  AUTO_LIMIT_CSL:         declare('AUTO_LIMIT_CSL',         { anchor: 'COMBINED SINGLE LIMIT',         side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  AUTO_LIMIT_BI_PER_PERS: declare('AUTO_LIMIT_BI_PER_PERS', { anchor: 'BODILY INJURY (Per person)',    side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  AUTO_LIMIT_BI_PER_ACC:  declare('AUTO_LIMIT_BI_PER_ACC',  { anchor: 'BODILY INJURY (Per accident)',  side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  AUTO_LIMIT_PD:          declare('AUTO_LIMIT_PD',          { anchor: 'PROPERTY DAMAGE',               side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
 
   // ====================================================================
   // UMBRELLA row — EACH OCCURRENCE has a GL duplicate; use nearY to pin
@@ -199,21 +199,21 @@ export const COORDS = {
   UMB_POLICY_NUMBER:  declare('UMB_POLICY_NUMBER', { anchor: 'UMBRELLA LIAB', side: 'row', dx: 223, dy: -6, size: 7.5, maxWidth: 92 }),
   UMB_EFF_DATE:       declare('UMB_EFF_DATE',      { anchor: 'UMBRELLA LIAB', side: 'row', dx: 322, dy: -6, size: 7.5 }),
   UMB_EXP_DATE:       declare('UMB_EXP_DATE',      { anchor: 'UMBRELLA LIAB', side: 'row', dx: 368, dy: -6, size: 7.5 }),
-  UMB_LIMIT_EACH_OCC: declare('UMB_LIMIT_EACH_OCC',{ anchor: 'EACH OCCURRENCE', side: 'right', dx: 72.5, dy: 0, size: 7.5, maxWidth: 45, nearY: 338 }),
-  UMB_LIMIT_AGG:      declare('UMB_LIMIT_AGG',     { anchor: 'AGGREGATE',       side: 'right', dx: 96.0, dy: 0, size: 7.5, maxWidth: 45 }),
+  UMB_LIMIT_EACH_OCC: declare('UMB_LIMIT_EACH_OCC',{ anchor: 'EACH OCCURRENCE', side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60, nearY: 338 }),
+  UMB_LIMIT_AGG:      declare('UMB_LIMIT_AGG',     { anchor: 'AGGREGATE',       side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
 
   // ====================================================================
   // WC row — PER STATUTE checkbox + Y/N officer-excluded character
   // ====================================================================
-  WC_CHK_PER_STATUTE:   declare('WC_CHK_PER_STATUTE', { anchor: 'PER', side: 'left', dx: -10, dy: -0.5, size: 9 }),
-  WC_OFFICER_YN:        declare('WC_OFFICER_YN', { anchor: 'WC_OFFICER_BOX', side: 'inside', dx: 6, dy: 5, size: 8, validate: z.enum(['Y', 'N']) }),
+  WC_CHK_PER_STATUTE:   declare('WC_CHK_PER_STATUTE', { anchor: 'PER', side: 'left', dx: -8, dy: 0, size: 9 }),
+  WC_OFFICER_YN:        declare('WC_OFFICER_YN', { anchor: 'WC_OFFICER_BOX', side: 'inside', dx: 3.5, dy: 3, size: 8, validate: z.enum(['Y', 'N']) }),
   WC_INSR_LTR:          declare('WC_INSR_LTR',      { anchor: 'WORKERS COMPENSATION', side: 'row', dx:  28, dy: -9, size: 7.5 }),
   WC_POLICY_NUMBER:     declare('WC_POLICY_NUMBER', { anchor: 'WORKERS COMPENSATION', side: 'row', dx: 223, dy: -9, size: 7.5, maxWidth: 92 }),
   WC_EFF_DATE:          declare('WC_EFF_DATE',      { anchor: 'WORKERS COMPENSATION', side: 'row', dx: 322, dy: -9, size: 7.5 }),
   WC_EXP_DATE:          declare('WC_EXP_DATE',      { anchor: 'WORKERS COMPENSATION', side: 'row', dx: 368, dy: -9, size: 7.5 }),
-  WC_LIMIT_EACH_ACC:    declare('WC_LIMIT_EACH_ACC',    { anchor: 'E.L. EACH ACCIDENT',       side: 'right', dx: 72.4, dy: 0, size: 7.5, maxWidth: 45 }),
-  WC_LIMIT_DIS_EA_EMPL: declare('WC_LIMIT_DIS_EA_EMPL', { anchor: 'E.L. DISEASE - EA EMPLOYEE', side: 'right', dx: 47.7, dy: 0, size: 7.5, maxWidth: 45 }),
-  WC_LIMIT_DIS_POL_LIM: declare('WC_LIMIT_DIS_POL_LIM', { anchor: 'E.L. DISEASE - POLICY LIMIT', side: 'right', dx: 51.1, dy: 0, size: 7.5, maxWidth: 45 }),
+  WC_LIMIT_EACH_ACC:    declare('WC_LIMIT_EACH_ACC',    { anchor: 'E.L. EACH ACCIDENT',         side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  WC_LIMIT_DIS_EA_EMPL: declare('WC_LIMIT_DIS_EA_EMPL', { anchor: 'E.L. DISEASE - EA EMPLOYEE', side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  WC_LIMIT_DIS_POL_LIM: declare('WC_LIMIT_DIS_POL_LIM', { anchor: 'E.L. DISEASE - POLICY LIMIT', side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
 
   // ====================================================================
   // OTHER row (bottom blank, below WC) — anchored to nearest WC limit label
@@ -225,7 +225,7 @@ export const COORDS = {
   OTHER_POLICY_NUMBER: declare('OTHER_POLICY_NUMBER', { anchor: 'E.L. DISEASE - POLICY LIMIT', side: 'row', dx: 223, dy: -26, size: 7.5, maxWidth: 92 }),
   OTHER_EFF_DATE:      declare('OTHER_EFF_DATE',      { anchor: 'E.L. DISEASE - POLICY LIMIT', side: 'row', dx: 322, dy: -26, size: 7.5 }),
   OTHER_EXP_DATE:      declare('OTHER_EXP_DATE',      { anchor: 'E.L. DISEASE - POLICY LIMIT', side: 'row', dx: 368, dy: -26, size: 7.5 }),
-  OTHER_LIMIT:         declare('OTHER_LIMIT',         { anchor: 'E.L. DISEASE - POLICY LIMIT', side: 'row', dx: 562, dy: -26, size: 7.5, maxWidth: 45 }),
+  OTHER_LIMIT:         declare('OTHER_LIMIT',         { anchor: 'E.L. DISEASE - POLICY LIMIT', side: 'row', dx: 523, dy: -26, size: 7.5, maxWidth: 60 }),
 
   // ====================================================================
   // DESCRIPTION OF OPERATIONS — region-anchored to DESC_BOX. Text origin

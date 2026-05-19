@@ -65,6 +65,7 @@
   --shadow-card: 0 1px 0 rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.04);
   --shadow-lift: 0 1px 0 rgb(0 0 0 / 0.02), 0 8px 24px -8px rgb(26 31 46 / 0.12);
   --shadow-seal: 0 0 0 1px var(--color-seal) inset, 0 1px 0 rgb(0 0 0 / 0.04);
+  --shadow-sticky: 0 -1px 0 var(--color-hairline), 0 -8px 16px -10px rgb(26 31 46 / 0.08);
 }
 
 /* ------------------------------------------------------------------
@@ -117,7 +118,11 @@ a {
   border-bottom: 1px solid var(--color-hairline-strong);
   background: transparent;
   border-radius: 0;
-  padding: 0.625rem 0;
+  /* 16px font on mobile defeats iOS Safari focus-zoom; sm+ scales back down. */
+  font-size: 1rem;
+  line-height: 1.4;
+  padding: 0.75rem 0;
+  min-height: 2.75rem;
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 .field-underline:focus {
@@ -127,6 +132,17 @@ a {
 }
 .field-underline::placeholder {
   color: var(--color-ink-faint);
+}
+
+/* Minimum 44×44 touch target (iOS HIG / WCAG 2.5.5). */
+.tap-target {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+
+/* Safe-area aware bottom padding for sticky bars on iPhone notch devices. */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
 }
 
 /* Focus ring — refined */

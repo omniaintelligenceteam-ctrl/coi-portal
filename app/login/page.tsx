@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { createClient } from '@/lib/supabase/browser';
-import { ShieldMark } from '../components/Logo';
+import { Logo } from '../components/Logo';
 import { Hairline } from '../components/Hairline';
 
 export default function LoginPage() {
@@ -33,13 +33,12 @@ export default function LoginPage() {
     <div className="relative flex min-h-screen flex-col">
       {/* Quiet wordmark at top — anchors the page */}
       <div className="mx-auto w-full max-w-5xl px-6 pt-10 sm:px-10">
-        <Link href="/" className="focus-ring inline-flex items-center gap-2 -m-1 rounded p-1">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand">
-            <ShieldMark className="h-3.5 w-3.5 text-white" />
-          </span>
-          <span className="font-display text-base font-semibold tracking-tight text-ink">
-            The Policy Place
-          </span>
+        <Link
+          href="/"
+          aria-label="The Policy Place — home"
+          className="focus-ring -m-1 inline-flex rounded p-1"
+        >
+          <Logo tone="dark" />
         </Link>
       </div>
 
@@ -84,9 +83,25 @@ export default function LoginPage() {
 
       <footer className="mx-auto w-full max-w-5xl px-6 pb-10 sm:px-10">
         <Hairline />
-        <p className="caps mt-5 text-[0.65rem] font-medium text-ink-faint">
-          The Policy Place · Est. Kentucky · 908 Poplar St · Benton KY 42025
-        </p>
+        <div className="mt-5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="caps text-[0.65rem] font-medium text-ink-faint">
+            The Policy Place · 908 Poplar St · Benton KY 42025
+          </p>
+          <p className="caps text-[0.65rem] font-medium text-ink-faint">
+            <a href="tel:+12704102015" className="hover:text-ink">
+              (270) 410-2015
+            </a>
+            <span className="mx-2 text-ink-faint/60">·</span>
+            <a
+              href="https://www.yourpolicyplace.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-ink"
+            >
+              yourpolicyplace.com
+            </a>
+          </p>
+        </div>
       </footer>
     </div>
   );

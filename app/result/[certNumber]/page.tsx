@@ -215,6 +215,13 @@ export default async function ResultPage({ params }: PageProps) {
             >
               brook@yourpolicyplace.com
             </a>{' '}
+            or{' '}
+            <a
+              className="font-medium text-brand underline-offset-4 hover:underline"
+              href="tel:+12704102015"
+            >
+              (270) 410-2015
+            </a>{' '}
             with this reference number and we'll sort it.
           </p>
         </div>

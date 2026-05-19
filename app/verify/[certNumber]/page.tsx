@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { Logo } from '@/app/components/Logo';
 
 // Intentionally public — no auth. Only exposes non-sensitive cert metadata.
 export const dynamic = 'force-dynamic';
@@ -74,14 +75,36 @@ export default async function VerifyPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-paper px-6 py-16 sm:px-10">
       <div className="mx-auto max-w-xl">
-        {/* Agency header */}
-        <div className="mb-12">
-          <p className="font-display text-xl font-semibold text-ink">
-            {cert.agency?.name ?? 'The Policy Place'}
-          </p>
-          {cert.agency?.phone && (
-            <p className="mt-1 font-mono text-sm text-ink-muted">{cert.agency.phone}</p>
-          )}
+        {/* Agency header — branded card. DB values win when present, else fall
+            back to The Policy Place defaults so external verifiers always see
+            a trust-establishing block. */}
+        <div className="mb-12 border border-hairline bg-card px-5 py-5 sm:px-7 sm:py-6">
+          <div className="flex items-start justify-between gap-4">
+            <Logo tone="dark" compact />
+            <div className="text-right">
+              <p className="font-display text-[0.95rem] font-semibold tracking-tight text-ink">
+                {cert.agency?.name ?? 'The Policy Place'}
+              </p>
+              <p className="caps mt-0.5 text-[0.58rem] font-semibold text-seal-deep">
+                Brook Gaudy · Licensed Agent
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-hairline pt-4 font-mono text-[0.72rem] text-ink-muted">
+            <span>908 Poplar St · Benton, KY 42025</span>
+            <a
+              href={`tel:+1${(cert.agency?.phone ?? '2704102015').replace(/\D/g, '')}`}
+              className="hover:text-ink"
+            >
+              {cert.agency?.phone ?? '(270) 410-2015'}
+            </a>
+            <a
+              href={`mailto:${cert.agency?.email ?? 'brook@yourpolicyplace.com'}`}
+              className="hover:text-ink"
+            >
+              {cert.agency?.email ?? 'brook@yourpolicyplace.com'}
+            </a>
+          </div>
         </div>
 
         {/* Status banner */}
