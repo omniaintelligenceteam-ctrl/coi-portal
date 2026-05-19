@@ -181,6 +181,21 @@ export default async function ResultPage({ params }: PageProps) {
                 className="block h-[820px] w-full"
               />
             </div>
+            {/* Always-visible escape hatch — iframe can fail silently on
+                expired signed URLs, blocked content, or stricter mobile
+                browsers. A direct link below guarantees the user can
+                always reach the file. */}
+            <p className="caps mt-3 text-[0.6rem] font-medium text-ink-faint">
+              Preview not loading?{' '}
+              <a
+                href={downloadUrl ?? previewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-brand hover:underline"
+              >
+                Open the PDF in a new tab
+              </a>
+            </p>
             {isSent && downloadUrl && (
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="caps text-[0.6rem] font-medium text-ink-faint">
@@ -201,6 +216,35 @@ export default async function ResultPage({ params }: PageProps) {
                 signed.
               </p>
             )}
+          </section>
+        )}
+
+        {/* Preview-unavailable fallback — render only when we expected a PDF
+            (storage path exists) but signed URL minting failed. Keeps the user
+            from staring at a missing section with no explanation. */}
+        {!previewUrl && req.pdf_storage_path && !isRejected && (
+          <section className="mt-14">
+            <Hairline label="PDF temporarily unavailable" className="mb-6" />
+            <div className="border border-warning/40 bg-warning/5 px-6 py-8 text-center">
+              <p className="caps text-[0.62rem] font-semibold text-warning">
+                Couldn't load preview
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+                Your certificate exists on file, but the preview link couldn't
+                be generated right now. Refresh the page, or email{' '}
+                <a
+                  href="mailto:brook@yourpolicyplace.com"
+                  className="font-medium text-brand underline-offset-2 hover:underline"
+                >
+                  brook@yourpolicyplace.com
+                </a>{' '}
+                with reference{' '}
+                <span className="font-mono font-semibold text-ink">
+                  {req.cert_number}
+                </span>{' '}
+                for a fresh copy.
+              </p>
+            </div>
           </section>
         )}
 

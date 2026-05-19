@@ -80,9 +80,24 @@ export function DecisionForm({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        setError(text || `Request failed (${res.status}).`);
+      let payload: { ok?: boolean; error?: string; detail?: string } = {};
+      try {
+        payload = await res.json();
+      } catch {
+        // Non-JSON body — keep payload empty and fall through to status-code error.
+      }
+      if (!res.ok || !payload.ok) {
+        // 502 → send failed AFTER decision was recorded. Steer Brook to the
+        // detail page where the Retry CTA is rendered for approved/edited.
+        if (res.status === 502) {
+          setError(
+            (payload.detail || payload.error || 'Send failed.') +
+              ' Decision saved — use the Retry button to send again.',
+          );
+          router.refresh();
+          return;
+        }
+        setError(payload.detail || payload.error || `Request failed (${res.status}).`);
         return;
       }
       router.push('/admin/queue');

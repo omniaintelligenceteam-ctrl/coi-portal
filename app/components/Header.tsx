@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from './Logo';
+import { LogoutButton } from './LogoutButton';
 
 export function Header({
   email,
@@ -43,6 +44,7 @@ export function Header({
               <span className="caps hidden sm:inline">My certificates</span>
             </Link>
           )}
+          {email && <LogoutButton />}
         </div>
       </div>
     </header>

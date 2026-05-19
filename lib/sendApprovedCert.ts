@@ -148,7 +148,9 @@ export async function sendApprovedCert(
     process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ?? 'https://coi-portal.vercel.app';
   const { id: emailId } = await sendCoiEmail({
     to: client.contact_email,
-    cc: [agency.email, 'wesoverstreet@gmail.com']
+    // Cert Holders see CC addresses in the email envelope (SMTP exposes them).
+    // Keep audit CCs configurable so non-staff addresses don't leak in prod.
+    cc: [agency.email, process.env.COI_CC_AUDIT_EMAIL]
       .filter((e): e is string => Boolean(e) && e !== client.contact_email),
     pdfBytes,
     certNumber: req.cert_number,

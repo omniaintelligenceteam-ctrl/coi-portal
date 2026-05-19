@@ -7,6 +7,7 @@ import { MonoTag } from '@/app/components/MonoTag';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
 import { DecisionForm } from './DecisionForm';
+import { RetrySend } from './RetrySend';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,6 +96,9 @@ export default async function CertDetailPage({
     : { data: [] as CoverageDetail[] };
 
   const canDecide = req.status === 'pending' || req.status === 'reviewed';
+  // approved/edited means Brook already decided but the email didn't finish —
+  // surface a retry instead of pretending the cert is "closed".
+  const canRetrySend = req.status === 'approved' || req.status === 'edited';
 
   // Mint signed URL for inline PDF preview (private bucket → service-role).
   let previewUrl: string | null = null;
@@ -223,7 +227,7 @@ export default async function CertDetailPage({
             </ul>
           </section>
 
-          {/* Decision form or resolved state */}
+          {/* Decision form, retry CTA, or resolved state */}
           <section className="mt-14">
             {canDecide ? (
               <DecisionForm
@@ -235,6 +239,8 @@ export default async function CertDetailPage({
                   address2: req.holder_address2 ?? '',
                 }}
               />
+            ) : canRetrySend ? (
+              <RetrySend requestId={req.id} />
             ) : (
               <div className="border-l-2 border-hairline-strong pl-5">
                 <p className="caps text-[0.62rem] font-semibold text-ink-faint">Closed</p>

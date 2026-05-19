@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendApprovedCert } from '@/lib/sendApprovedCert';
 import { sendRejectionEmail } from '@/lib/email';
+import type { CertStatus } from '@/app/components/StatusPill';
 
 /**
  * Admin endpoint — Brook (or any ADMIN_EMAILS user) decides on a queued cert.
@@ -58,6 +59,13 @@ const BodySchema = z.discriminatedUnion('decision', [
     requestId: z.string().uuid(),
     decisionNote: z.string().optional().default(''),
   }),
+  // Retry — re-runs sendApprovedCert against a row already at approved/edited
+  // status, recovering from a failed send (Resend down, storage glitch, etc).
+  // No status mutation here; sendApprovedCert handles the approved→sent flip.
+  z.object({
+    decision: z.literal('retry'),
+    requestId: z.string().uuid(),
+  }),
 ]);
 
 export async function POST(req: NextRequest) {
@@ -82,6 +90,46 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient();
   const now = new Date().toISOString();
   const decidedBy = email;
+
+  // Retry path — cert is already at approved/edited (status was recorded on a
+  // prior decision call but the send failed). Re-validate status, then re-run
+  // sendApprovedCert. No status mutation, no override write.
+  if (parsed.decision === 'retry') {
+    const { data: existing, error: readErr } = await admin
+      .from('cert_requests')
+      .select('status')
+      .eq('id', parsed.requestId)
+      .maybeSingle<{ status: CertStatus }>();
+    if (readErr || !existing) {
+      return NextResponse.json(
+        { error: readErr?.message ?? 'request not found' },
+        { status: 404 },
+      );
+    }
+    if (existing.status !== 'approved' && existing.status !== 'edited') {
+      return NextResponse.json(
+        {
+          error: 'retry not allowed',
+          detail: `cert is at status '${existing.status}', not approved/edited`,
+        },
+        { status: 409 },
+      );
+    }
+    try {
+      const result = await sendApprovedCert(admin, parsed.requestId);
+      return NextResponse.json({
+        ok: true,
+        status: 'sent',
+        certNumber: result.certNumber,
+        emailId: result.emailId,
+      });
+    } catch (err) {
+      return NextResponse.json(
+        { error: 'send failed', detail: (err as Error).message },
+        { status: 502 },
+      );
+    }
+  }
 
   if (parsed.decision === 'reject') {
     const { error } = await admin
