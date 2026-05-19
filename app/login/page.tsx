@@ -1,16 +1,39 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { createClient } from '@/lib/supabase/browser';
 import { Logo } from '../components/Logo';
 import { Hairline } from '../components/Hairline';
 
+const CALLBACK_ERROR_MESSAGES: Record<string, string> = {
+  auth_failed:
+    'Your sign-in link expired or was already used. Request a new one below.',
+};
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Surface callback errors arriving via ?error=... (e.g. /auth/callback redirects
+  // here when OTP exchange fails). Without this, users see a blank form and
+  // re-submit, hitting the same dead end.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errCode = params.get('error');
+    if (!errCode) return;
+    const message =
+      CALLBACK_ERROR_MESSAGES[errCode] ??
+      'Something went wrong with your sign-in link. Please request a new one.';
+    setStatus('error');
+    setErrorMsg(message);
+    // Strip the ?error param so a page refresh doesn't re-trigger the banner.
+    const url = new URL(window.location.href);
+    url.searchParams.delete('error');
+    window.history.replaceState(null, '', url.toString());
+  }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

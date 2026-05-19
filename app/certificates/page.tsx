@@ -38,13 +38,16 @@ export default async function CertificatesPage() {
   if (!user?.email) redirect('/login');
 
   // RLS restricts cert_requests to the authenticated client's own rows.
-  const { data: rows } = await supabase
+  const { data: rows, error: fetchError } = await supabase
     .from('cert_requests')
     .select('id, cert_number, holder_name, holder_address1, holder_address2, status, requested_at, sent_at')
     .order('requested_at', { ascending: false })
     .returns<Row[]>();
 
   const list = rows ?? [];
+  // Distinguish "no certs yet" from "fetch broke" — the empty state lies if
+  // there's a real DB/RLS error and rows came back null.
+  const hasFetchError = Boolean(fetchError);
 
   return (
     <>
@@ -70,7 +73,9 @@ export default async function CertificatesPage() {
           </div>
         </header>
 
-        {list.length === 0 ? (
+        {hasFetchError && list.length === 0 ? (
+          <FetchErrorState />
+        ) : list.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="overflow-x-auto border-y border-hairline">
@@ -146,6 +151,31 @@ export default async function CertificatesPage() {
         </p>
       </main>
     </>
+  );
+}
+
+function FetchErrorState() {
+  return (
+    <div className="relative overflow-hidden border border-danger/30 bg-danger/5 px-8 py-16 text-center sm:py-20">
+      <div className="caps inline-flex items-center gap-2 rounded-full border border-danger/40 bg-white px-3 py-1 text-[0.62rem] font-semibold text-danger">
+        <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+        Couldn't load
+      </div>
+      <h2 className="font-display mt-6 text-[2rem] font-medium leading-[1.1] tracking-display text-ink">
+        Your certificates aren't loading right now.
+      </h2>
+      <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+        This usually clears in a minute. Refresh the page, and if it still
+        won't load, email{' '}
+        <a
+          href="mailto:brook@thepolicyplace.com"
+          className="font-medium text-brand underline-offset-2 hover:underline"
+        >
+          brook@thepolicyplace.com
+        </a>
+        .
+      </p>
+    </div>
   );
 }
 

@@ -70,7 +70,9 @@ export default async function VerifyPage({ params }: PageProps) {
     : { data: [] as PolicyRow[] };
 
   const today = new Date().toISOString().slice(0, 10);
-  const allActive = (policies ?? []).every((p) => p.active && p.exp_date >= today);
+  // Strict `>` — a policy expiring today is no longer active for verification purposes.
+  // Insurance convention: coverage ends at 12:01 AM on the exp_date.
+  const allActive = (policies ?? []).every((p) => p.active && p.exp_date > today);
 
   return (
     <div className="min-h-screen bg-paper px-6 py-16 sm:px-10">
@@ -160,7 +162,7 @@ export default async function VerifyPage({ params }: PageProps) {
           <p className="caps mb-4 text-[0.6rem] font-medium text-ink-faint">Coverages on certificate</p>
           <ul className="divide-y divide-hairline">
             {(policies ?? []).map((p, i) => {
-              const expired = p.exp_date < today;
+              const expired = p.exp_date <= today;
               return (
                 <li key={i} className="py-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                   <span className="font-medium text-[0.9rem] text-ink">

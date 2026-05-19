@@ -21,6 +21,13 @@ type PolicyRow = DbPolicy & {
   insurer: { name: string; naic: string } | null;
 };
 
+function adminEmails(): string[] {
+  return (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export default async function HomePage() {
   const supabase = await createClient();
   const {
@@ -29,10 +36,16 @@ export default async function HomePage() {
 
   if (!user?.email) redirect('/login');
 
+  // Agents (Brook etc) land directly on the queue — they don't have an
+  // insured account; they REVIEW customer requests. The customer-side view
+  // is reachable via `/?as=insured` if they need to dogfood the form.
+  const email = user.email.toLowerCase();
+  if (adminEmails().includes(email)) redirect('/admin/queue');
+
   const { data: client } = await supabase
     .from('coi_clients')
     .select('id, business_name, business_address1, business_address2')
-    .eq('contact_email', user.email)
+    .eq('contact_email', email)
     .maybeSingle<ClientRow>();
 
   if (!client) return <NoClientFound email={user.email} />;
