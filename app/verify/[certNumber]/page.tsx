@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Logo } from '@/app/components/Logo';
+import { SealStamp } from '@/app/components/motion';
 import { verifyChecksum } from '@/lib/issueCert';
 
 // Intentionally public — no auth. Only exposes non-sensitive cert metadata.
@@ -202,14 +203,24 @@ export default async function VerifyPage({ params }: PageProps) {
           </div>
         </div>
 
+        {/* Tier 2 #12 — seal stamp lands as the trust moment for active certs.
+            Skipped on expired/lapsed so we never imply confidence in stale
+            coverage. The SealStamp keyframe respects prefers-reduced-motion. */}
+        {allActive && (
+          <div className="mb-8 flex justify-center">
+            <SealStamp size={88} tone="success" />
+          </div>
+        )}
+
         {/* Status banner — kept colour even in the expired (grayscale) state
             so the verdict is never ambiguous. */}
         <div
-          className={`expired-banner mb-10 flex items-center gap-3 border px-5 py-4 ${
+          className={`expired-banner verify-data-in mb-10 flex items-center gap-3 border px-5 py-4 ${
             allActive
               ? 'border-success/30 bg-success-soft/40'
               : 'border-danger/30 bg-danger-soft/40'
           }`}
+          style={{ animationDelay: allActive ? '200ms' : '0ms' }}
         >
           <span
             className={`h-3 w-3 rounded-full ${allActive ? 'bg-success' : 'bg-danger'}`}
@@ -233,12 +244,15 @@ export default async function VerifyPage({ params }: PageProps) {
         </div>
 
         {/* Cert identity */}
-        <div className="mb-8">
+        <div className="verify-data-in mb-8" style={{ animationDelay: allActive ? '280ms' : '80ms' }}>
           <p className="caps text-[0.6rem] font-medium text-ink-faint">Certificate number</p>
           <p className="mt-1 font-mono text-lg font-medium text-ink">{cert.cert_number}</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+        <div
+          className="verify-data-in grid grid-cols-1 gap-8 sm:grid-cols-2"
+          style={{ animationDelay: allActive ? '360ms' : '160ms' }}
+        >
           <div>
             <p className="caps text-[0.6rem] font-medium text-ink-faint">Insured</p>
             <p className="mt-1 font-medium text-ink">
@@ -256,7 +270,10 @@ export default async function VerifyPage({ params }: PageProps) {
         </div>
 
         {/* Coverages */}
-        <div className="mt-10 border-t border-hairline pt-8">
+        <div
+          className="verify-data-in mt-10 border-t border-hairline pt-8"
+          style={{ animationDelay: allActive ? '440ms' : '240ms' }}
+        >
           <p className="caps mb-4 text-[0.6rem] font-medium text-ink-faint">Coverages on certificate</p>
           <ul className="divide-y divide-hairline">
             {(policies ?? []).map((p, i) => {
@@ -281,7 +298,10 @@ export default async function VerifyPage({ params }: PageProps) {
         </div>
 
         {/* Issue info */}
-        <div className="mt-10 border-t border-hairline pt-8 text-[0.78rem] text-ink-muted">
+        <div
+          className="verify-data-in mt-10 border-t border-hairline pt-8 text-[0.78rem] text-ink-muted"
+          style={{ animationDelay: allActive ? '520ms' : '320ms' }}
+        >
           <p>
             Issued by{' '}
             <span className="font-medium text-ink">{cert.agency?.name ?? 'The Policy Place'}</span>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { toast } from 'sonner';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
+import { useRowPulse } from '@/app/components/motion';
 import { createClient } from '@/lib/supabase/browser';
 import { useQueueShortcuts } from '../useQueueShortcuts';
 import { ShortcutHelp } from '../ShortcutHelp';
@@ -57,11 +58,25 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
   const [focusIdx, setFocusIdx] = useState<number>(-1);
   const [helpOpen, setHelpOpen] = useState(false);
   const [newRowIds, setNewRowIds] = useState<Set<string>>(new Set());
+  // Tracks updated_at-like signatures per row so realtime UPDATEs trigger
+  // a one-shot row-pulse glow (Tier 1 #8). Map<rowId, signature>.
+  const [updateSig, setUpdateSig] = useState<Map<string, string>>(new Map());
+  // True only during the initial render window. Used to gate first-paint
+  // stagger so realtime inserts later don't waterfall (Tier 1 #1).
+  const [isInitial, setIsInitial] = useState(true);
 
   // Sync rows when server data changes (e.g., navigation refresh)
   useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
+
+  // Close the first-paint window after a single tick so any realtime
+  // inserts after this point use their own (isNew) entry animation
+  // instead of the staggered cascade.
+  useEffect(() => {
+    const t = setTimeout(() => setIsInitial(false), 600);
+    return () => clearTimeout(t);
+  }, []);
 
   const eligibleIds = new Set(
     rows.filter((r) => r.status === 'pending' || r.status === 'reviewed').map((r) => r.id),
@@ -125,26 +140,53 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     [router],
   );
 
-  // Bulk-approve trigger now offers an 8s undo window via sonner.
+  // Bulk-approve trigger now offers an 8s undo window via sonner, with
+  // a thin countdown bar that bleeds left-to-right so the admin can see
+  // exactly how long they have to undo (Tier 1 #2).
   function bulkApprove() {
     const ids = selectedEligible;
     if (ids.length === 0) return;
+
+    // Tier 2 #11: optimistic halo across all selected rows — the bulk
+    // approve action reads as one synchronized "ratified" wash even
+    // before the request is sent.
+    pulseRowsOptimistically(ids);
 
     let cancelled = false;
     const timer = setTimeout(() => {
       if (!cancelled) executeBulkApprove(ids);
     }, BULK_UNDO_MS);
 
-    toast(`Approved ${ids.length} cert${ids.length === 1 ? '' : 's'}. Sending in 8s.`, {
-      duration: BULK_UNDO_MS,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          cancelled = true;
-          clearTimeout(timer);
-        },
-      },
-    });
+    const count = ids.length;
+    toast.custom(
+      (id) => (
+        <div className="relative w-80 overflow-hidden rounded-md border border-hairline-strong bg-paper shadow-lift">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-[0.85rem] text-ink">
+              Approved <span className="font-mono font-semibold">{count}</span> cert
+              {count === 1 ? '' : 's'}. Sending in 8s.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                cancelled = true;
+                clearTimeout(timer);
+                toast.dismiss(id);
+              }}
+              className="focus-ring caps -m-1 rounded p-1 text-[0.62rem] font-semibold text-brand hover:text-brand-deep"
+            >
+              Undo
+            </button>
+          </div>
+          <div
+            aria-hidden="true"
+            className="toast-countdown absolute bottom-0 left-0 h-[2px] w-full bg-brand"
+            style={{ ['--countdown-duration' as never]: `${BULK_UNDO_MS}ms` }}
+          />
+        </div>
+      ),
+      { duration: BULK_UNDO_MS },
+    );
   }
 
   // Realtime: subscribe to inserts/updates on cert_requests.
@@ -198,6 +240,14 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
               r.id === updated.id ? { ...r, ...(updated as Partial<QueueRow>) } : r,
             );
           });
+          // Tier 1 #8: pulse the row so the admin's eye catches the change.
+          // The signature is a per-event timestamp; useRowPulse re-fires
+          // whenever the value changes.
+          setUpdateSig((prev) => {
+            const next = new Map(prev);
+            next.set(updated.id, `${Date.now()}`);
+            return next;
+          });
         },
       )
       .subscribe();
@@ -219,6 +269,11 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
   // Single-row approve via API (used by keyboard `a`).
   async function approveOne(id: string) {
     if (!eligibleIds.has(id)) return;
+    // Tier 2 #11: optimistic row-pulse fires BEFORE the network round trip
+    // so the admin's `a` keystroke gets instant visual confirmation. The
+    // realtime UPDATE later will fire a second pulse (the two overlap and
+    // read as one continuous halo).
+    pulseRowsOptimistically([id]);
     try {
       await fetch('/api/bulk-approve', {
         method: 'POST',
@@ -229,6 +284,18 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     } catch {
       // realtime will pick up the change anyway; surface nothing here.
     }
+  }
+
+  // Helper: instantly retrigger row-pulse on the given ids by bumping
+  // their updateSig signatures. Pure UI feedback — does no network work.
+  function pulseRowsOptimistically(ids: string[]) {
+    if (ids.length === 0) return;
+    setUpdateSig((prev) => {
+      const next = new Map(prev);
+      const stamp = `optimistic-${Date.now()}`;
+      for (const id of ids) next.set(id, `${stamp}-${id}`);
+      return next;
+    });
   }
 
   // Keyboard shortcut handlers
@@ -324,11 +391,13 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
           const isFocused = idx === focusIdx;
           const isNew = newRowIds.has(r.id);
           return (
-            <motion.li
+            <PulseLi
               key={r.id}
-              initial={isNew && !reduce ? { opacity: 0, y: -4 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+              pulseKey={updateSig.get(r.id)}
+              isFirstPaint={isInitial && !isNew}
+              isNew={isNew}
+              idx={idx}
+              reduce={Boolean(reduce)}
               className={`mobile-card ${isSelected ? 'bg-brand-soft/20' : ''} ${
                 isFocused ? 'ring-2 ring-brand/40 ring-offset-1 ring-offset-paper' : ''
               }`}
@@ -387,7 +456,7 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
                 Review request
                 <ArrowRight className="h-4 w-4" />
               </Link>
-            </motion.li>
+            </PulseLi>
           );
         })}
       </ul>
@@ -418,12 +487,13 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
                 const isFocused = idx === focusIdx;
                 const isNew = newRowIds.has(r.id);
                 return (
-                  <motion.tr
+                  <PulseTr
                     key={r.id}
-                    initial={isNew && !reduce ? { opacity: 0 } : false}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                    pulseKey={updateSig.get(r.id)}
+                    isFirstPaint={isInitial && !isNew}
+                    isNew={isNew}
+                    idx={idx}
+                    reduce={Boolean(reduce)}
                     className={`group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/50 ${
                       isSelected ? 'bg-brand-soft/20' : ''
                     } ${isFocused ? 'bg-paper-deep shadow-[inset_2px_0_0_0_var(--color-brand)]' : ''}`}
@@ -479,7 +549,7 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
                         <ArrowRight className="h-3.5 w-3.5" />
                       </Link>
                     </td>
-                  </motion.tr>
+                  </PulseTr>
                 );
               })}
             </AnimatePresence>
@@ -497,6 +567,103 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
 
       <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
+  );
+}
+
+/**
+ * Row wrapper for the mobile card list. Handles:
+ *   - first-paint stagger (so the list reveals in order on mount)
+ *   - realtime-update pulse (row-pulse class fires when `pulseKey` changes)
+ *   - new-row entry animation (when Supabase INSERT delivers it)
+ */
+function PulseLi({
+  pulseKey,
+  isFirstPaint,
+  isNew,
+  idx,
+  reduce,
+  className,
+  children,
+}: {
+  pulseKey: unknown;
+  isFirstPaint: boolean;
+  isNew: boolean;
+  idx: number;
+  reduce: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const ref = useRowPulse<HTMLLIElement>(pulseKey);
+  return (
+    <motion.li
+      ref={ref}
+      initial={
+        reduce
+          ? false
+          : isNew
+          ? { opacity: 0, y: -4 }
+          : isFirstPaint
+          ? { opacity: 0, y: 6 }
+          : false
+      }
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.32,
+        ease: [0.16, 1, 0.3, 1],
+        delay: isFirstPaint && idx < 8 ? idx * 0.04 : 0,
+      }}
+      className={className}
+    >
+      {children}
+    </motion.li>
+  );
+}
+
+/** Desktop table-row twin of {@link PulseLi}. */
+function PulseTr({
+  pulseKey,
+  isFirstPaint,
+  isNew,
+  idx,
+  reduce,
+  className,
+  onClick,
+  children,
+}: {
+  pulseKey: unknown;
+  isFirstPaint: boolean;
+  isNew: boolean;
+  idx: number;
+  reduce: boolean;
+  className?: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRowPulse<HTMLTableRowElement>(pulseKey);
+  return (
+    <motion.tr
+      ref={ref}
+      initial={
+        reduce
+          ? false
+          : isNew
+          ? { opacity: 0 }
+          : isFirstPaint
+          ? { opacity: 0, y: 4 }
+          : false
+      }
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{
+        duration: 0.32,
+        ease: [0.16, 1, 0.3, 1],
+        delay: isFirstPaint && idx < 8 ? idx * 0.04 : 0,
+      }}
+      className={className}
+      onClick={onClick}
+    >
+      {children}
+    </motion.tr>
   );
 }
 

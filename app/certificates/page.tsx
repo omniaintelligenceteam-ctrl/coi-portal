@@ -3,7 +3,27 @@ import { redirect } from 'next/navigation';
 import { Header } from '@/app/components/Header';
 import { Hairline } from '@/app/components/Hairline';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
+import { CountUp } from '@/app/components/motion';
 import { createClient } from '@/lib/supabase/server';
+import { DeleteCertButton } from './DeleteCertButton';
+
+// Client can retract their own request only while it's still in flight or
+// declined. Sent/approved/edited are records-of-action — admin owns those.
+const CLIENT_DELETABLE: ReadonlySet<CertStatus> = new Set<CertStatus>([
+  'pending',
+  'reviewed',
+  'rejected',
+]);
+
+// Stagger first N rows on initial paint. Beyond this they snap in to keep
+// large lists feeling fast. 50ms gap is just barely perceptible — enough
+// for the eye to scan, never enough to feel slow.
+const STAGGER_CAP = 8;
+const STAGGER_MS = 50;
+const rowReveal = (i: number) => ({
+  className: 'row-reveal',
+  style: { animationDelay: `${Math.min(i, STAGGER_CAP - 1) * STAGGER_MS}ms` } as React.CSSProperties,
+});
 
 export const dynamic = 'force-dynamic';
 
@@ -67,7 +87,7 @@ export default async function CertificatesPage() {
               Every certificate, all in one place.
             </h1>
             <span className="font-mono text-sm text-ink-muted">
-              {list.length === 0 ? '0 on file' : `${list.length} on file`}
+              {list.length === 0 ? '0 on file' : <><CountUp value={list.length} /> on file</>}
             </span>
           </div>
         </header>
@@ -80,8 +100,8 @@ export default async function CertificatesPage() {
           <>
             {/* Mobile card stack — under sm */}
             <ul className="space-y-3 sm:hidden">
-              {list.map((r) => (
-                <li key={r.id} className="mobile-card">
+              {list.map((r, i) => (
+                <li key={r.id} className={`mobile-card ${rowReveal(i).className}`} style={rowReveal(i).style}>
                   <div className="flex items-start justify-between gap-3">
                     <Link
                       href={`/result/${r.cert_number}`}
@@ -124,6 +144,13 @@ export default async function CertificatesPage() {
                       Open certificate
                       <ArrowRight className="h-4 w-4" />
                     </Link>
+                    {CLIENT_DELETABLE.has(r.status) && (
+                      <DeleteCertButton
+                        requestId={r.id}
+                        certNumber={r.cert_number}
+                        size="md"
+                      />
+                    )}
                   </div>
                 </li>
               ))}
@@ -143,10 +170,11 @@ export default async function CertificatesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {list.map((r) => (
+                  {list.map((r, i) => (
                     <tr
                       key={r.id}
-                      className="group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/50"
+                      className={`group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/50 ${rowReveal(i).className}`}
+                      style={rowReveal(i).style}
                     >
                       <Td>
                         <Link
@@ -174,6 +202,12 @@ export default async function CertificatesPage() {
                       </Td>
                       <td className="py-4 pl-3 pr-2 text-right align-middle">
                         <div className="flex items-center justify-end gap-3">
+                          {CLIENT_DELETABLE.has(r.status) && (
+                            <DeleteCertButton
+                              requestId={r.id}
+                              certNumber={r.cert_number}
+                            />
+                          )}
                           {r.status === 'sent' && (
                             <Link
                               href={`/?reissue=${encodeURIComponent(r.cert_number)}`}

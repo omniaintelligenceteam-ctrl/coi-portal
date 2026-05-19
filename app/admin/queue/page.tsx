@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { Hairline } from '@/app/components/Hairline';
+import { CountUp } from '@/app/components/motion';
 import { QueueTable, type QueueRow } from './QueueTable';
 
 export default async function QueuePage() {
@@ -26,7 +27,7 @@ export default async function QueuePage() {
             Requests awaiting review
           </h1>
           <span className="font-mono text-sm text-ink-muted">
-            {rows.length === 0 ? '0 open' : `${rows.length} open`}
+            {rows.length === 0 ? '0 open' : <><CountUp value={rows.length} /> open</>}
           </span>
         </div>
       </header>

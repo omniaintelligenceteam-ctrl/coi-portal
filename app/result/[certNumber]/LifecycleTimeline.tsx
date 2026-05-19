@@ -163,26 +163,44 @@ export function LifecycleTimeline({
       <p className="caps text-[0.62rem] font-semibold text-ink-faint">Lifecycle</p>
       <ol className="relative mt-5">
         {rows.map((row, i) => (
-          <TimelineRow key={row.key} row={row} isLast={i === rows.length - 1} />
+          <TimelineRow key={row.key} row={row} idx={i} isLast={i === rows.length - 1} />
         ))}
       </ol>
     </section>
   );
 }
 
-function TimelineRow({ row, isLast }: { row: StepRow; isLast: boolean }) {
+function TimelineRow({
+  row,
+  idx,
+  isLast,
+}: {
+  row: StepRow;
+  idx: number;
+  isLast: boolean;
+}) {
+  // Tier 1 #10 — top-to-bottom reveal. The connector "draws" downward and
+  // the dot pops on as the imaginary line passes it. 120ms cascade per row
+  // matches the 600ms total feel without going long. Reduced-motion zeroes
+  // the keyframes globally (globals.css).
+  const connectorDelay = `${idx * 120}ms`;
+  const dotDelay = `${idx * 120 + 60}ms`;
   return (
     <li className="relative grid grid-cols-[1.25rem,minmax(0,1fr)] gap-x-4 pb-6 last:pb-0">
       {/* Connector hairline */}
       {!isLast && (
         <span
           aria-hidden="true"
-          className="absolute left-[0.5625rem] top-4 bottom-0 w-px bg-hairline"
+          className="timeline-draw absolute left-[0.5625rem] top-4 bottom-0 w-px bg-hairline"
+          style={{ animationDelay: connectorDelay }}
         />
       )}
 
       {/* Dot */}
-      <span className="relative z-10 mt-1 flex h-[1.125rem] w-[1.125rem] items-center justify-center">
+      <span
+        className="timeline-dot-pop relative z-10 mt-1 flex h-[1.125rem] w-[1.125rem] items-center justify-center"
+        style={{ animationDelay: dotDelay }}
+      >
         <Dot state={row.state} />
       </span>
 

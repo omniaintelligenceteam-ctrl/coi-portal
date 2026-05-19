@@ -5,6 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
+  LOGIN_LINK_EXPIRES_MINUTES,
+  createPortalLoginTicket,
+} from '@/lib/authLogin';
+import {
   sendAccessApprovedEmail,
   sendAccessRejectedEmail,
 } from '@/lib/email';
@@ -105,11 +109,26 @@ export async function approveAccessRequest(formData: FormData): Promise<void> {
     redirect(`/admin/access-requests?error=update_failed`);
   }
 
+  let loginPrompt:
+    | { confirmUrl: string; emailOtp: string; expiresMinutes: number }
+    | undefined;
+  try {
+    const ticket = await createPortalLoginTicket({ email: req.email, remember: true });
+    loginPrompt = {
+      confirmUrl: ticket.confirmUrl,
+      emailOtp: ticket.emailOtp,
+      expiresMinutes: LOGIN_LINK_EXPIRES_MINUTES,
+    };
+  } catch (err) {
+    console.error('access-approved login link generation failed', err);
+  }
+
   try {
     await sendAccessApprovedEmail({
       to: req.email,
       businessName,
       source: req.source,
+      loginPrompt,
     });
   } catch (err) {
     console.error('access-approved email failed', err);
@@ -219,11 +238,26 @@ export async function inviteClient(formData: FormData): Promise<void> {
     linked_client_id: clientId,
   });
 
+  let loginPrompt:
+    | { confirmUrl: string; emailOtp: string; expiresMinutes: number }
+    | undefined;
+  try {
+    const ticket = await createPortalLoginTicket({ email, remember: true });
+    loginPrompt = {
+      confirmUrl: ticket.confirmUrl,
+      emailOtp: ticket.emailOtp,
+      expiresMinutes: LOGIN_LINK_EXPIRES_MINUTES,
+    };
+  } catch (err) {
+    console.error('invite login link generation failed', err);
+  }
+
   try {
     await sendAccessApprovedEmail({
       to: email,
       businessName,
       source: 'admin_invite',
+      loginPrompt,
     });
   } catch (err) {
     console.error('invite email failed', err);

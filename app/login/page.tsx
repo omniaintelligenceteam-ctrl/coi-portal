@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { createClient } from '@/lib/supabase/browser';
+import { FieldShake } from '../components/motion';
 import { Logo } from '../components/Logo';
 import { Hairline } from '../components/Hairline';
 
@@ -12,18 +13,13 @@ const CALLBACK_ERROR_MESSAGES: Record<string, string> = {
     'Your sign-in link expired or was already used. Request a new one below.',
 };
 
-/**
- * Translate raw Supabase auth errors into clearer guidance. The most common
- * one in dev is the magic-link rate cap (~2/hr on the default project SMTP)
- * which surfaces as a scary "rate limit exceeded" string with no next step.
- */
 function friendlyAuthError(raw: string): string {
   const lower = raw.toLowerCase();
   if (lower.includes('rate limit') || lower.includes('too many')) {
-    return 'Too many sign-in links have been requested for this address in the last hour. Wait a few minutes and try again, or try a different email.';
+    return 'Too many sign-in attempts were requested recently. Wait a few minutes, then try again.';
   }
   if (lower.includes('invalid') && lower.includes('email')) {
-    return "That email address doesn't look right — double-check the spelling.";
+    return "That email address doesn't look right. Double-check the spelling.";
   }
   return raw;
 }
@@ -34,9 +30,10 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Surface callback errors arriving via ?error=... (e.g. /auth/callback redirects
-  // here when OTP exchange fails). Without this, users see a blank form and
-  // re-submit, hitting the same dead end.
+  const [code, setCode] = useState('');
+  const [codeStatus, setCodeStatus] = useState<'idle' | 'verifying' | 'error'>('idle');
+  const [codeError, setCodeError] = useState('');
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const errCode = params.get('error');
@@ -46,7 +43,6 @@ export default function LoginPage() {
       'Something went wrong with your sign-in link. Please request a new one.';
     setStatus('error');
     setErrorMsg(message);
-    // Strip the ?error param so a page refresh doesn't re-trigger the banner.
     const url = new URL(window.location.href);
     url.searchParams.delete('error');
     window.history.replaceState(null, '', url.toString());
@@ -56,28 +52,65 @@ export default function LoginPage() {
     e.preventDefault();
     setStatus('sending');
     setErrorMsg('');
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?remember=${rememberMe ? '1' : '0'}`,
-      },
+
+    const res = await fetch('/api/auth/request-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, remember: rememberMe }),
     });
-    if (error) {
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: 'Could not send your sign-in link.' }));
       setStatus('error');
-      setErrorMsg(friendlyAuthError(error.message));
+      setErrorMsg(friendlyAuthError(body.error ?? 'Could not send your sign-in link.'));
       return;
     }
+
+    setCode('');
+    setCodeStatus('idle');
+    setCodeError('');
     setStatus('sent');
+  }
+
+  async function handleCodeVerify(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const token = code.trim();
+    if (!token || codeStatus === 'verifying') return;
+
+    setCodeStatus('verifying');
+    setCodeError('');
+
+    const supabase = createClient();
+    let { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'magiclink',
+    });
+
+    if (error) {
+      const fallback = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
+      });
+      error = fallback.error;
+    }
+
+    if (error) {
+      setCodeStatus('error');
+      setCodeError(friendlyAuthError(error.message));
+      return;
+    }
+
+    window.location.assign('/');
   }
 
   return (
     <div className="relative flex min-h-screen flex-col">
-      {/* Quiet wordmark at top — anchors the page */}
       <div className="mx-auto w-full max-w-5xl px-6 pt-10 sm:px-10">
         <Link
           href="/"
-          aria-label="The Policy Place — home"
+          aria-label="The Policy Place home"
           className="focus-ring -m-1 inline-flex rounded p-1"
         >
           <Logo tone="dark" />
@@ -100,7 +133,20 @@ export default function LoginPage() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.4 }}
               >
-                <SentState email={email} onReset={() => setStatus('idle')} />
+                <SentState
+                  email={email}
+                  code={code}
+                  codeStatus={codeStatus}
+                  codeError={codeError}
+                  setCode={setCode}
+                  onVerifyCode={handleCodeVerify}
+                  onReset={() => {
+                    setStatus('idle');
+                    setCode('');
+                    setCodeError('');
+                    setCodeStatus('idle');
+                  }}
+                />
               </motion.div>
             ) : (
               <motion.div
@@ -168,6 +214,11 @@ function SignInForm({
   errorMsg: string;
   onSubmit: (e: FormEvent<HTMLFormElement>) => void;
 }) {
+  const [errorTick, setErrorTick] = useState(0);
+  useEffect(() => {
+    if (status === 'error') setErrorTick((t) => t + 1);
+  }, [status, errorMsg]);
+
   return (
     <>
       <p className="caps text-[0.65rem] font-semibold text-seal-deep">Certificate Portal</p>
@@ -175,7 +226,7 @@ function SignInForm({
         Sign in to <em className="not-italic text-brand">request</em> a certificate.
       </h1>
       <p className="mt-4 max-w-sm text-[0.95rem] leading-relaxed text-ink-muted">
-        We'll send a secure link to your inbox. No password — just one click and you're in.
+        We&apos;ll send a secure sign-in link. If mobile email apps interfere, you can use the backup code in the same email.
       </p>
 
       <form onSubmit={onSubmit} className="mt-10 space-y-7">
@@ -183,17 +234,19 @@ function SignInForm({
           <label htmlFor="email" className="caps block text-[0.62rem] font-semibold text-ink-muted">
             Email address
           </label>
-          <input
-            id="email"
-            type="email"
-            required
-            autoComplete="email"
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@company.com"
-            className="field-underline mt-2 block w-full font-sans text-lg text-ink"
-          />
+          <FieldShake errorKey={errorTick}>
+            <input
+              id="email"
+              type="email"
+              required
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              className="field-underline mt-2 block w-full font-sans text-lg text-ink"
+            />
+          </FieldShake>
         </div>
 
         <label className="-m-2 inline-flex cursor-pointer select-none items-center gap-3 rounded p-2">
@@ -236,28 +289,51 @@ function SignInForm({
           </p>
         )}
 
-        <div>
-          <button
-            type="submit"
-            disabled={status === 'sending'}
-            className="focus-ring group inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-6 py-3.5 text-sm font-semibold text-white transition-all hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60"
+        <div className="space-y-4">
+          <div className="relative group">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 -m-2 hidden rounded-full bg-brand opacity-30 blur-lg transition-all duration-300 ease-out group-hover:-m-3 group-hover:opacity-50 group-hover:blur-xl sm:block"
+            />
+            <button
+              type="submit"
+              disabled={status === 'sending'}
+              className="focus-ring relative z-10 inline-flex w-full items-center justify-center gap-2 rounded-full bg-linear-to-br from-brand to-brand-deep px-6 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:from-brand-deep hover:to-brand-near disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:from-brand disabled:hover:to-brand-deep"
+            >
+              <span>{status === 'sending' ? 'Sending link...' : 'Send secure sign-in link'}</span>
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </div>
+
+          <Link
+            href="/signup"
+            className="focus-ring caps inline-flex w-full items-center justify-center rounded-full border border-brand/40 bg-transparent px-6 py-3 text-[0.65rem] font-semibold tracking-caps text-brand-deep transition-colors hover:border-brand hover:bg-brand-soft"
           >
-            <span>{status === 'sending' ? 'Sending link…' : 'Send magic link'}</span>
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-          </button>
-          <p className="caps mt-4 text-[0.6rem] font-medium text-ink-faint">
-            No account?{' '}
-            <Link href="/signup" className="text-brand underline-offset-4 hover:underline">
-              Request access →
-            </Link>
-          </p>
+            No account? Request access &rarr;
+          </Link>
         </div>
       </form>
     </>
   );
 }
 
-function SentState({ email, onReset }: { email: string; onReset: () => void }) {
+function SentState({
+  email,
+  code,
+  codeStatus,
+  codeError,
+  setCode,
+  onVerifyCode,
+  onReset,
+}: {
+  email: string;
+  code: string;
+  codeStatus: 'idle' | 'verifying' | 'error';
+  codeError: string;
+  setCode: (v: string) => void;
+  onVerifyCode: (e: FormEvent<HTMLFormElement>) => void;
+  onReset: () => void;
+}) {
   return (
     <div>
       <div className="inline-flex items-center gap-2 rounded-full border border-seal/30 bg-seal-soft px-3 py-1">
@@ -268,17 +344,41 @@ function SentState({ email, onReset }: { email: string; onReset: () => void }) {
         Check your inbox.
       </h2>
       <p className="mt-5 text-[0.95rem] leading-relaxed text-ink-muted">
-        We sent a one-click sign-in link to
+        We sent a sign-in link and backup code to
       </p>
       <p className="mt-2 break-all font-mono text-base font-medium text-ink">{email}</p>
 
-      <div className="mt-10 space-y-2">
+      <form onSubmit={onVerifyCode} className="mt-8 space-y-3 rounded-xl border border-hairline bg-card p-4">
+        <label htmlFor="backup-code" className="caps block text-[0.6rem] font-semibold text-ink-muted">
+          Backup code (optional)
+        </label>
+        <input
+          id="backup-code"
+          type="text"
+          autoComplete="one-time-code"
+          inputMode="numeric"
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\s+/g, ''))}
+          placeholder="Enter code from email"
+          className="field-underline block w-full font-mono text-lg tracking-[0.18em] text-ink"
+        />
+        {codeError && <p className="text-sm text-danger">{codeError}</p>}
+        <button
+          type="submit"
+          disabled={!code.trim() || codeStatus === 'verifying'}
+          className="focus-ring inline-flex w-full items-center justify-center rounded-md border border-brand/40 bg-brand-soft px-4 py-2.5 text-sm font-semibold text-brand-deep transition-colors hover:bg-brand/12 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {codeStatus === 'verifying' ? 'Signing in...' : 'Sign in with code'}
+        </button>
+      </form>
+
+      <div className="mt-8 space-y-2">
         <p className="caps text-[0.6rem] font-medium text-ink-faint">Link expires in 1 hour</p>
         <button
           onClick={onReset}
           className="focus-ring text-sm font-medium text-brand underline-offset-4 hover:underline"
         >
-          Use a different email →
+          Use a different email &rarr;
         </button>
       </div>
     </div>
@@ -292,3 +392,4 @@ function ArrowRight({ className }: { className?: string }) {
     </svg>
   );
 }
+

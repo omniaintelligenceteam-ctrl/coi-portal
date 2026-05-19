@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Fraunces, Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { PaperTexture } from './components/PaperTexture';
+import { RouteTransition } from './components/motion';
 import './globals.css';
 
 const fraunces = Fraunces({
@@ -47,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${fraunces.variable} ${geist.variable} ${geistMono.variable}`}>
       <body className="relative min-h-screen bg-paper font-sans text-ink antialiased selection:bg-brand/15 selection:text-ink">
         <PaperTexture />
-        <div className="relative z-10">{children}</div>
+        <RouteTransition className="relative z-10">{children}</RouteTransition>
         {/* Editorial-themed Sonner toaster. Paper-warm surface, hairline ink
             border, Geist sans (inherited), 6px radius to match cards. No
             shimmer, no candy colors — see toastOptions.style below. */}

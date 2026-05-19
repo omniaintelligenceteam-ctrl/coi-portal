@@ -8,6 +8,7 @@ import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
 import { DecisionForm } from './DecisionForm';
 import { RetrySend } from './RetrySend';
+import { DeleteRequest } from './DeleteRequest';
 
 export const dynamic = 'force-dynamic';
 
@@ -251,6 +252,17 @@ export default async function CertDetailPage({
                 </p>
               </div>
             )}
+
+            {/* Destructive escape hatch — admin can purge any row (e.g. spam,
+                test submissions, duplicates). client_overrides.source_request_id
+                is ON DELETE SET NULL and coi_audit is independent, so the
+                institutional memory + sent-cert audit trail survive. */}
+            <div className="mt-10 border-t border-hairline pt-6">
+              <p className="caps text-[0.6rem] font-medium text-ink-faint">Danger zone</p>
+              <div className="mt-3">
+                <DeleteRequest requestId={req.id} certNumber={req.cert_number} />
+              </div>
+            </div>
           </section>
         </div>
 

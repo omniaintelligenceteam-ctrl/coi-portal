@@ -397,6 +397,11 @@ export type AccessApprovedEmailInput = {
   to: string;
   businessName: string;
   source: 'self_signup' | 'admin_invite';
+  loginPrompt?: {
+    confirmUrl: string;
+    emailOtp: string;
+    expiresMinutes?: number;
+  };
 };
 
 export async function sendAccessApprovedEmail(
@@ -408,10 +413,20 @@ export async function sendAccessApprovedEmail(
   if (!fromEmail) throw new Error('RESEND_FROM_EMAIL not set.');
 
   const signInUrl = `${portalBase()}/login`;
+  const expires = input.loginPrompt?.expiresMinutes ?? 60;
   const opener =
     input.source === 'admin_invite'
       ? `Brook set up a Policy Place account for ${escapeHtml(input.businessName)} so you can request certificates yourself, anytime.`
       : `You're approved. ${escapeHtml(input.businessName)} is now set up on the Policy Place portal.`;
+
+  const loginText = input.loginPrompt
+    ? `Sign in now with one tap:
+${input.loginPrompt.confirmUrl}
+
+Backup code (if the link fails): ${input.loginPrompt.emailOtp}
+This code expires in about ${expires} minutes.`
+    : `To sign in, go here and enter this email address — we'll send you a one-click link:
+${signInUrl}`;
 
   const text = `Hi,
 
@@ -419,8 +434,7 @@ ${input.source === 'admin_invite'
   ? `Brook set up a Policy Place account for ${input.businessName} so you can request certificates yourself, anytime.`
   : `You're approved. ${input.businessName} is now set up on the Policy Place portal.`}
 
-To sign in, go here and enter this email address — we'll send you a one-click link:
-${signInUrl}
+${loginText}
 
 If you have any questions, just reply to this email — Brook will jump in.
 
@@ -429,14 +443,24 @@ If you have any questions, just reply to this email — Brook will jump in.
 brook@yourpolicyplace.com · 270-410-2015
 `;
 
+  const loginHtml = input.loginPrompt
+    ? `<p style="margin:20px 0;">
+  <a href="${escapeHtml(input.loginPrompt.confirmUrl)}" style="display:inline-block;background:#3d6b73;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:600;">Sign in now</a>
+</p>
+<p style="font-size:13px;color:#4b5563;margin-top:0;">
+  Backup code (if link fails): <strong style="font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:0.08em;">${escapeHtml(input.loginPrompt.emailOtp)}</strong><br/>
+  Expires in about ${expires} minutes.
+</p>`
+    : `<p style="margin:20px 0;">
+  <a href="${escapeHtml(signInUrl)}" style="display:inline-block;background:#3d6b73;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:600;">Sign in to the portal</a>
+</p>
+<p style="font-size:13px;color:#6b7280;">Enter this email address (${escapeHtml(input.to)}) on the sign-in screen and we'll send you a one-click link.</p>`;
+
   const html = `<!doctype html>
 <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;color:#1f2937;">
 <p>Hi,</p>
 <p>${opener}</p>
-<p style="margin:20px 0;">
-  <a href="${escapeHtml(signInUrl)}" style="display:inline-block;background:#3d6b73;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:600;">Sign in to the portal</a>
-</p>
-<p style="font-size:13px;color:#6b7280;">Enter this email address (${escapeHtml(input.to)}) on the sign-in screen and we'll send you a one-click link.</p>
+${loginHtml}
 <p>Questions? Just reply to this email — Brook will jump in.</p>
 <p style="margin-top:24px;">— The Policy Place<br/>
 908 Poplar St, Benton, KY 42025<br/>
@@ -450,6 +474,66 @@ brook@yourpolicyplace.com · 270-410-2015
       input.source === 'admin_invite'
         ? `You're set up on the Policy Place — ${input.businessName}`
         : `You're approved on the Policy Place — ${input.businessName}`,
+    text,
+    html,
+  });
+}
+
+export type PortalLoginEmailInput = {
+  to: string;
+  confirmUrl: string;
+  emailOtp: string;
+  expiresMinutes?: number;
+};
+
+export async function sendPortalLoginEmail(input: PortalLoginEmailInput): Promise<CoiEmailResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey) throw new Error('RESEND_API_KEY not set.');
+  if (!fromEmail) throw new Error('RESEND_FROM_EMAIL not set.');
+
+  const expires = input.expiresMinutes ?? 60;
+  const loginUrl = `${portalBase()}/login`;
+  const text = `Hi,
+
+Use this secure sign-in link:
+${input.confirmUrl}
+
+Backup code (if the link fails): ${input.emailOtp}
+This code expires in about ${expires} minutes.
+
+If you did not request this, you can ignore this message.
+
+— The Policy Place
+908 Poplar St, Benton, KY 42025
+brook@yourpolicyplace.com · 270-410-2015
+`;
+
+  const html = `<!doctype html>
+<html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;color:#1f2937;">
+<p>Hi,</p>
+<p>Use this secure sign-in link:</p>
+<p style="margin:20px 0;">
+  <a href="${escapeHtml(input.confirmUrl)}" style="display:inline-block;background:#3d6b73;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:600;">Sign in now</a>
+</p>
+<p style="font-size:13px;color:#4b5563;">
+  Backup code (if link fails): <strong style="font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:0.08em;">${escapeHtml(input.emailOtp)}</strong><br/>
+  Expires in about ${expires} minutes.
+</p>
+<p style="font-size:13px;color:#6b7280;">
+  If the button does not open, request a fresh link at
+  <a href="${escapeHtml(loginUrl)}" style="color:#3d6b73;">${escapeHtml(loginUrl)}</a>.
+</p>
+<p>If you did not request this, you can ignore this message.</p>
+<p style="margin-top:24px;">— The Policy Place<br/>
+908 Poplar St, Benton, KY 42025<br/>
+<a href="mailto:brook@yourpolicyplace.com">brook@yourpolicyplace.com</a> · 270-410-2015
+</p>
+</body></html>`;
+
+  return resendPost(apiKey, fromEmail, {
+    to: [input.to],
+    subject: 'Your Policy Place sign-in link',
     text,
     html,
   });

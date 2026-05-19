@@ -3,11 +3,13 @@ import { notFound, redirect } from 'next/navigation';
 import { Header } from '@/app/components/Header';
 import { Hairline } from '@/app/components/Hairline';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
+import { CopyButton } from '@/app/components/motion';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
 import { AutoRefresh } from './AutoRefresh';
 import { LifecycleTimeline } from './LifecycleTimeline';
+import { PdfPreview } from './PdfPreview';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,7 +118,14 @@ export default async function ResultPage({ params }: PageProps) {
         <header className="mt-6">
           <p className="caps text-[0.65rem] font-semibold text-seal-deep">Certificate of Insurance</p>
           <h1 className="mt-3 font-mono text-[2.25rem] font-medium leading-none tabular-nums text-ink sm:text-[2.75rem]">
-            {req.cert_number}
+            <CopyButton
+              text={req.cert_number}
+              title="Copy certificate number"
+              pillLabel="Copied"
+              className="focus-ring -m-1 rounded p-1 text-inherit hover:text-brand transition-colors"
+            >
+              {req.cert_number}
+            </CopyButton>
           </h1>
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
             <StatusPill status={req.status} size="md" />
@@ -204,10 +213,9 @@ export default async function ResultPage({ params }: PageProps) {
           <section className="mt-14">
             <Hairline label={isSent ? 'Signed certificate' : 'Preview · awaiting signature'} className="mb-6" />
             <div className="border border-hairline bg-card">
-              <iframe
+              <PdfPreview
                 src={previewUrl}
                 title={`Certificate ${req.cert_number}`}
-                className="block h-[65vh] min-h-[420px] w-full sm:h-[820px]"
               />
             </div>
             {/* Always-visible escape hatch — iframe can fail silently on

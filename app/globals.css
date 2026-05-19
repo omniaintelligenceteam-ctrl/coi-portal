@@ -66,6 +66,157 @@
   --shadow-lift: 0 1px 0 rgb(0 0 0 / 0.02), 0 8px 24px -8px rgb(26 31 46 / 0.12);
   --shadow-seal: 0 0 0 1px var(--color-seal) inset, 0 1px 0 rgb(0 0 0 / 0.04);
   --shadow-sticky: 0 -1px 0 var(--color-hairline), 0 -8px 16px -10px rgb(26 31 46 / 0.08);
+
+  /* Motion — durations + easings (editorial, confident, fast).
+     Every new animation should pick one of these. Keeps the product on tempo. */
+  --m-fast: 150ms;     /* micro-state flips: focus, hover, checkmark stroke */
+  --m-base: 250ms;     /* default — pill morph, field shake, copy pill */
+  --m-slow: 400ms;     /* hero moments — seal stamp, success card mount */
+  --m-page: 180ms;     /* route crossfade */
+  --ease-out-quint: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ------------------------------------------------------------------
+ * Motion utilities — small, named keyframes used across primitives.
+ * Reduced-motion media query (below) zeroes durations globally.
+ * ------------------------------------------------------------------ */
+@keyframes row-pulse {
+  0%   { box-shadow: inset 0 -2px 0 0 transparent; background-color: transparent; }
+  20%  { box-shadow: inset 0 -2px 0 0 var(--color-brand); background-color: var(--color-brand-soft); }
+  100% { box-shadow: inset 0 -2px 0 0 transparent; background-color: transparent; }
+}
+.row-pulse {
+  animation: row-pulse 1500ms var(--ease-out-quint) 1;
+}
+
+@keyframes field-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-4px); }
+  40%      { transform: translateX(3px); }
+  60%      { transform: translateX(-2px); }
+  80%      { transform: translateX(1px); }
+}
+.field-shake {
+  animation: field-shake 250ms var(--ease-out-quint) 1;
+}
+
+@keyframes copy-pill {
+  0%   { opacity: 0; transform: translateY(0) scale(0.9); }
+  20%  { opacity: 1; transform: translateY(-4px) scale(1); }
+  100% { opacity: 0; transform: translateY(-16px) scale(1); }
+}
+.copy-pill {
+  animation: copy-pill 800ms var(--ease-out-quint) 1 both;
+}
+
+@keyframes row-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.row-reveal {
+  animation: row-reveal 400ms var(--ease-out-quint) both;
+}
+
+@keyframes pdf-shimmer {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.85; }
+}
+.pdf-shimmer {
+  animation: pdf-shimmer 1500ms var(--ease-in-out-soft) infinite;
+}
+
+@keyframes timeline-draw {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+.timeline-draw {
+  transform-origin: top;
+  animation: timeline-draw 600ms var(--ease-out-quint) both;
+}
+
+@keyframes timeline-dot-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.timeline-dot-pop {
+  animation: timeline-dot-pop 200ms var(--ease-out-quint) both;
+}
+
+@keyframes pill-ping {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.pill-ping {
+  animation: pill-ping 350ms var(--ease-out-quint) 1;
+}
+
+/* Toast countdown — animated bar that bleeds from full → empty over its duration.
+   Used in the bulk-approve undo toast (see app/admin/queue/QueueTable.tsx). */
+@keyframes toast-countdown {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+.toast-countdown {
+  transform-origin: left;
+  animation: toast-countdown var(--countdown-duration, 8000ms) linear both;
+}
+
+/* Seal stamp — the canonical "issued / verified / approved" reveal.
+   Tactile down-press: scales from 1.4 → 1, rotates -4° → 0°, fades in.
+   Reused across /verify, queue approve action, and any final-state moment. */
+@keyframes seal-stamp {
+  0%   { opacity: 0; transform: scale(1.4) rotate(-4deg); }
+  60%  { opacity: 1; transform: scale(0.96) rotate(0.5deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+.seal-stamp {
+  animation: seal-stamp 480ms var(--ease-out-quint) both;
+}
+
+/* Approve halo — brand-tone glow that washes a row, then fades.
+   Layered on top of row-pulse for the "ratified" moment in the queue. */
+@keyframes approve-halo {
+  0%   { opacity: 0; transform: scaleX(0.85); }
+  30%  { opacity: 0.85; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+.approve-halo {
+  transform-origin: center;
+  animation: approve-halo 900ms var(--ease-out-quint) both;
+}
+
+/* Slide-in stagger for verify-page data rows (under the seal). */
+@keyframes verify-data-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.verify-data-in {
+  animation: verify-data-in 360ms var(--ease-out-quint) both;
+}
+
+/* AI reading — soft horizontal scan, layered under the spinner to imply
+   "reading line by line". Used while reviewer_pass is null. */
+@keyframes ai-scan {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.ai-scan {
+  animation: ai-scan 1400ms var(--ease-in-out-soft) infinite;
+}
+
+/* Stroke draw — for SVG path animations on empty states and logos.
+   Caller must set the `--stroke-len` custom property to the path's getTotalLength(). */
+@keyframes stroke-draw {
+  from { stroke-dashoffset: var(--stroke-len, 600); }
+  to   { stroke-dashoffset: 0; }
+}
+.stroke-draw {
+  stroke-dasharray: var(--stroke-len, 600);
+  stroke-dashoffset: var(--stroke-len, 600);
+  animation: stroke-draw 1200ms var(--ease-out-quint) both;
 }
 
 /* ------------------------------------------------------------------

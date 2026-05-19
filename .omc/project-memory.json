@@ -213,56 +213,62 @@
     },
     {
       "path": "",
-      "accessCount": 46,
-      "lastAccessed": 1779163531604,
+      "accessCount": 49,
+      "lastAccessed": 1779194195342,
       "type": "directory"
     },
     {
-      "path": "app\\page.tsx",
-      "accessCount": 43,
-      "lastAccessed": 1779165961443,
-      "type": "file"
-    },
-    {
       "path": "app\\login\\page.tsx",
-      "accessCount": 40,
-      "lastAccessed": 1779166708050,
+      "accessCount": 49,
+      "lastAccessed": 1779195187635,
       "type": "file"
     },
     {
-      "path": "app\\result\\[certNumber]\\page.tsx",
-      "accessCount": 32,
-      "lastAccessed": 1779164926494,
+      "path": "app\\page.tsx",
+      "accessCount": 46,
+      "lastAccessed": 1779194215128,
       "type": "file"
     },
     {
       "path": "app",
-      "accessCount": 31,
-      "lastAccessed": 1779163553601,
+      "accessCount": 41,
+      "lastAccessed": 1779195572689,
       "type": "directory"
     },
     {
-      "path": "app\\CoverageForm.tsx",
-      "accessCount": 29,
-      "lastAccessed": 1779163058117,
+      "path": "app\\result\\[certNumber]\\page.tsx",
+      "accessCount": 38,
+      "lastAccessed": 1779195028736,
       "type": "file"
     },
     {
       "path": "app\\globals.css",
-      "accessCount": 28,
-      "lastAccessed": 1779164708921,
+      "accessCount": 35,
+      "lastAccessed": 1779195490533,
       "type": "file"
     },
     {
-      "path": "app\\components\\Header.tsx",
-      "accessCount": 28,
-      "lastAccessed": 1779165501187,
+      "path": "app\\CoverageForm.tsx",
+      "accessCount": 32,
+      "lastAccessed": 1779195786332,
       "type": "file"
     },
     {
       "path": "app\\admin\\queue\\[id]\\page.tsx",
+      "accessCount": 31,
+      "lastAccessed": 1779195629363,
+      "type": "file"
+    },
+    {
+      "path": "app\\components\\Header.tsx",
+      "accessCount": 29,
+      "lastAccessed": 1779194603939,
+      "type": "file"
+    },
+    {
+      "path": "app\\layout.tsx",
       "accessCount": 27,
-      "lastAccessed": 1779164693429,
+      "lastAccessed": 1779195556548,
       "type": "file"
     },
     {
@@ -272,15 +278,15 @@
       "type": "file"
     },
     {
-      "path": "app\\admin\\layout.tsx",
-      "accessCount": 22,
-      "lastAccessed": 1779164341231,
+      "path": "app\\admin\\queue\\page.tsx",
+      "accessCount": 25,
+      "lastAccessed": 1779195432910,
       "type": "file"
     },
     {
-      "path": "app\\layout.tsx",
-      "accessCount": 22,
-      "lastAccessed": 1779164493029,
+      "path": "app\\admin\\layout.tsx",
+      "accessCount": 23,
+      "lastAccessed": 1779194585643,
       "type": "file"
     },
     {
@@ -290,15 +296,21 @@
       "type": "file"
     },
     {
-      "path": "app\\admin\\queue\\page.tsx",
-      "accessCount": 21,
-      "lastAccessed": 1779165297043,
+      "path": "app\\api\\decide-cert\\route.ts",
+      "accessCount": 19,
+      "lastAccessed": 1779195434212,
       "type": "file"
     },
     {
-      "path": "app\\api\\decide-cert\\route.ts",
+      "path": "package.json",
       "accessCount": 18,
-      "lastAccessed": 1779162178118,
+      "lastAccessed": 1779194518724,
+      "type": "file"
+    },
+    {
+      "path": "app\\admin\\queue\\[id]\\DecisionForm.tsx",
+      "accessCount": 17,
+      "lastAccessed": 1779195571021,
       "type": "file"
     },
     {
@@ -308,21 +320,15 @@
       "type": "file"
     },
     {
-      "path": "app\\admin\\queue\\[id]\\DecisionForm.tsx",
-      "accessCount": 15,
-      "lastAccessed": 1779162081345,
-      "type": "file"
-    },
-    {
-      "path": "package.json",
-      "accessCount": 15,
-      "lastAccessed": 1779163082408,
-      "type": "file"
-    },
-    {
       "path": "app\\api\\generate-coi\\route.ts",
       "accessCount": 15,
       "lastAccessed": 1779163538515,
+      "type": "file"
+    },
+    {
+      "path": "tailwind.config.ts",
+      "accessCount": 13,
+      "lastAccessed": 1779194178727,
       "type": "file"
     },
     {
@@ -332,27 +338,27 @@
       "type": "file"
     },
     {
-      "path": "tailwind.config.ts",
-      "accessCount": 12,
-      "lastAccessed": 1779163469806,
-      "type": "file"
-    },
-    {
       "path": "app\\components\\Logo.tsx",
-      "accessCount": 11,
-      "lastAccessed": 1779163270087,
+      "accessCount": 12,
+      "lastAccessed": 1779194098203,
       "type": "file"
     },
     {
       "path": "lib",
-      "accessCount": 10,
-      "lastAccessed": 1779163526574,
+      "accessCount": 11,
+      "lastAccessed": 1779194230512,
       "type": "directory"
     },
     {
       "path": ".claude\\skills\\pdf-overlay-precision\\SKILL.md",
       "accessCount": 9,
       "lastAccessed": 1779155356661,
+      "type": "file"
+    },
+    {
+      "path": "supabase\\migrations\\20260518_0002_approval_workflow.sql",
+      "accessCount": 9,
+      "lastAccessed": 1779195457965,
       "type": "file"
     },
     {
@@ -365,12 +371,6 @@
       "path": "assets\\template-anchors.json",
       "accessCount": 8,
       "lastAccessed": 1779154667997,
-      "type": "file"
-    },
-    {
-      "path": "supabase\\migrations\\20260518_0002_approval_workflow.sql",
-      "accessCount": 8,
-      "lastAccessed": 1779165570750,
       "type": "file"
     },
     {
@@ -398,6 +398,12 @@
       "type": "file"
     },
     {
+      "path": "supabase\\migrations\\20260518_0001_coi_schema.sql",
+      "accessCount": 6,
+      "lastAccessed": 1779195456884,
+      "type": "file"
+    },
+    {
       "path": "scripts\\rasterizeTemplate.ts",
       "accessCount": 5,
       "lastAccessed": 1779146346888,
@@ -413,12 +419,6 @@
       "path": "lib\\getClientPolicies.ts",
       "accessCount": 5,
       "lastAccessed": 1779162025349,
-      "type": "file"
-    },
-    {
-      "path": "supabase\\migrations\\20260518_0001_coi_schema.sql",
-      "accessCount": 5,
-      "lastAccessed": 1779165704290,
       "type": "file"
     },
     {
@@ -464,6 +464,12 @@
       "type": "file"
     },
     {
+      "path": "tsconfig.json",
+      "accessCount": 2,
+      "lastAccessed": 1779194178531,
+      "type": "file"
+    },
+    {
       "path": "next.config.mjs",
       "accessCount": 1,
       "lastAccessed": 1779143080465,
@@ -492,12 +498,6 @@
       "accessCount": 1,
       "lastAccessed": 1779143219320,
       "type": "directory"
-    },
-    {
-      "path": "tsconfig.json",
-      "accessCount": 1,
-      "lastAccessed": 1779143356244,
-      "type": "file"
     },
     {
       "path": "app\\components\\PaperTexture.tsx",

@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { FieldShake } from '../components/motion';
 import { Logo } from '../components/Logo';
 import { Hairline } from '../components/Hairline';
 
@@ -16,6 +17,12 @@ export default function SignupPage() {
   });
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  // Bump on every server-side error so the email input shakes — even if
+  // the same error returns twice (Tier 1 #3).
+  const [errorTick, setErrorTick] = useState(0);
+  useEffect(() => {
+    if (status === 'error') setErrorTick((t) => t + 1);
+  }, [status, errorMsg]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -87,16 +94,18 @@ export default function SignupPage() {
                 </p>
 
                 <form onSubmit={handleSubmit} className="mt-10 space-y-6">
-                  <Field
-                    id="email"
-                    label="Email address"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={form.email}
-                    onChange={(v) => update('email', v)}
-                    placeholder="you@company.com"
-                  />
+                  <FieldShake errorKey={errorTick}>
+                    <Field
+                      id="email"
+                      label="Email address"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      value={form.email}
+                      onChange={(v) => update('email', v)}
+                      placeholder="you@company.com"
+                    />
+                  </FieldShake>
                   <Field
                     id="businessName"
                     label="Business name"
