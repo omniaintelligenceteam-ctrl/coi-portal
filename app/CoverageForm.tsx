@@ -46,6 +46,31 @@ function formatDate(iso: string): string {
   return `${m}/${d}/${y}`;
 }
 
+function friendlySubmitError(raw: string, status: number): string {
+  const msg = raw.trim();
+  const lower = msg.toLowerCase();
+
+  if (status === 401 || lower.includes('unauthorized')) {
+    return 'Your session expired. Sign in again and submit once more.';
+  }
+  if (status === 403 || lower.includes('no client account')) {
+    return 'This email is not linked to a client portal account yet. Request access first.';
+  }
+  if (lower.includes('rate limit') || lower.includes('too many')) {
+    return 'Too many certificate requests were submitted recently. Please wait a bit and try again.';
+  }
+  if (lower.includes('not eligible') || lower.includes('expired') || lower.includes('inactive')) {
+    return 'Some selected coverages are no longer eligible. Refresh and submit again.';
+  }
+  if (lower.includes('holder name is required') || lower.includes('holder address is required')) {
+    return 'Enter the certificate holder name and address before submitting.';
+  }
+  if (msg.startsWith('{') && msg.endsWith('}')) {
+    return `Request failed (${status}). Please try again.`;
+  }
+  return msg || `Request failed (${status}). Please try again.`;
+}
+
 export function CoverageForm({
   clientId,
   policies,
@@ -158,6 +183,18 @@ export function CoverageForm({
       setState({ kind: 'error', message: 'Select at least one coverage to include.' });
       return;
     }
+
+    const trimmedName = holderName.trim();
+    const trimmedAddress1 = holderAddress1.trim();
+    const trimmedAddress2 = holderAddress2.trim();
+    if (!trimmedName || !trimmedAddress1) {
+      setState({
+        kind: 'error',
+        message: 'Enter the certificate holder name and street address before submitting.',
+      });
+      return;
+    }
+
     setState({ kind: 'submitting' });
     try {
       const endpoint = mode === 'admin' ? '/api/admin/generate-coi' : '/api/generate-coi';
@@ -168,20 +205,35 @@ export function CoverageForm({
           clientId,
           selectedPolicyIds: Array.from(selected),
           holder: {
-            name: holderName.trim(),
-            address1: holderAddress1.trim(),
-            address2: holderAddress2.trim(),
+            name: trimmedName,
+            address1: trimmedAddress1,
+            address2: trimmedAddress2,
           },
         }),
       });
       if (!res.ok) {
-        const text = await res.text();
-        setState({ kind: 'error', message: text || `Request failed (${res.status}).` });
+        const payload = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          detail?: string;
+        };
+        const raw = payload.detail ?? payload.error ?? '';
+        setState({ kind: 'error', message: friendlySubmitError(raw, res.status) });
         return;
       }
-      const json = (await res.json()) as { certNumber?: string };
+      const json = (await res.json().catch(() => ({}))) as { certNumber?: string };
+      const certNumber = (json.certNumber ?? '').trim();
+      // F4: server returned 200 but no usable cert number — never claim success
+      // and never link to /result/pending. Surface as a retry-able error.
+      if (!certNumber || certNumber.toLowerCase() === 'pending') {
+        setState({
+          kind: 'error',
+          message:
+            "We didn't get a certificate number back. Your draft is safe — try submitting again in a moment.",
+        });
+        return;
+      }
       localStorage.removeItem(draftKey(clientId));
-      setState({ kind: 'success', certNumber: json.certNumber ?? 'pending' });
+      setState({ kind: 'success', certNumber });
     } catch (err) {
       setState({ kind: 'error', message: err instanceof Error ? err.message : 'Network error.' });
     }

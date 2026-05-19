@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
 import { MonoTag } from '@/app/components/MonoTag';
@@ -12,6 +11,17 @@ import { DeleteRequest } from './DeleteRequest';
 
 export const dynamic = 'force-dynamic';
 
+type ClientJoin = {
+  id: string;
+  business_name: string;
+  business_address1: string | null;
+  business_address2: string | null;
+};
+
+// PostgREST returns the joined client as either an object or a single-element
+// array depending on how it infers the relationship. The TS generator can't
+// pick one without manual hints, so we accept both shapes here and normalize
+// below.
 type RequestDetail = {
   id: string;
   cert_number: string;
@@ -27,12 +37,14 @@ type RequestDetail = {
   pdf_storage_path: string | null;
   requested_at: string;
   requested_by_email: string;
-  client: {
-    id: string;
-    business_name: string;
-    business_address1: string | null;
-    business_address2: string | null;
-  } | null;
+  client: ClientJoin | ClientJoin[] | null;
+};
+
+// Known flash codes coming back via ?error= / ?deleted= from queue [id] actions.
+const FLASH_MESSAGES: Record<string, { tone: 'ok' | 'error'; text: string }> = {
+  delete_failed: { tone: 'error', text: "Couldn't delete this request — try again." },
+  email_failed: { tone: 'error', text: 'Decision saved but the email failed to send.' },
+  update_failed: { tone: 'error', text: "Couldn't update this request." },
 };
 
 type CoverageDetail = {
@@ -63,11 +75,20 @@ function formatDate(iso: string): string {
 
 export default async function CertDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string; deleted?: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const sp = await searchParams;
+  const flashKey = sp.error;
+  const flash = flashKey ? FLASH_MESSAGES[flashKey] : null;
+  // Admin pages bypass RLS — gate is the layout's ADMIN_EMAILS check. The
+  // user-session client is RLS-bound to the cert_requests_self_select policy,
+  // which only matches rows where coi_clients.contact_email = auth.email(),
+  // so admins viewing other clients' requests would 404.
+  const supabase = createAdminClient();
 
   const { data: req } = await supabase
     .from('cert_requests')
@@ -82,6 +103,13 @@ export default async function CertDetailPage({
     .maybeSingle<RequestDetail>();
 
   if (!req) notFound();
+
+  // PostgREST may return the join as ClientJoin | ClientJoin[] depending on
+  // how it sees the FK. Collapse to a single object so the rest of the page
+  // can read req.client.business_name etc. unconditionally.
+  const client: ClientJoin | null = Array.isArray(req.client)
+    ? req.client[0] ?? null
+    : req.client;
 
   const policyIds = req.coverages_selected ?? [];
   const { data: coverages } = policyIds.length
@@ -106,15 +134,14 @@ export default async function CertDetailPage({
   let downloadUrl: string | null = null;
   if (req.pdf_storage_path) {
     try {
-      const admin = createAdminClient();
       const filename = buildCertFilename(
         req.cert_number,
         req.holder_name,
         req.requested_at,
       );
       [previewUrl, downloadUrl] = await Promise.all([
-        createCertSignedUrl(admin, req.pdf_storage_path),
-        createCertSignedUrl(admin, req.pdf_storage_path, { downloadFilename: filename }),
+        createCertSignedUrl(supabase, req.pdf_storage_path),
+        createCertSignedUrl(supabase, req.pdf_storage_path, { downloadFilename: filename }),
       ]);
     } catch (err) {
       console.error('signed URL mint failed (admin queue detail):', err);
@@ -130,6 +157,18 @@ export default async function CertDetailPage({
         <ChevronLeft className="h-3 w-3" />
         Back to queue
       </Link>
+
+      {flash && (
+        <div
+          className={
+            flash.tone === 'ok'
+              ? 'mt-6 border border-seal/40 bg-seal-soft/50 px-5 py-3 text-sm text-seal-deep'
+              : 'mt-6 border border-danger/40 bg-danger-soft/50 px-5 py-3 text-sm text-danger'
+          }
+        >
+          {flash.text}
+        </div>
+      )}
 
       {/* Document-style header — spans full width above the split */}
       <header className="mt-8">
@@ -169,9 +208,9 @@ export default async function CertDetailPage({
           <section className="mt-12 grid grid-cols-1 gap-10 sm:grid-cols-2">
             <PartyCard
               label="Insured"
-              name={req.client?.business_name ?? 'Unknown client'}
-              address1={req.client?.business_address1}
-              address2={req.client?.business_address2}
+              name={client?.business_name ?? 'Unknown client'}
+              address1={client?.business_address1}
+              address2={client?.business_address2}
             />
             <PartyCard
               label="Certificate Holder"
@@ -233,7 +272,7 @@ export default async function CertDetailPage({
             {canDecide ? (
               <DecisionForm
                 requestId={req.id}
-                clientId={req.client?.id ?? ''}
+                clientId={client?.id ?? ''}
                 currentHolder={{
                   name: req.holder_name,
                   address1: req.holder_address1,

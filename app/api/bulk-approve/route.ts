@@ -67,14 +67,22 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    // Stamp approved before sending (mirrors decide-cert approve path)
-    const { error: updateErr } = await admin
+    // Stamp approved before sending (mirrors decide-cert approve path).
+    // Conditional update — if another admin already decided, this returns no row.
+    const { data: guarded, error: updateErr } = await admin
       .from('cert_requests')
       .update({ status: 'approved', decided_by_email: email, decided_at: now })
-      .eq('id', id);
+      .eq('id', id)
+      .in('status', ['pending', 'reviewed'])
+      .select('id')
+      .maybeSingle();
 
     if (updateErr) {
       result.failed.push({ id, certNumber, error: updateErr.message });
+      continue;
+    }
+    if (!guarded) {
+      result.failed.push({ id, certNumber, error: 'already_decided' });
       continue;
     }
 

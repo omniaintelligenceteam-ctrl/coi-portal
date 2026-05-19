@@ -4,6 +4,10 @@ import { sendAccessRequestNotification } from '@/lib/email';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function adminEmails(): string[] {
+  return (process.env.ADMIN_EMAILS ?? '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+
 type Body = {
   email?: string;
   businessName?: string;
@@ -21,13 +25,19 @@ export async function POST(request: Request) {
   }
 
   const email = (body.email ?? '').trim().toLowerCase();
-  const businessName = (body.businessName ?? '').trim();
+  const businessName = (body.businessName ?? '').trim().slice(0, 200);
   const contactName = (body.contactName ?? '').trim() || null;
   const phone = (body.phone ?? '').trim() || null;
-  const message = (body.message ?? '').trim() || null;
+  const message = (body.message ?? '').trim().slice(0, 2000) || null;
 
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
+  }
+  if (adminEmails().includes(email.toLowerCase())) {
+    return NextResponse.json(
+      { error: 'This email cannot be registered for portal access.' },
+      { status: 403 },
+    );
   }
   if (!businessName) {
     return NextResponse.json({ error: 'Business name is required.' }, { status: 400 });

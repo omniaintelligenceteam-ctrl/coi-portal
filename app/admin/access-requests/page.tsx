@@ -8,6 +8,7 @@ import {
   rejectAccessRequest,
   inviteClient,
 } from './actions';
+import { AdminFormButton } from './AdminFormButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,9 +42,17 @@ const FLASH_MESSAGES: Record<string, { tone: 'ok' | 'error'; text: string }> = {
   not_found: { tone: 'error', text: 'Request not found.' },
   already_decided: { tone: 'error', text: 'That request was already decided.' },
   create_failed: { tone: 'error', text: "Couldn't create client record." },
+  create_failed_rollback_needed: {
+    tone: 'error',
+    text: "Request was marked approved but client record didn't save — check platform_log and fix manually.",
+  },
   update_failed: { tone: 'error', text: "Couldn't update the request." },
   invalid_invite: { tone: 'error', text: 'Invite needs a valid email + business name.' },
   invite_failed: { tone: 'error', text: "Couldn't create client record for invite." },
+  admin_email_blocked: {
+    tone: 'error',
+    text: "That email is an admin — admins can't be approved as clients.",
+  },
 };
 
 export default async function AccessRequestsPage({
@@ -124,12 +133,7 @@ export default async function AccessRequestsPage({
           <InviteField name="contactName" label="Contact name (optional)" />
           <InviteField name="phone" label="Phone (optional)" type="tel" />
           <div className="sm:col-span-2">
-            <button
-              type="submit"
-              className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-deep"
-            >
-              Send invite
-            </button>
+            <AdminFormButton variant="primary">Send invite</AdminFormButton>
           </div>
         </form>
       </section>
@@ -237,12 +241,9 @@ function PendingCard({ row }: { row: RequestRow }) {
             required
             className="field-underline block w-full text-sm text-ink"
           />
-          <button
-            type="submit"
-            className="focus-ring inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-brand-deep"
-          >
+          <AdminFormButton variant="primary" size="sm">
             Approve &amp; create
-          </button>
+          </AdminFormButton>
         </form>
 
         <form action={rejectAccessRequest} className="space-y-3">
@@ -256,12 +257,9 @@ function PendingCard({ row }: { row: RequestRow }) {
             placeholder="e.g. We don't currently write policies in your state."
             className="field-underline block w-full resize-y text-sm text-ink"
           />
-          <button
-            type="submit"
-            className="focus-ring inline-flex items-center gap-2 rounded-md border border-danger/50 bg-white px-4 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft/40"
-          >
+          <AdminFormButton variant="danger" size="sm">
             Reject
-          </button>
+          </AdminFormButton>
         </form>
       </div>
     </li>

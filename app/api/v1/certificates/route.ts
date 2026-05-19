@@ -87,14 +87,27 @@ export async function POST(req: NextRequest) {
 
       const review = await reviewCert({ request: coiInput, clientOverrides: overrides ?? [] });
 
-      await admin.from('cert_requests').update({
-        reviewer_pass: review.pass,
-        reviewer_flags: review.flags,
-        reviewer_notes: review.notes,
-        reviewer_model: review.model,
-        reviewed_at: new Date().toISOString(),
-        status: 'reviewed',
-      }).eq('id', requestId);
+      // Guard on status='pending' so this background write can't clobber a row
+      // Brook has already decided while the reviewer was running.
+      const { data: reviewedRow } = await admin
+        .from('cert_requests')
+        .update({
+          reviewer_pass: review.pass,
+          reviewer_flags: review.flags,
+          reviewer_notes: review.notes,
+          reviewer_model: review.model,
+          reviewed_at: new Date().toISOString(),
+          status: 'reviewed',
+        })
+        .eq('id', requestId)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle();
+
+      if (!reviewedRow) {
+        log.info('v1.cert.review_skipped_already_decided', { certNumber, requestId });
+        return;
+      }
 
       await sendQueueNotification({
         certNumber,

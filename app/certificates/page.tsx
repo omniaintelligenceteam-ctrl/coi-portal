@@ -27,6 +27,16 @@ const rowReveal = (i: number) => ({
 
 export const dynamic = 'force-dynamic';
 
+// Flash codes mirror deleteOwnCertRequest redirects in ./actions.
+const FLASH_MESSAGES: Record<string, { tone: 'ok' | 'error'; text: string }> = {
+  not_found: { tone: 'error', text: "Couldn't find that request." },
+  not_deletable: {
+    tone: 'error',
+    text: "That certificate has already been sent or approved — only Brook can remove it.",
+  },
+  delete_failed: { tone: 'error', text: "Couldn't delete the request — try again." },
+};
+
 type Row = {
   id: string;
   cert_number: string;
@@ -49,7 +59,25 @@ function formatDateTime(iso: string): string {
   });
 }
 
-export default async function CertificatesPage() {
+export default async function CertificatesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; deleted?: string }>;
+}) {
+  const sp = await searchParams;
+  const flashKey =
+    sp.deleted === '1'
+      ? 'deleted'
+      : sp.error && FLASH_MESSAGES[sp.error]
+        ? sp.error
+        : null;
+  const flash =
+    flashKey === 'deleted'
+      ? { tone: 'ok' as const, text: 'Request deleted.' }
+      : flashKey
+        ? FLASH_MESSAGES[flashKey]
+        : null;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -79,6 +107,18 @@ export default async function CertificatesPage() {
           <ChevronLeft className="h-3 w-3" />
           New request
         </Link>
+
+        {flash && (
+          <div
+            className={
+              flash.tone === 'ok'
+                ? 'mt-6 border border-seal/40 bg-seal-soft/50 px-5 py-3 text-sm text-seal-deep'
+                : 'mt-6 border border-danger/40 bg-danger-soft/50 px-5 py-3 text-sm text-danger'
+            }
+          >
+            {flash.text}
+          </div>
+        )}
 
         <header className="mt-6 mb-10">
           <p className="caps text-[0.65rem] font-semibold text-seal-deep">My certificates</p>

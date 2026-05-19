@@ -50,7 +50,7 @@ async function defaultAgencyId(admin: ReturnType<typeof createAdminClient>): Pro
 export async function approveAccessRequest(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = String(formData.get('id') ?? '').trim();
-  const businessName = String(formData.get('businessName') ?? '').trim();
+  const businessName = String(formData.get('businessName') ?? '').trim().slice(0, 200);
   if (!id || !businessName) {
     redirect(`/admin/access-requests?error=missing_fields`);
   }
@@ -65,6 +65,30 @@ export async function approveAccessRequest(formData: FormData): Promise<void> {
     .maybeSingle<{ id: string; email: string; business_name: string; source: 'self_signup' | 'admin_invite'; status: string }>();
   if (fetchErr || !req) redirect(`/admin/access-requests?error=not_found`);
   if (req.status !== 'pending') {
+    redirect(`/admin/access-requests?error=already_decided`);
+  }
+
+  // S3: block legacy path — admin emails must never become coi_clients rows.
+  if (adminEmails().includes(req.email.toLowerCase())) {
+    redirect(`/admin/access-requests?error=admin_email_blocked`);
+  }
+
+  // D4: atomic status flip — only succeeds if row is still pending. Eliminates
+  // the read-then-update race. Do this FIRST so a later client-create failure
+  // leaves a flipped status with no orphan client (vs. orphan client w/ pending).
+  const decidedAt = new Date().toISOString();
+  const { data: flipped, error: flipErr } = await admin
+    .from('access_requests')
+    .update({
+      status: 'approved',
+      decided_by_email: decidedBy,
+      decided_at: decidedAt,
+    })
+    .eq('id', id)
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle<{ id: string }>();
+  if (flipErr || !flipped) {
     redirect(`/admin/access-requests?error=already_decided`);
   }
 
@@ -91,23 +115,24 @@ export async function approveAccessRequest(formData: FormData): Promise<void> {
       .select('id')
       .single();
     if (createErr || !created) {
-      redirect(`/admin/access-requests?error=create_failed`);
+      // Status was already flipped to 'approved' above; surface this so an
+      // admin can manually fix the orphaned state.
+      await admin.from('platform_log').insert({
+        domain: 'coi_portal',
+        level: 'error',
+        message: `approveAccessRequest: client create failed after status flip (req=${id}, email=${req.email})`,
+        details: { error: createErr?.message ?? null, requestId: id, email: req.email },
+      }).then(() => undefined, () => undefined);
+      redirect(`/admin/access-requests?error=create_failed_rollback_needed`);
     }
     clientId = created.id;
   }
 
-  const { error: updateErr } = await admin
+  // Attach the client link to the now-approved access_request row.
+  await admin
     .from('access_requests')
-    .update({
-      status: 'approved',
-      decided_by_email: decidedBy,
-      decided_at: new Date().toISOString(),
-      linked_client_id: clientId,
-    })
+    .update({ linked_client_id: clientId })
     .eq('id', id);
-  if (updateErr) {
-    redirect(`/admin/access-requests?error=update_failed`);
-  }
 
   let loginPrompt:
     | { confirmUrl: string; emailOtp: string; expiresMinutes: number }
@@ -123,6 +148,7 @@ export async function approveAccessRequest(formData: FormData): Promise<void> {
     console.error('access-approved login link generation failed', err);
   }
 
+  let emailFailed = false;
   try {
     await sendAccessApprovedEmail({
       to: req.email,
@@ -132,16 +158,21 @@ export async function approveAccessRequest(formData: FormData): Promise<void> {
     });
   } catch (err) {
     console.error('access-approved email failed', err);
+    emailFailed = true;
   }
 
   revalidatePath('/admin/access-requests');
-  redirect(`/admin/access-requests?ok=approved`);
+  redirect(
+    emailFailed
+      ? `/admin/access-requests?ok=approved&email=failed`
+      : `/admin/access-requests?ok=approved`,
+  );
 }
 
 export async function rejectAccessRequest(formData: FormData): Promise<void> {
   const decidedBy = (await requireAdmin()).toLowerCase();
   const id = String(formData.get('id') ?? '').trim();
-  const reason = String(formData.get('reason') ?? '').trim();
+  const reason = String(formData.get('reason') ?? '').trim().slice(0, 2000);
   if (!id) redirect(`/admin/access-requests?error=missing_fields`);
 
   const admin = createAdminClient();
@@ -166,6 +197,7 @@ export async function rejectAccessRequest(formData: FormData): Promise<void> {
     .eq('id', id);
   if (updateErr) redirect(`/admin/access-requests?error=update_failed`);
 
+  let emailFailed = false;
   try {
     await sendAccessRejectedEmail({
       to: req.email,
@@ -174,10 +206,15 @@ export async function rejectAccessRequest(formData: FormData): Promise<void> {
     });
   } catch (err) {
     console.error('access-rejected email failed', err);
+    emailFailed = true;
   }
 
   revalidatePath('/admin/access-requests');
-  redirect(`/admin/access-requests?ok=rejected`);
+  redirect(
+    emailFailed
+      ? `/admin/access-requests?ok=rejected&email=failed`
+      : `/admin/access-requests?ok=rejected`,
+  );
 }
 
 /**
@@ -188,13 +225,20 @@ export async function rejectAccessRequest(formData: FormData): Promise<void> {
 export async function inviteClient(formData: FormData): Promise<void> {
   const decidedBy = (await requireAdmin()).toLowerCase();
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  const businessName = String(formData.get('businessName') ?? '').trim();
-  const contactName = String(formData.get('contactName') ?? '').trim() || null;
-  const phone = String(formData.get('phone') ?? '').trim() || null;
+  const businessName = String(formData.get('businessName') ?? '').trim().slice(0, 200);
+  const contactNameRaw = String(formData.get('contactName') ?? '').trim().slice(0, 100);
+  const contactName = contactNameRaw || null;
+  const phoneRaw = String(formData.get('phone') ?? '').trim().slice(0, 40);
+  const phone = phoneRaw || null;
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!EMAIL_RE.test(email) || !businessName) {
     redirect('/admin/access-requests?error=invalid_invite');
+  }
+
+  // S3: block legacy path — admin emails must never become coi_clients rows.
+  if (adminEmails().includes(email)) {
+    redirect('/admin/access-requests?error=admin_email_blocked');
   }
 
   const admin = createAdminClient();
@@ -226,7 +270,20 @@ export async function inviteClient(formData: FormData): Promise<void> {
     clientId = created.id;
   }
 
-  await admin.from('access_requests').insert({
+  // D4: mark any existing pending row for this email as superseded so we
+  // don't double-insert audit rows for the same person.
+  await admin
+    .from('access_requests')
+    .update({
+      status: 'superseded',
+      decided_by_email: decidedBy,
+      decided_at: new Date().toISOString(),
+      decision_note: 'Superseded by admin invite',
+    })
+    .eq('email', email)
+    .eq('status', 'pending');
+
+  const { error: auditInsertErr } = await admin.from('access_requests').insert({
     email,
     business_name: businessName,
     contact_name: contactName,
@@ -237,6 +294,9 @@ export async function inviteClient(formData: FormData): Promise<void> {
     decided_at: new Date().toISOString(),
     linked_client_id: clientId,
   });
+  if (auditInsertErr) {
+    redirect('/admin/access-requests?error=audit_insert_failed');
+  }
 
   let loginPrompt:
     | { confirmUrl: string; emailOtp: string; expiresMinutes: number }
@@ -252,6 +312,7 @@ export async function inviteClient(formData: FormData): Promise<void> {
     console.error('invite login link generation failed', err);
   }
 
+  let emailFailed = false;
   try {
     await sendAccessApprovedEmail({
       to: email,
@@ -261,8 +322,13 @@ export async function inviteClient(formData: FormData): Promise<void> {
     });
   } catch (err) {
     console.error('invite email failed', err);
+    emailFailed = true;
   }
 
   revalidatePath('/admin/access-requests');
-  redirect('/admin/access-requests?ok=invited');
+  redirect(
+    emailFailed
+      ? '/admin/access-requests?ok=invited&email=failed'
+      : '/admin/access-requests?ok=invited',
+  );
 }

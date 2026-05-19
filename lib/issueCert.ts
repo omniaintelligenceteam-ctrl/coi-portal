@@ -2,15 +2,15 @@ import { after } from 'next/server';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import QRCode from 'qrcode';
-import { PDFDocument } from '@cantoo/pdf-lib';
 import { fillAcord25 } from './fillAcord25';
 import { reviewCert, type ClientOverride } from './reviewerAgent';
 import { selectableCoverages } from './getClientPolicies';
-import { buildCoiInput, computeNextCertNumber, type DbPolicyFull } from './coiInputBuilder';
+import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
 import { sendQueueNotification } from './email';
 import { sendApprovedCert } from './sendApprovedCert';
 import { log } from './logger';
+import { stampVerifyQr } from './verifyQr';
+import { validateHolderInput } from './holderInput';
 
 /**
  * Tamper-evident checksum suffix.
@@ -83,54 +83,6 @@ export function withChecksum(baseCertNumber: string): string {
   return `${baseCertNumber}-${checksumFor(baseCertNumber)}`;
 }
 
-/**
- * Stamp a QR code into the lower-right of the rendered ACORD 25 PDF that
- * deep-links to the public verify page. Small (~88pt square) with a thin
- * caption so it never competes with the form content.
- */
-async function stampVerifyQr(pdfBytes: Uint8Array, certNumber: string): Promise<Uint8Array> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  const verifyUrl = `${siteUrl}/verify/${certNumber}`;
-
-  // High error-correction so the QR still scans even with the form's hairlines
-  // bleeding into its quiet zone. Margin is the white quiet-zone padding in
-  // modules; 1 keeps it tight without sacrificing scan reliability.
-  const qrPngDataUrl = await QRCode.toDataURL(verifyUrl, {
-    errorCorrectionLevel: 'M',
-    margin: 1,
-    scale: 6,
-    color: { dark: '#000000ff', light: '#ffffffff' },
-  });
-  const qrPngBytes = Buffer.from(qrPngDataUrl.split(',')[1]!, 'base64');
-
-  const doc = await PDFDocument.load(pdfBytes);
-  const page = doc.getPage(0);
-  const qrImage = await doc.embedPng(qrPngBytes);
-
-  // US Letter is 612x792 pts. Drop the QR in the lower-right margin
-  // (below the cert holder block) with a small caption underneath.
-  const QR_SIZE = 56;
-  const QR_X = 612 - QR_SIZE - 22;
-  const QR_Y = 22;
-  page.drawImage(qrImage, { x: QR_X, y: QR_Y + 10, width: QR_SIZE, height: QR_SIZE });
-
-  // Caption — thin, mono-ish. Use Helvetica at 5pt so it sits as a quiet
-  // utility line. We deliberately keep it ASCII to avoid font-embed issues.
-  const { StandardFonts } = await import('@cantoo/pdf-lib');
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const caption = 'Verify at policyplace.com/verify';
-  const captionSize = 5;
-  const captionWidth = font.widthOfTextAtSize(caption, captionSize);
-  page.drawText(caption, {
-    x: QR_X + (QR_SIZE - captionWidth) / 2,
-    y: QR_Y + 3,
-    size: captionSize,
-    font,
-  });
-
-  return doc.save();
-}
-
 const HOURLY_LIMIT = () => parseInt(process.env.CERT_HOURLY_LIMIT ?? '20');
 const DAILY_LIMIT = () => parseInt(process.env.CERT_DAILY_LIMIT ?? '200');
 
@@ -163,7 +115,13 @@ export async function issueCert(input: {
   requestedIp: string | null;
 }): Promise<IssueCertResult> {
   const t0 = Date.now();
-  const { reader, admin, client, selectedPolicyIds, holder, requestedByEmail, requestedIp } = input;
+  const { reader, admin, client, selectedPolicyIds, requestedByEmail, requestedIp } = input;
+
+  const holderResult = validateHolderInput(input.holder);
+  if (!holderResult.ok) {
+    return { ok: false, status: 400, error: holderResult.error };
+  }
+  const holder = holderResult.holder;
 
   // Rate limit: count recent requests for this client
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -233,21 +191,17 @@ export async function issueCert(input: {
   }
   const selected = selectedPolicyIds.map((id) => eligibleById.get(id)!).filter(Boolean);
 
-  // Compute next cert number for today. The DB may carry either legacy
-  // (`PP-YYYYMMDD-XXXX`) or checksum-suffixed (`PP-YYYYMMDD-XXXX-CCC`) rows;
-  // strip any suffix before feeding `computeNextCertNumber` so its regex —
-  // which expects the base form — keeps incrementing the per-day sequence
-  // cleanly. We then append a fresh checksum to the new number.
-  const todayPrefix = formatDatePrefix(today);
-  const { data: maxRow } = await admin
-    .from('cert_requests')
-    .select('cert_number')
-    .like('cert_number', `PP-${todayPrefix}-%`)
-    .order('cert_number', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const priorMaxBase = maxRow?.cert_number ? stripChecksum(maxRow.cert_number) : null;
-  const baseCertNumber = computeNextCertNumber(today, priorMaxBase);
+  // Atomic cert-number allocation via the `allocate_cert_number` RPC (D2
+  // migration). Replaces the prior read-then-write of MAX(cert_number) which
+  // raced under concurrent submits and could collide PDF uploads in storage.
+  const { data: allocated, error: allocErr } = await admin.rpc('allocate_cert_number', {
+    p_prefix: 'PP-',
+  });
+  if (allocErr || !allocated) {
+    log.error('cert.allocate_failed', { error: allocErr?.message });
+    return { ok: false, status: 500, error: 'cert number allocation failed' };
+  }
+  const baseCertNumber = allocated as string;
   const certNumber = withChecksum(baseCertNumber);
 
   // Build CoiInput
@@ -361,7 +315,9 @@ export async function issueCert(input: {
         clientOverrides: overridesRaw ?? [],
       });
 
-      await admin
+      // Guard on status='pending' so the reviewer can't clobber a row Brook
+      // has already decided (approve/edit/reject) while the reviewer was running.
+      const { data: reviewedRow } = await admin
         .from('cert_requests')
         .update({
           reviewer_pass: review.pass,
@@ -371,7 +327,19 @@ export async function issueCert(input: {
           reviewed_at: new Date().toISOString(),
           status: 'reviewed',
         })
-        .eq('id', requestId);
+        .eq('id', requestId)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle();
+
+      if (!reviewedRow) {
+        log.info('cert.review_skipped_already_decided', {
+          certNumber,
+          requestId,
+          durationMs: Date.now() - reviewT0,
+        });
+        return;
+      }
 
       log.info('cert.reviewed', {
         certNumber,
@@ -392,14 +360,28 @@ export async function issueCert(input: {
           .maybeSingle();
         if (clientRow?.auto_approve_enabled) {
           try {
-            await admin
+            // Guard — only auto-approve a row still at status='reviewed'. If
+            // Brook (or another path) already decided between the reviewer
+            // update and now, this returns 0 rows and we fall through to the
+            // queue notification so the existing decision sticks.
+            const { data: autoRow } = await admin
               .from('cert_requests')
               .update({
                 status: 'approved',
                 decided_by_email: 'system:auto-approve',
                 decided_at: new Date().toISOString(),
               })
-              .eq('id', requestId);
+              .eq('id', requestId)
+              .eq('status', 'reviewed')
+              .select('id')
+              .maybeSingle();
+            if (!autoRow) {
+              log.info('cert.auto_approve_skipped_already_decided', {
+                certNumber,
+                requestId,
+              });
+              throw new Error('auto-approve lost race with manual decision');
+            }
             await sendApprovedCert(admin, requestId);
             autoApproved = true;
             log.info('cert.auto_approved', {
@@ -454,9 +436,3 @@ export async function issueCert(input: {
   return { ok: true, certNumber, requestId };
 }
 
-function formatDatePrefix(today: Date): string {
-  const y = today.getFullYear().toString().padStart(4, '0');
-  const m = (today.getMonth() + 1).toString().padStart(2, '0');
-  const d = today.getDate().toString().padStart(2, '0');
-  return `${y}${m}${d}`;
-}

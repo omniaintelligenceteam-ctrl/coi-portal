@@ -62,7 +62,29 @@ type Normalized = {
   body: string;
   inReplyTo: string;
   references: string;
+  authResults: string;
+  spf: string;
+  dkim: string;
+  dmarc: string;
 };
+
+/**
+ * Parses an RFC 8601 Authentication-Results header (or a Resend-style
+ * authentication-results object) into the three checks we care about.
+ * Returns lowercased verdict tokens, e.g. "pass" | "fail" | "softfail" | "".
+ */
+function parseAuthResults(raw: string): { spf: string; dkim: string; dmarc: string } {
+  const out = { spf: '', dkim: '', dmarc: '' };
+  if (!raw) return out;
+  const lower = raw.toLowerCase();
+  const spf = lower.match(/spf=([a-z]+)/);
+  const dkim = lower.match(/dkim=([a-z]+)/);
+  const dmarc = lower.match(/dmarc=([a-z]+)/);
+  if (spf?.[1]) out.spf = spf[1];
+  if (dkim?.[1]) out.dkim = dkim[1];
+  if (dmarc?.[1]) out.dmarc = dmarc[1];
+  return out;
+}
 
 function pickHeader(headers: Record<string, unknown> | undefined, name: string): string {
   if (!headers) return '';
@@ -110,8 +132,33 @@ function normalizePayload(payload: Record<string, unknown>): Normalized | null {
   const inReplyTo = pickHeader(headers, 'In-Reply-To');
   const references = pickHeader(headers, 'References');
 
+  // Resend Inbound (and most providers) surface SPF/DKIM/DMARC verdicts via the
+  // Authentication-Results header. Some providers also expose a top-level
+  // `authentication_results` field on the payload — accept either shape.
+  const headerAuth = pickHeader(headers, 'Authentication-Results');
+  const topAuth =
+    typeof data.authentication_results === 'string'
+      ? (data.authentication_results as string)
+      : typeof (data as { authenticationResults?: unknown }).authenticationResults === 'string'
+        ? ((data as { authenticationResults: string }).authenticationResults)
+        : '';
+  const authResults = headerAuth || topAuth || '';
+  const verdicts = parseAuthResults(authResults);
+
   if (!fromAddress) return null;
-  return { messageId, fromAddress, toAddress, subject, body, inReplyTo, references };
+  return {
+    messageId,
+    fromAddress,
+    toAddress,
+    subject,
+    body,
+    inReplyTo,
+    references,
+    authResults,
+    spf: verdicts.spf,
+    dkim: verdicts.dkim,
+    dmarc: verdicts.dmarc,
+  };
 }
 
 function stripHtml(html: string): string {
@@ -190,6 +237,27 @@ export async function POST(req: NextRequest) {
       await admin.from('inbound_email_log').update({ status, ...extra }).eq('id', logId);
     }
   };
+
+  // 2a. Verify SPF/DKIM/DMARC before trusting the From: header. Without this
+  // an attacker can forge a client's address and trigger an auto-issued cert.
+  // We require DMARC=pass AND DKIM=pass (SPF alone is forgeable via forwarders).
+  if (norm.dmarc !== 'pass' || norm.dkim !== 'pass') {
+    log.warn('inbound.auth_failed', {
+      messageId: norm.messageId,
+      from: norm.fromAddress,
+      spf: norm.spf,
+      dkim: norm.dkim,
+      dmarc: norm.dmarc,
+    });
+    await finish('error', {
+      error: 'email_authentication_failed',
+      auth_spf: norm.spf,
+      auth_dkim: norm.dkim,
+      auth_dmarc: norm.dmarc,
+    });
+    // Consume (200) so the provider doesn't retry; do NOT issue a cert or reply.
+    return NextResponse.json({ ok: true, status: 'auth_failed' });
+  }
 
   try {
     // 3. Resolve client by sender address (security boundary).
@@ -445,10 +513,14 @@ Happy to get this out to you. I just need ${askText} so the certificate is fille
     // 10. Send the cert back on the same thread.
     const portalBase =
       process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ?? 'https://coi-portal.vercel.app';
+    // Always send the cert to the client's on-file contact_email — never the
+    // envelope From: address. Even with SPF/DKIM/DMARC, the DB record is the
+    // canonical destination (the inbound sender just authorized the request).
+    const certRecipient = result.client.contact_email;
     await sendCoiEmail({
-      to: norm.fromAddress,
+      to: certRecipient,
       cc: [result.agency.email, 'wesoverstreet@gmail.com']
-        .filter((e): e is string => Boolean(e) && e !== norm.fromAddress),
+        .filter((e): e is string => Boolean(e) && e !== certRecipient),
       pdfBytes: result.pdfBytes,
       certNumber: result.certNumber,
       holderName: result.coiInput.holder.name,

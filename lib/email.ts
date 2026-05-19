@@ -7,6 +7,19 @@
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
+function portalBase(): string {
+  const url = process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '');
+  return url || 'https://coi-portal.vercel.app';
+}
+
+function adminNotifyList(): string[] {
+  const list = (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.length > 0 ? list : ['wesoverstreet@gmail.com'];
+}
+
 async function resendPost(
   apiKey: string,
   fromEmail: string,
@@ -169,7 +182,7 @@ export async function sendQueueNotification(input: QueueNotificationInput): Prom
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !fromEmail) return;
-  const adminEmails = ['wesoverstreet@gmail.com'];
+  const adminEmails = adminNotifyList();
 
   const reviewerLine = input.reviewerPass === null
     ? 'Reviewer still running.'
@@ -184,7 +197,7 @@ Client: ${input.clientName}
 Holder: ${input.holderName}
 ${reviewerLine}
 
-Review and approve: https://coi-portal.vercel.app/admin/queue/${input.requestId}`;
+Review and approve: ${portalBase()}/admin/queue/${input.requestId}`;
 
   await fetch(RESEND_ENDPOINT, {
     method: 'POST',
@@ -322,20 +335,6 @@ export async function sendInboundReply(input: InboundReplyInput): Promise<CoiEma
 }
 
 // ─── Access requests (signup + invite) ─────────────────────────────────────
-
-function adminNotifyList(): string[] {
-  return (process.env.ADMIN_EMAILS ?? 'wesoverstreet@gmail.com')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-function portalBase(): string {
-  return (
-    process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ??
-    'https://coi-portal.vercel.app'
-  );
-}
 
 export type AccessRequestNotificationInput = {
   requestId: string;

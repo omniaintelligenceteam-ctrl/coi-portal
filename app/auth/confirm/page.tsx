@@ -86,11 +86,11 @@ export default function ConfirmSignInPage() {
         </button>
 
         <p className="mt-4 text-xs leading-relaxed text-ink-faint">
-          If this fails, go back to your email and use the backup code on the{' '}
+          If this fails, return to the{' '}
           <Link href="/login" className="text-brand underline-offset-4 hover:underline">
             sign-in page
           </Link>
-          .
+          {' '}and enter your email again.
         </p>
       </div>
     </main>

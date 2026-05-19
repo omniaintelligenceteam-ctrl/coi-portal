@@ -11,7 +11,17 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const COI_ARCHIVE_BUCKET = 'coi-archive';
 
-const DEFAULT_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+/**
+ * Default signed-URL TTL is short on purpose: most callers mint signed URLs for
+ * in-app previews/downloads that are consumed immediately, so a long-lived link
+ * just widens the leak window if it's ever logged or forwarded.
+ *
+ * Use EMAIL_ATTACHMENT_TTL_SECONDS only when a link must survive in an inbox as
+ * a fallback (e.g., the email-attachment send path when the actual PDF attach
+ * fails). Pass it explicitly via `ttlSeconds` — never bump the default.
+ */
+export const DEFAULT_TTL_SECONDS = 60 * 15; // 15 min for in-app previews
+export const EMAIL_ATTACHMENT_TTL_SECONDS = 60 * 60 * 24; // 24h for email-embedded links (fallback if attachment fails)
 
 export type SignedUrlOptions = {
   ttlSeconds?: number;

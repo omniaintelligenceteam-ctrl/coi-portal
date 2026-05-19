@@ -27,5 +27,6 @@ assets/license/
 
 .vercel
 .env.vercel.check
+.env.prod.check
 
 .vercel

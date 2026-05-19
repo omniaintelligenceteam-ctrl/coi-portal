@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (parsed.decision === 'reject') {
-    const { error } = await admin
+    const { data: guarded, error } = await admin
       .from('cert_requests')
       .update({
         status: 'rejected',
@@ -140,8 +140,12 @@ export async function POST(req: NextRequest) {
         decided_by_email: decidedBy,
         decided_at: now,
       })
-      .eq('id', parsed.requestId);
+      .eq('id', parsed.requestId)
+      .in('status', ['pending', 'reviewed'])
+      .select('id')
+      .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!guarded) return NextResponse.json({ error: 'already_decided' }, { status: 409 });
 
     // Notify the client by email — non-fatal if it fails (row is already updated)
     try {
@@ -188,7 +192,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: readErr?.message ?? 'request not found' }, { status: 404 });
     }
     const diff = computeHolderDiff(existing, parsed.holder);
-    const { error: updateErr } = await admin
+    const { data: guarded, error: updateErr } = await admin
       .from('cert_requests')
       .update({
         status: 'edited',
@@ -199,18 +203,26 @@ export async function POST(req: NextRequest) {
         decided_by_email: decidedBy,
         decided_at: now,
       })
-      .eq('id', parsed.requestId);
+      .eq('id', parsed.requestId)
+      .in('status', ['pending', 'reviewed'])
+      .select('id')
+      .maybeSingle();
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    if (!guarded) return NextResponse.json({ error: 'already_decided' }, { status: 409 });
   } else if (parsed.decision === 'approve') {
-    const { error: updateErr } = await admin
+    const { data: guarded, error: updateErr } = await admin
       .from('cert_requests')
       .update({
         status: 'approved',
         decided_by_email: decidedBy,
         decided_at: now,
       })
-      .eq('id', parsed.requestId);
+      .eq('id', parsed.requestId)
+      .in('status', ['pending', 'reviewed'])
+      .select('id')
+      .maybeSingle();
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    if (!guarded) return NextResponse.json({ error: 'already_decided' }, { status: 409 });
   }
 
   // Optional override write (only on approve/edit)

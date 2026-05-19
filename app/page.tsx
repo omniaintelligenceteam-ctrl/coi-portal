@@ -182,7 +182,8 @@ function NoClientFound({ email }: { email: string }) {
         <p className="mt-5 text-base leading-relaxed text-ink-muted">
           No Policy Place account is linked to{' '}
           <span className="font-mono text-ink">{email}</span> yet. If you've already requested
-          access, Brook or Wes is reviewing — you'll get a sign-in email as soon as it's approved.
+          access, Brook or Wes is reviewing. As soon as it's approved, you can sign in instantly
+          with this email.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Link
