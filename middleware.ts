@@ -13,6 +13,12 @@ import { createServerClient } from '@supabase/ssr';
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  // Read the "remember me" preference cookie set by /auth/callback. If the
+  // user opted out, strip maxAge/expires from the refreshed auth cookies so
+  // they die when the browser closes. Default (cookie missing or "1") keeps
+  // the long-lived persistent behavior.
+  const persistAuth = request.cookies.get('pp_remember')?.value !== '0';
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,9 +30,12 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const opts = persistAuth
+              ? options
+              : { ...options, maxAge: undefined, expires: undefined };
+            response.cookies.set(name, value, opts);
+          });
         },
       },
     },

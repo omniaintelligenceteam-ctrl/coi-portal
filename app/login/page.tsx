@@ -32,6 +32,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
 
   // Surface callback errors arriving via ?error=... (e.g. /auth/callback redirects
   // here when OTP exchange fails). Without this, users see a blank form and
@@ -58,7 +59,9 @@ export default function LoginPage() {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?remember=${rememberMe ? '1' : '0'}`,
+      },
     });
     if (error) {
       setStatus('error');
@@ -110,6 +113,8 @@ export default function LoginPage() {
                 <SignInForm
                   email={email}
                   setEmail={setEmail}
+                  rememberMe={rememberMe}
+                  setRememberMe={setRememberMe}
                   status={status}
                   errorMsg={errorMsg}
                   onSubmit={handleSubmit}
@@ -149,12 +154,16 @@ export default function LoginPage() {
 function SignInForm({
   email,
   setEmail,
+  rememberMe,
+  setRememberMe,
   status,
   errorMsg,
   onSubmit,
 }: {
   email: string;
   setEmail: (v: string) => void;
+  rememberMe: boolean;
+  setRememberMe: (v: boolean) => void;
   status: 'idle' | 'sending' | 'sent' | 'error';
   errorMsg: string;
   onSubmit: (e: FormEvent<HTMLFormElement>) => void;
@@ -186,6 +195,40 @@ function SignInForm({
             className="field-underline mt-2 block w-full font-sans text-lg text-ink"
           />
         </div>
+
+        <label className="-m-2 inline-flex cursor-pointer select-none items-center gap-3 rounded p-2">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="peer sr-only"
+          />
+          <span
+            aria-hidden="true"
+            className={[
+              'flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand/40',
+              rememberMe ? 'border-brand bg-brand' : 'border-hairline-strong bg-card',
+            ].join(' ')}
+          >
+            {rememberMe && (
+              <svg
+                className="h-3 w-3 text-white"
+                viewBox="0 0 12 12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M2 6.5L4.5 9L10 3.5" />
+              </svg>
+            )}
+          </span>
+          <span className="text-sm text-ink">
+            Keep me signed in on this device
+            <span className="ml-1 text-ink-faint">(30 days)</span>
+          </span>
+        </label>
 
         {status === 'error' && (
           <p className="text-sm leading-relaxed text-danger">
