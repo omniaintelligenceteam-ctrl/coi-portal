@@ -263,9 +263,24 @@ export default async function CertDetailPage({
                 <iframe
                   src={previewUrl}
                   title={`Certificate ${req.cert_number} preview`}
-                  className="block h-[760px] w-full"
+                  className="block h-[60vh] min-h-[400px] w-full xl:h-[760px]"
                 />
               </div>
+              {/* Mobile escape hatch — PDFs frequently render small in iframes
+                  on phones; a direct link guarantees the reviewer can always
+                  see the document at full size. */}
+              <p className="caps mt-2 text-[0.6rem] font-medium text-ink-faint xl:hidden">
+                {previewUrl && (
+                  <a
+                    href={downloadUrl ?? previewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-brand hover:underline"
+                  >
+                    Open PDF in a new tab →
+                  </a>
+                )}
+              </p>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="caps text-[0.58rem] font-medium text-ink-faint">
                   Holder + signature reflect the current row · re-rendered on send

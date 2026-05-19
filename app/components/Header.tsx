@@ -12,7 +12,7 @@ export function Header({
   showMyCerts?: boolean;
 }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-hairline bg-paper/85 backdrop-blur-md">
+    <header className="pt-safe sticky top-0 z-20 border-b border-hairline bg-paper/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:gap-6 sm:px-8 sm:py-5">
         <Link
           href="/"

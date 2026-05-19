@@ -50,10 +50,14 @@ export function CoverageForm({
   clientId,
   policies,
   savedHolders = [],
+  mode = 'self',
+  onBehalfOf,
 }: {
   clientId: string;
   policies: PolicyForForm[];
   savedHolders?: SavedHolder[];
+  mode?: 'self' | 'admin';
+  onBehalfOf?: string;
 }) {
   const [selected, setSelected] = useState<Set<string>>(
     new Set(policies.map((p) => p.id)),
@@ -156,7 +160,8 @@ export function CoverageForm({
     }
     setState({ kind: 'submitting' });
     try {
-      const res = await fetch('/api/generate-coi', {
+      const endpoint = mode === 'admin' ? '/api/admin/generate-coi' : '/api/generate-coi';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -192,6 +197,17 @@ export function CoverageForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10 pb-28 sm:space-y-14 sm:pb-0">
+      {mode === 'admin' && (
+        <div className="border border-brand/30 bg-brand-soft/40 px-4 py-3">
+          <p className="caps text-[0.6rem] font-semibold text-brand-deep">Agent mode</p>
+          <p className="mt-1 text-sm text-ink">
+            Generating on behalf of{' '}
+            <span className="font-semibold">{onBehalfOf ?? 'this client'}</span>. This cert will be
+            audit-trailed to your email.
+          </p>
+        </div>
+      )}
+
       {/* Restore banners */}
       <AnimatePresence>
         {(showPrefillBanner || showDraftBanner) && (
@@ -263,13 +279,13 @@ export function CoverageForm({
         {quickHolders.length > 0 && (
           <div className="mt-5">
             <p className="caps mb-2 text-[0.6rem] font-medium text-ink-faint">Recent holders</p>
-            <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {quickHolders.map((h, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => applyHolder(h)}
-                  className="focus-ring group inline-flex shrink-0 max-w-[15rem] items-center gap-2 rounded-full border border-hairline-strong bg-white px-3 py-2 text-left text-[0.78rem] text-ink transition-colors hover:border-brand hover:bg-brand-soft/50"
+                  className="focus-ring tap-target group inline-flex w-full items-center gap-2 rounded-full border border-hairline-strong bg-white px-4 py-3 text-left text-sm text-ink transition-colors hover:border-brand hover:bg-brand-soft/50 sm:w-auto sm:max-w-[15rem] sm:px-3 sm:py-2 sm:text-[0.78rem]"
                   aria-label={`Use ${h.name}`}
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-seal" aria-hidden="true" />

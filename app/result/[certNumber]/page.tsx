@@ -7,12 +7,15 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
 import { AutoRefresh } from './AutoRefresh';
+import { LifecycleTimeline } from './LifecycleTimeline';
 
 export const dynamic = 'force-dynamic';
 
 type PageProps = {
   params: Promise<{ certNumber: string }>;
 };
+
+type ReviewerFlag = { severity?: string; field?: string; message?: string };
 
 type ResultRow = {
   id: string;
@@ -24,6 +27,12 @@ type ResultRow = {
   pdf_storage_path: string | null;
   decision_note: string | null;
   requested_at: string;
+  requested_by_email: string | null;
+  reviewed_at: string | null;
+  reviewer_pass: boolean | null;
+  reviewer_flags: ReviewerFlag[] | null;
+  decided_at: string | null;
+  decided_by_email: string | null;
   sent_at: string | null;
   client: { business_name: string } | null;
 };
@@ -51,7 +60,9 @@ export default async function ResultPage({ params }: PageProps) {
     .from('cert_requests')
     .select(
       `id, cert_number, status, holder_name, holder_address1, holder_address2,
-       pdf_storage_path, decision_note, requested_at, sent_at,
+       pdf_storage_path, decision_note, requested_at, requested_by_email,
+       reviewed_at, reviewer_pass, reviewer_flags,
+       decided_at, decided_by_email, sent_at,
        client:coi_clients ( business_name )`,
     )
     .eq('cert_number', certNumber)
@@ -170,6 +181,23 @@ export default async function ResultPage({ params }: PageProps) {
           </aside>
         </section>
 
+        {/* Lifecycle timeline — replaces the older in-flight 01/02 stepper
+            with a full Requested → Opened journey. Gracefully degrades when
+            optional columns are null. */}
+        <LifecycleTimeline
+          status={req.status}
+          requestedAt={req.requested_at}
+          requestedByEmail={req.requested_by_email}
+          reviewedAt={req.reviewed_at}
+          reviewerPass={req.reviewer_pass}
+          reviewerFlags={req.reviewer_flags}
+          decidedAt={req.decided_at}
+          decidedByEmail={req.decided_by_email}
+          sentAt={req.sent_at}
+          holderName={req.holder_name}
+          holderOpenedAt={null}
+        />
+
         {/* PDF preview */}
         {previewUrl && !isRejected && (
           <section className="mt-14">
@@ -178,7 +206,7 @@ export default async function ResultPage({ params }: PageProps) {
               <iframe
                 src={previewUrl}
                 title={`Certificate ${req.cert_number}`}
-                className="block h-[820px] w-full"
+                className="block h-[65vh] min-h-[420px] w-full sm:h-[820px]"
               />
             </div>
             {/* Always-visible escape hatch — iframe can fail silently on
@@ -342,35 +370,9 @@ function InFlight({ status }: { status: CertStatus }) {
       </h2>
       <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-ink-muted">
         Brook is reviewing this request and will email the finished certificate, signed and dated,
-        the moment it clears review — usually within a few business hours.
+        the moment it clears review — usually within a few business hours. The timeline below
+        tracks every step.
       </p>
-
-      <div className="mt-10 grid gap-8 sm:grid-cols-2">
-        <Stepper
-          number="01"
-          title="Reviewed"
-          body="A licensed agent verifies coverage selections, holder details, and any prior corrections on file."
-        />
-        <Stepper
-          number="02"
-          title="Emailed"
-          body="The signed PDF arrives in your inbox as soon as it's approved. Reply to that email if anything needs adjusting."
-        />
-      </div>
-    </div>
-  );
-}
-
-function Stepper({ number, title, body }: { number: string; title: string; body: string }) {
-  return (
-    <div>
-      <div className="flex items-baseline gap-3">
-        <span className="font-mono text-[0.78rem] font-medium tabular-nums text-seal">{number}</span>
-        <span className="font-display text-[1.05rem] font-semibold tracking-tight text-ink">
-          {title}
-        </span>
-      </div>
-      <p className="mt-2.5 text-sm leading-relaxed text-ink-muted">{body}</p>
     </div>
   );
 }

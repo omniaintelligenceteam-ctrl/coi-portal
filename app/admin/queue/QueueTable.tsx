@@ -1,9 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { toast } from 'sonner';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
+import { createClient } from '@/lib/supabase/browser';
+import { useQueueShortcuts } from '../useQueueShortcuts';
+import { ShortcutHelp } from '../ShortcutHelp';
 
 export type QueueRow = {
   id: string;
@@ -41,10 +46,22 @@ type BulkState =
   | { kind: 'running' }
   | { kind: 'done'; succeeded: number; failed: { id: string; certNumber: string | null; error: string }[] };
 
-export function QueueTable({ rows }: { rows: QueueRow[] }) {
+const BULK_UNDO_MS = 8000;
+
+export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
   const router = useRouter();
+  const reduce = useReducedMotion();
+  const [rows, setRows] = useState<QueueRow[]>(initialRows);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkState, setBulkState] = useState<BulkState>({ kind: 'idle' });
+  const [focusIdx, setFocusIdx] = useState<number>(-1);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [newRowIds, setNewRowIds] = useState<Set<string>>(new Set());
+
+  // Sync rows when server data changes (e.g., navigation refresh)
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
 
   const eligibleIds = new Set(
     rows.filter((r) => r.status === 'pending' || r.status === 'reviewed').map((r) => r.id),
@@ -52,15 +69,20 @@ export function QueueTable({ rows }: { rows: QueueRow[] }) {
 
   const selectedEligible = [...selected].filter((id) => eligibleIds.has(id));
 
-  function toggleRow(id: string) {
-    if (!eligibleIds.has(id)) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  const toggleRow = useCallback(
+    (id: string) => {
+      if (!eligibleIds.has(id)) return;
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    },
+    // eligibleIds derives from rows
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows],
+  );
 
   function toggleAll() {
     if (selectedEligible.length === eligibleIds.size) {
@@ -70,34 +92,172 @@ export function QueueTable({ rows }: { rows: QueueRow[] }) {
     }
   }
 
-  async function bulkApprove() {
-    if (selectedEligible.length === 0) return;
-    setBulkState({ kind: 'running' });
+  // Core bulk-approve fetch — extracted so it can be deferred behind an undo toast.
+  const executeBulkApprove = useCallback(
+    async (ids: string[]) => {
+      if (ids.length === 0) return;
+      setBulkState({ kind: 'running' });
+      try {
+        const res = await fetch('/api/bulk-approve', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ requestIds: ids }),
+        });
+        const body = (await res.json()) as {
+          succeeded: string[];
+          failed: { id: string; certNumber: string | null; error: string }[];
+        };
+        setBulkState({ kind: 'done', succeeded: body.succeeded.length, failed: body.failed });
+        setSelected(new Set());
+        router.refresh();
+      } catch (err) {
+        setBulkState({
+          kind: 'done',
+          succeeded: 0,
+          failed: ids.map((id) => ({
+            id,
+            certNumber: null,
+            error: err instanceof Error ? err.message : 'Network error',
+          })),
+        });
+      }
+    },
+    [router],
+  );
+
+  // Bulk-approve trigger now offers an 8s undo window via sonner.
+  function bulkApprove() {
+    const ids = selectedEligible;
+    if (ids.length === 0) return;
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!cancelled) executeBulkApprove(ids);
+    }, BULK_UNDO_MS);
+
+    toast(`Approved ${ids.length} cert${ids.length === 1 ? '' : 's'}. Sending in 8s.`, {
+      duration: BULK_UNDO_MS,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          cancelled = true;
+          clearTimeout(timer);
+        },
+      },
+    });
+  }
+
+  // Realtime: subscribe to inserts/updates on cert_requests.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel('admin-queue-cert-requests')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'cert_requests' },
+        (payload) => {
+          const fresh = payload.new as Partial<QueueRow> & {
+            id: string;
+            status?: CertStatus;
+          };
+          if (fresh.status !== 'pending' && fresh.status !== 'reviewed') return;
+          setRows((prev) => {
+            if (prev.some((r) => r.id === fresh.id)) return prev;
+            const stub: QueueRow = {
+              id: fresh.id,
+              cert_number: fresh.cert_number ?? '—',
+              holder_name: fresh.holder_name ?? '—',
+              status: (fresh.status ?? 'pending') as CertStatus,
+              requested_at: fresh.requested_at ?? new Date().toISOString(),
+              reviewer_pass: fresh.reviewer_pass ?? null,
+              reviewer_flags: fresh.reviewer_flags ?? [],
+              client: null,
+            };
+            return [...prev, stub];
+          });
+          setNewRowIds((prev) => {
+            const next = new Set(prev);
+            next.add(fresh.id);
+            return next;
+          });
+          // hydrate the rest (client name) from the server
+          router.refresh();
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'cert_requests' },
+        (payload) => {
+          const updated = payload.new as Partial<QueueRow> & { id: string; status?: CertStatus };
+          setRows((prev) => {
+            // If row no longer fits the queue filter, drop it.
+            if (updated.status && updated.status !== 'pending' && updated.status !== 'reviewed') {
+              return prev.filter((r) => r.id !== updated.id);
+            }
+            return prev.map((r) =>
+              r.id === updated.id ? { ...r, ...(updated as Partial<QueueRow>) } : r,
+            );
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
+
+  // Keep focus index in range as rows change.
+  useEffect(() => {
+    if (rows.length === 0) {
+      if (focusIdx !== -1) setFocusIdx(-1);
+      return;
+    }
+    if (focusIdx >= rows.length) setFocusIdx(rows.length - 1);
+  }, [rows, focusIdx]);
+
+  // Single-row approve via API (used by keyboard `a`).
+  async function approveOne(id: string) {
+    if (!eligibleIds.has(id)) return;
     try {
-      const res = await fetch('/api/bulk-approve', {
+      await fetch('/api/bulk-approve', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ requestIds: selectedEligible }),
+        body: JSON.stringify({ requestIds: [id] }),
       });
-      const body = (await res.json()) as {
-        succeeded: string[];
-        failed: { id: string; certNumber: string | null; error: string }[];
-      };
-      setBulkState({ kind: 'done', succeeded: body.succeeded.length, failed: body.failed });
-      setSelected(new Set());
       router.refresh();
-    } catch (err) {
-      setBulkState({
-        kind: 'done',
-        succeeded: 0,
-        failed: selectedEligible.map((id) => ({
-          id,
-          certNumber: null,
-          error: err instanceof Error ? err.message : 'Network error',
-        })),
-      });
+    } catch {
+      // realtime will pick up the change anyway; surface nothing here.
     }
   }
+
+  // Keyboard shortcut handlers
+  const focused = focusIdx >= 0 && focusIdx < rows.length ? rows[focusIdx] : null;
+
+  useQueueShortcuts({
+    onDown: () => setFocusIdx((i) => Math.min(rows.length - 1, i < 0 ? 0 : i + 1)),
+    onUp: () => setFocusIdx((i) => Math.max(0, i < 0 ? 0 : i - 1)),
+    onOpen: () => {
+      if (focused) router.push(`/admin/queue/${focused.id}`);
+    },
+    onApprove: () => {
+      if (focused && eligibleIds.has(focused.id)) approveOne(focused.id);
+    },
+    onReject: () => {
+      if (focused) router.push(`/admin/queue/${focused.id}?action=reject`);
+    },
+    onToggleSelect: () => {
+      if (focused) toggleRow(focused.id);
+    },
+    onBulkApprove: () => bulkApprove(),
+    onToggleHelp: () => setHelpOpen((v) => !v),
+    onFocusSearch: () => {
+      const el = document.querySelector<HTMLInputElement>(
+        'input[type="search"], input[name="search"], input[data-queue-search]',
+      );
+      if (el) el.focus();
+    },
+  });
 
   const allEligibleSelected =
     eligibleIds.size > 0 && selectedEligible.length === eligibleIds.size;
@@ -155,7 +315,85 @@ export function QueueTable({ rows }: { rows: QueueRow[] }) {
         </div>
       )}
 
-      <div className="overflow-x-auto border-y border-hairline">
+      {/* Mobile card stack — under sm */}
+      <ul className="space-y-3 sm:hidden">
+        {rows.map((r, idx) => {
+          const counts = flagCounts(r.reviewer_flags ?? []);
+          const isEligible = eligibleIds.has(r.id);
+          const isSelected = selected.has(r.id);
+          const isFocused = idx === focusIdx;
+          const isNew = newRowIds.has(r.id);
+          return (
+            <motion.li
+              key={r.id}
+              initial={isNew && !reduce ? { opacity: 0, y: -4 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+              className={`mobile-card ${isSelected ? 'bg-brand-soft/20' : ''} ${
+                isFocused ? 'ring-2 ring-brand/40 ring-offset-1 ring-offset-paper' : ''
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/admin/queue/${r.id}`}
+                    className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.85rem] font-semibold text-ink"
+                  >
+                    {r.cert_number}
+                  </Link>
+                  <p className="mt-1 truncate font-medium text-[0.95rem] text-ink">
+                    {r.client?.business_name ?? '—'}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  disabled={!isEligible}
+                  onChange={() => toggleRow(r.id)}
+                  className="tap-target h-5 w-5 shrink-0 rounded-[3px] border-hairline-strong text-brand disabled:cursor-not-allowed disabled:opacity-30 focus:ring-brand/40"
+                  aria-label={`Select ${r.cert_number}`}
+                />
+              </div>
+              <dl className="mt-3">
+                <div className="mobile-card-row">
+                  <dt>Holder</dt>
+                  <dd className="text-[0.85rem]">{r.holder_name}</dd>
+                </div>
+                <div className="mobile-card-row">
+                  <dt>Status</dt>
+                  <dd><StatusPill status={r.status} /></dd>
+                </div>
+                <div className="mobile-card-row">
+                  <dt>AI review</dt>
+                  <dd>
+                    <AiReviewIndicator
+                      pass={r.reviewer_pass}
+                      errors={counts.errors}
+                      warnings={counts.warnings}
+                    />
+                  </dd>
+                </div>
+                <div className="mobile-card-row">
+                  <dt>Received</dt>
+                  <dd className="font-mono text-[0.78rem] text-ink-faint">
+                    {relativeTime(r.requested_at)}
+                  </dd>
+                </div>
+              </dl>
+              <Link
+                href={`/admin/queue/${r.id}`}
+                className="focus-ring tap-target mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
+              >
+                Review request
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </motion.li>
+          );
+        })}
+      </ul>
+
+      {/* Desktop table — sm and up */}
+      <div className="hidden border-y border-hairline sm:block">
         <table className="min-w-full">
           <thead>
             <tr className="border-b border-hairline">
@@ -172,74 +410,109 @@ export function QueueTable({ rows }: { rows: QueueRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
-              const counts = flagCounts(r.reviewer_flags ?? []);
-              const isEligible = eligibleIds.has(r.id);
-              const isSelected = selected.has(r.id);
-              return (
-                <tr
-                  key={r.id}
-                  className={`group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/50 ${
-                    isSelected ? 'bg-brand-soft/20' : ''
-                  }`}
-                >
-                  <td className="px-3 py-4 align-middle">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      disabled={!isEligible}
-                      onChange={() => toggleRow(r.id)}
-                      className="h-4 w-4 rounded-[3px] border-hairline-strong text-brand disabled:cursor-not-allowed disabled:opacity-30 focus:ring-brand/40"
-                      aria-label={`Select ${r.cert_number}`}
-                    />
-                  </td>
-                  <Td>
-                    <Link
-                      href={`/admin/queue/${r.id}`}
-                      className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.78rem] font-medium text-ink"
-                    >
-                      {r.cert_number}
-                    </Link>
-                  </Td>
-                  <Td>
-                    <span className="font-medium text-[0.92rem] text-ink">
-                      {r.client?.business_name ?? '—'}
-                    </span>
-                  </Td>
-                  <Td>
-                    <span className="text-[0.9rem] text-ink-muted">{r.holder_name}</span>
-                  </Td>
-                  <Td>
-                    <StatusPill status={r.status} />
-                  </Td>
-                  <Td>
-                    <AiReviewIndicator
-                      pass={r.reviewer_pass}
-                      errors={counts.errors}
-                      warnings={counts.warnings}
-                    />
-                  </Td>
-                  <Td align="right">
-                    <span className="font-mono text-[0.75rem] text-ink-faint">
-                      {relativeTime(r.requested_at)}
-                    </span>
-                  </Td>
-                  <td className="py-4 pl-3 pr-2 text-right align-middle">
-                    <Link
-                      href={`/admin/queue/${r.id}`}
-                      className="focus-ring inline-flex items-center gap-1 rounded text-[0.78rem] font-semibold text-brand opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      Review
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })}
+            <AnimatePresence initial={false}>
+              {rows.map((r, idx) => {
+                const counts = flagCounts(r.reviewer_flags ?? []);
+                const isEligible = eligibleIds.has(r.id);
+                const isSelected = selected.has(r.id);
+                const isFocused = idx === focusIdx;
+                const isNew = newRowIds.has(r.id);
+                return (
+                  <motion.tr
+                    key={r.id}
+                    initial={isNew && !reduce ? { opacity: 0 } : false}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                    className={`group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/50 ${
+                      isSelected ? 'bg-brand-soft/20' : ''
+                    } ${isFocused ? 'bg-paper-deep shadow-[inset_2px_0_0_0_var(--color-brand)]' : ''}`}
+                    onClick={() => setFocusIdx(idx)}
+                  >
+                    <td className="px-3 py-4 align-middle">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={!isEligible}
+                        onChange={() => toggleRow(r.id)}
+                        className="h-4 w-4 rounded-[3px] border-hairline-strong text-brand disabled:cursor-not-allowed disabled:opacity-30 focus:ring-brand/40"
+                        aria-label={`Select ${r.cert_number}`}
+                      />
+                    </td>
+                    <Td>
+                      <Link
+                        href={`/admin/queue/${r.id}`}
+                        className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.78rem] font-medium text-ink"
+                      >
+                        {r.cert_number}
+                      </Link>
+                    </Td>
+                    <Td>
+                      <span className="font-medium text-[0.92rem] text-ink">
+                        {r.client?.business_name ?? '—'}
+                      </span>
+                    </Td>
+                    <Td>
+                      <span className="text-[0.9rem] text-ink-muted">{r.holder_name}</span>
+                    </Td>
+                    <Td>
+                      <StatusPill status={r.status} />
+                    </Td>
+                    <Td>
+                      <AiReviewIndicator
+                        pass={r.reviewer_pass}
+                        errors={counts.errors}
+                        warnings={counts.warnings}
+                      />
+                    </Td>
+                    <Td align="right">
+                      <span className="font-mono text-[0.75rem] text-ink-faint">
+                        {relativeTime(r.requested_at)}
+                      </span>
+                    </Td>
+                    <td className="py-4 pl-3 pr-2 text-right align-middle">
+                      <Link
+                        href={`/admin/queue/${r.id}`}
+                        className="focus-ring inline-flex items-center gap-1 rounded text-[0.78rem] font-semibold text-brand opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        Review
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </AnimatePresence>
           </tbody>
         </table>
+
+        {/* Keyboard cheat-strip — visible on desktop */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 px-1 pb-1 pt-2">
+          <ShortcutHint keys={['j', 'k']} label="Move" />
+          <ShortcutHint keys={['Enter']} label="Open" />
+          <ShortcutHint keys={['a']} label="Approve" />
+          <ShortcutHint keys={['?']} label="More" />
+        </div>
       </div>
+
+      <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
+  );
+}
+
+function ShortcutHint({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[0.7rem] text-ink-faint">
+      {keys.map((k, i) => (
+        <kbd
+          key={i}
+          className="inline-flex h-5 min-w-5 items-center justify-center rounded-[3px] border border-hairline-strong bg-white px-1 font-mono text-[0.65rem] font-medium text-ink-muted"
+        >
+          {k}
+        </kbd>
+      ))}
+      <span className="caps text-[0.58rem] font-medium tracking-caps">{label}</span>
+    </span>
   );
 }
 
@@ -254,7 +527,11 @@ function AiReviewIndicator({
 }) {
   if (pass === null) {
     return (
-      <span className="caps inline-flex items-center gap-1.5 text-[0.65rem] text-ink-faint">
+      <span
+        className="caps inline-flex items-center gap-1.5 text-[0.65rem] text-ink-faint"
+        role="status"
+        aria-live="polite"
+      >
         <span className="relative flex h-1.5 w-1.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ink-muted opacity-50" />
           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ink-muted" />
@@ -265,14 +542,22 @@ function AiReviewIndicator({
   }
   if (pass && errors === 0 && warnings === 0) {
     return (
-      <span className="caps inline-flex items-center gap-1.5 text-[0.65rem] font-semibold text-success">
+      <span
+        className="caps inline-flex items-center gap-1.5 text-[0.65rem] font-semibold text-success"
+        role="status"
+        aria-live="polite"
+      >
         <span className="h-1.5 w-1.5 rounded-full bg-success" />
         Clean
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-2 text-[0.75rem]">
+    <span
+      className="inline-flex items-center gap-2 text-[0.75rem]"
+      role="status"
+      aria-live="polite"
+    >
       {errors > 0 && (
         <span className="inline-flex items-center gap-1 font-mono font-medium text-danger">
           <span className="h-1.5 w-1.5 rounded-full bg-danger" />

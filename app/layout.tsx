@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Fraunces, Geist, Geist_Mono } from 'next/font/google';
+import { Toaster } from 'sonner';
 import { PaperTexture } from './components/PaperTexture';
 import './globals.css';
 
@@ -34,6 +35,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
   themeColor: '#1a1a1a',
 };
 
@@ -43,6 +48,50 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="relative min-h-screen bg-paper font-sans text-ink antialiased selection:bg-brand/15 selection:text-ink">
         <PaperTexture />
         <div className="relative z-10">{children}</div>
+        {/* Editorial-themed Sonner toaster. Paper-warm surface, hairline ink
+            border, Geist sans (inherited), 6px radius to match cards. No
+            shimmer, no candy colors — see toastOptions.style below. */}
+        <style>{`
+          [data-sonner-toaster][data-theme] {
+            --normal-bg: var(--color-paper);
+            --normal-border: var(--color-hairline-strong);
+            --normal-text: var(--color-ink);
+            --success-bg: var(--color-paper);
+            --success-border: var(--color-success);
+            --success-text: var(--color-ink);
+            --error-bg: var(--color-paper);
+            --error-border: var(--color-danger);
+            --error-text: var(--color-ink);
+            --warning-bg: var(--color-paper);
+            --warning-border: var(--color-warning);
+            --warning-text: var(--color-ink);
+            --info-bg: var(--color-paper);
+            --info-border: var(--color-brand);
+            --info-text: var(--color-ink);
+          }
+          [data-sonner-toast] {
+            font-family: var(--font-sans) !important;
+            border-radius: 6px !important;
+            border-width: 1px !important;
+            box-shadow: var(--shadow-lift) !important;
+          }
+        `}</style>
+        <Toaster
+          position="bottom-right"
+          theme="light"
+          richColors={false}
+          closeButton
+          gap={10}
+          offset={24}
+          toastOptions={{
+            duration: 4500,
+            classNames: {
+              toast: 'editorial-toast',
+              title: 'editorial-toast-title',
+              description: 'editorial-toast-description',
+            },
+          }}
+        />
       </body>
     </html>
   );

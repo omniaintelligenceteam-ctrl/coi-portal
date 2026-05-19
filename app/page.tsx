@@ -61,7 +61,9 @@ export default async function HomePage() {
     .order('exp_date', { ascending: false })
     .returns<PolicyRow[]>();
 
-  const eligible = selectableCoverages(policiesRaw ?? [], new Date());
+  const today = new Date();
+  const eligible = selectableCoverages(policiesRaw ?? [], today);
+  const renewalAlerts = computeRenewalAlerts(policiesRaw ?? [], today);
 
   // Fetch saved holders for autocomplete (sorted by most recently used)
   const { data: holdersRaw } = await supabase
@@ -120,6 +122,8 @@ export default async function HomePage() {
             </p>
           )}
         </section>
+
+        {renewalAlerts.length > 0 && <RenewalBanner alerts={renewalAlerts} />}
 
         {policiesForForm.length === 0 ? (
           <NoActivePolicies />
@@ -206,6 +210,114 @@ function NoActivePolicies() {
       <p className="mt-2 text-sm leading-relaxed text-ink">
         We don't see any in-force policies for your account right now. Please reach out to Brook to
         confirm your coverage status before requesting a certificate.
+      </p>
+    </div>
+  );
+}
+
+const COVERAGE_LABEL: Record<string, string> = {
+  GL: 'General Liability',
+  WC: "Workers' Compensation",
+  AUTO: 'Commercial Auto',
+  UMBRELLA: 'Umbrella / Excess',
+  EQUIPMENT: 'Contractors Equipment',
+  OTHER: 'Coverage',
+};
+
+const RENEWAL_WINDOW_DAYS = 30;
+
+type RenewalAlert = {
+  policyId: string;
+  label: string;
+  expDate: string;
+  daysOut: number; // negative if expired
+};
+
+function computeRenewalAlerts(policies: PolicyRow[], today: Date): RenewalAlert[] {
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return policies
+    .filter((p) => p.active)
+    .map((p) => {
+      const exp = new Date(p.exp_date + 'T00:00:00').getTime();
+      const daysOut = Math.round((exp - startOfDay) / 86_400_000);
+      return {
+        policyId: p.id,
+        label: COVERAGE_LABEL[p.type] ?? p.type,
+        expDate: p.exp_date,
+        daysOut,
+      };
+    })
+    .filter((a) => a.daysOut <= RENEWAL_WINDOW_DAYS)
+    .sort((a, b) => a.daysOut - b.daysOut);
+}
+
+function formatExpDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function RenewalBanner({ alerts }: { alerts: RenewalAlert[] }) {
+  const expired = alerts.filter((a) => a.daysOut < 0);
+  const soon = alerts.filter((a) => a.daysOut >= 0);
+  const hasExpired = expired.length > 0;
+
+  return (
+    <div
+      className={
+        hasExpired
+          ? 'mb-10 border border-danger/40 bg-danger-soft/40 px-5 py-4 sm:px-6 sm:py-5'
+          : 'mb-10 border border-warning/40 bg-warning-soft/40 px-5 py-4 sm:px-6 sm:py-5'
+      }
+    >
+      <p
+        className={
+          hasExpired
+            ? 'caps text-[0.62rem] font-semibold text-danger'
+            : 'caps text-[0.62rem] font-semibold text-warning'
+        }
+      >
+        {hasExpired ? 'Action needed — coverage expired' : 'Renewal coming up'}
+      </p>
+
+      <ul className="mt-2 space-y-1 text-sm leading-relaxed text-ink">
+        {expired.map((a) => (
+          <li key={a.policyId}>
+            Your <span className="font-semibold">{a.label}</span> policy expired{' '}
+            <span className="font-semibold">{formatExpDate(a.expDate)}</span>. It can't appear on
+            new certificates until it's renewed.
+          </li>
+        ))}
+        {soon.map((a) => (
+          <li key={a.policyId}>
+            Your <span className="font-semibold">{a.label}</span> policy expires{' '}
+            <span className="font-semibold">{formatExpDate(a.expDate)}</span>{' '}
+            {a.daysOut === 0
+              ? '(today)'
+              : a.daysOut === 1
+              ? '(tomorrow)'
+              : `(in ${a.daysOut} days)`}
+            .
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+        Reach out to Brook to start the renewal —{' '}
+        <a
+          className="font-medium text-brand underline-offset-4 hover:underline"
+          href="mailto:brook@yourpolicyplace.com"
+        >
+          brook@yourpolicyplace.com
+        </a>{' '}
+        or{' '}
+        <a
+          className="font-medium text-brand underline-offset-4 hover:underline"
+          href="tel:+12704102015"
+        >
+          (270) 410-2015
+        </a>
+        .
       </p>
     </div>
   );

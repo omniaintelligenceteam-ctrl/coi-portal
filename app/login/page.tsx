@@ -12,6 +12,22 @@ const CALLBACK_ERROR_MESSAGES: Record<string, string> = {
     'Your sign-in link expired or was already used. Request a new one below.',
 };
 
+/**
+ * Translate raw Supabase auth errors into clearer guidance. The most common
+ * one in dev is the magic-link rate cap (~2/hr on the default project SMTP)
+ * which surfaces as a scary "rate limit exceeded" string with no next step.
+ */
+function friendlyAuthError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes('rate limit') || lower.includes('too many')) {
+    return 'Too many sign-in links have been requested for this address in the last hour. Wait a few minutes and try again, or try a different email.';
+  }
+  if (lower.includes('invalid') && lower.includes('email')) {
+    return "That email address doesn't look right — double-check the spelling.";
+  }
+  return raw;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -46,7 +62,7 @@ export default function LoginPage() {
     });
     if (error) {
       setStatus('error');
-      setErrorMsg(error.message);
+      setErrorMsg(friendlyAuthError(error.message));
       return;
     }
     setStatus('sent');
@@ -146,7 +162,7 @@ function SignInForm({
   return (
     <>
       <p className="caps text-[0.65rem] font-semibold text-seal-deep">Certificate Portal</p>
-      <h1 className="font-display mt-3 text-[2.75rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[3.25rem]">
+      <h1 className="font-display mt-3 text-[2.1rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[3.25rem]">
         Sign in to <em className="not-italic text-brand">request</em> a certificate.
       </h1>
       <p className="mt-4 max-w-sm text-[0.95rem] leading-relaxed text-ink-muted">

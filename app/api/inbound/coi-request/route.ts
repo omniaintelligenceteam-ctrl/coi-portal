@@ -33,7 +33,7 @@ import { log } from '@/lib/logger';
 export const runtime = 'nodejs';
 export const maxDuration = 60; // give us enough time for parse + render + reviewer + send
 
-const CERT_NUMBER_REGEX = /PP-\d{8}-\d{4}/;
+const CERT_NUMBER_REGEX = /PP-\d{8}-\d{4}(?:-[A-Z0-9]{3})?/;
 
 type InboundLogStatus =
   | 'received'

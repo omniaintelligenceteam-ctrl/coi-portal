@@ -15,11 +15,56 @@
 
 import { resolve } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import QRCode from 'qrcode';
+import { PDFDocument } from '@cantoo/pdf-lib';
 import { fillAcord25 } from './fillAcord25';
 import { selectableCoverages } from './getClientPolicies';
 import { buildCoiInput, computeNextCertNumber, type DbPolicyFull } from './coiInputBuilder';
+import { stripChecksum, withChecksum } from './issueCert';
 import type { CoiInput } from './types';
 import { log } from './logger';
+
+/**
+ * Stamp a QR code into the lower-right of the rendered ACORD 25 PDF that
+ * deep-links to the public verify page. Mirrors the implementation in
+ * `lib/issueCert.ts` (which is module-private there) so both issuance paths
+ * produce visually identical trust artifacts.
+ */
+async function stampVerifyQr(pdfBytes: Uint8Array, certNumber: string): Promise<Uint8Array> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const verifyUrl = `${siteUrl}/verify/${certNumber}`;
+
+  const qrPngDataUrl = await QRCode.toDataURL(verifyUrl, {
+    errorCorrectionLevel: 'M',
+    margin: 1,
+    scale: 6,
+    color: { dark: '#000000ff', light: '#ffffffff' },
+  });
+  const qrPngBytes = Buffer.from(qrPngDataUrl.split(',')[1]!, 'base64');
+
+  const doc = await PDFDocument.load(pdfBytes);
+  const page = doc.getPage(0);
+  const qrImage = await doc.embedPng(qrPngBytes);
+
+  const QR_SIZE = 56;
+  const QR_X = 612 - QR_SIZE - 22;
+  const QR_Y = 22;
+  page.drawImage(qrImage, { x: QR_X, y: QR_Y + 10, width: QR_SIZE, height: QR_SIZE });
+
+  const { StandardFonts } = await import('@cantoo/pdf-lib');
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const caption = 'Verify at policyplace.com/verify';
+  const captionSize = 5;
+  const captionWidth = font.widthOfTextAtSize(caption, captionSize);
+  page.drawText(caption, {
+    x: QR_X + (QR_SIZE - captionWidth) / 2,
+    y: QR_Y + 3,
+    size: captionSize,
+    font,
+  });
+
+  return doc.save();
+}
 
 const TEMPLATE_PATH = resolve(process.cwd(), 'assets/template/acord-25-page-1.png');
 const SIGNATURE_PATH = resolve(process.cwd(), 'assets/policy-place-signature.png');
@@ -150,7 +195,12 @@ export async function generateCertificate(
     return { ok: false, status: 422, error: 'no eligible policies for this client' };
   }
 
-  // 5. Cert number
+  // 5. Cert number. The DB may carry either legacy (`PP-YYYYMMDD-XXXX`) or
+  // checksum-suffixed (`PP-YYYYMMDD-XXXX-CCC`) rows; strip any suffix before
+  // feeding `computeNextCertNumber` so its regex (which expects the base
+  // form) keeps incrementing the per-day sequence cleanly. We then append a
+  // fresh checksum to the new number so all issuance paths produce the same
+  // tamper-evident format.
   const todayPrefix = formatDatePrefix(today);
   const { data: maxRow } = await admin
     .from('cert_requests')
@@ -159,7 +209,9 @@ export async function generateCertificate(
     .order('cert_number', { ascending: false })
     .limit(1)
     .maybeSingle();
-  const certNumber = computeNextCertNumber(today, maxRow?.cert_number ?? null);
+  const priorMaxBase = maxRow?.cert_number ? stripChecksum(maxRow.cert_number) : null;
+  const baseCertNumber = computeNextCertNumber(today, priorMaxBase);
+  const certNumber = withChecksum(baseCertNumber);
 
   // 6. Build CoiInput + render
   const holder = {
@@ -188,6 +240,14 @@ export async function generateCertificate(
   } catch (err) {
     log.error('certPipeline.pdf_render_failed', { certNumber, error: (err as Error).message });
     return { ok: false, status: 500, error: 'pdf render failed' };
+  }
+
+  // Stamp the verify-QR into the lower-right of the cert. Non-fatal: if QR
+  // generation hiccups we'd rather ship the cert than block on the badge.
+  try {
+    pdfBytes = await stampVerifyQr(pdfBytes, certNumber);
+  } catch (err) {
+    log.warn('certPipeline.qr_stamp_failed', { certNumber, error: (err as Error).message });
   }
 
   // 7. Upload

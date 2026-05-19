@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Logo } from '@/app/components/Logo';
+import { verifyChecksum } from '@/lib/issueCert';
 
 // Intentionally public — no auth. Only exposes non-sensitive cert metadata.
 export const dynamic = 'force-dynamic';
@@ -41,8 +42,84 @@ function formatDate(iso: string): string {
   return `${m}/${d}/${y}`;
 }
 
+function formatLongDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
+ * OG / Twitter unfurl metadata. Runs on the server before the page renders.
+ * We fetch only the bare minimum (cert_number, client business_name, the
+ * latest expiry date) so a Slack/email preview always shows the right cert.
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { certNumber } = await params;
+  const admin = createAdminClient();
+
+  const { data: cert } = await admin
+    .from('cert_requests')
+    .select(
+      `cert_number, coverages_selected,
+       client:coi_clients ( business_name )`,
+    )
+    .eq('cert_number', certNumber)
+    .eq('status', 'sent')
+    .maybeSingle<{
+      cert_number: string;
+      coverages_selected: string[];
+      client: { business_name: string } | null;
+    }>();
+
+  const title = cert ? `Certificate ${cert.cert_number}` : `Certificate ${certNumber}`;
+
+  let description = 'Verify the issuance status of a Policy Place certificate of insurance.';
+  if (cert) {
+    const insured = cert.client?.business_name ?? 'Insured';
+    let expiryStr = '';
+    if (cert.coverages_selected?.length) {
+      const { data: policies } = await admin
+        .from('policies')
+        .select('exp_date')
+        .in('id', cert.coverages_selected)
+        .returns<{ exp_date: string }[]>();
+      const expiries = (policies ?? []).map((p) => p.exp_date).sort();
+      const earliest = expiries[0];
+      if (earliest) {
+        expiryStr = ` — covered through ${formatDate(earliest)}`;
+      }
+    }
+    description = `${insured}${expiryStr}`;
+  }
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      siteName: 'Policy Place',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  };
+}
+
 export default async function VerifyPage({ params }: PageProps) {
   const { certNumber } = await params;
+
+  // Tamper-evident gate — short-circuit before touching the DB so a forged
+  // suffix never even hits Supabase.
+  if (!verifyChecksum(certNumber)) {
+    return <ForgedCert certNumber={certNumber} />;
+  }
+
   const admin = createAdminClient();
 
   const { data: cert } = await admin
@@ -73,10 +150,26 @@ export default async function VerifyPage({ params }: PageProps) {
   // Strict `>` — a policy expiring today is no longer active for verification purposes.
   // Insurance convention: coverage ends at 12:01 AM on the exp_date.
   const allActive = (policies ?? []).every((p) => p.active && p.exp_date > today);
+  const earliestExpiry = (policies ?? [])
+    .map((p) => p.exp_date)
+    .sort()[0];
+  const isExpired = !allActive && Boolean(earliestExpiry);
+
+  const validatedAt = new Date();
+  const validatedAtFull = validatedAt.toLocaleString(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 
   return (
     <div className="min-h-screen bg-paper px-6 py-16 sm:px-10">
-      <div className="mx-auto max-w-xl">
+      {/* When any covered policy has lapsed, drain the page of colour so a
+          verifier reading on a phone instantly clocks that the cert is no
+          longer current. The status banner stays full-colour for legibility. */}
+      <div className={`mx-auto max-w-xl ${isExpired ? 'opacity-90 [&_*:not(.expired-banner)]:grayscale' : ''}`}>
         {/* Agency header — branded card. DB values win when present, else fall
             back to The Policy Place defaults so external verifiers always see
             a trust-establishing block. */}
@@ -109,9 +202,10 @@ export default async function VerifyPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Status banner */}
+        {/* Status banner — kept colour even in the expired (grayscale) state
+            so the verdict is never ambiguous. */}
         <div
-          className={`mb-10 flex items-center gap-3 border px-5 py-4 ${
+          className={`expired-banner mb-10 flex items-center gap-3 border px-5 py-4 ${
             allActive
               ? 'border-success/30 bg-success-soft/40'
               : 'border-danger/30 bg-danger-soft/40'
@@ -126,10 +220,14 @@ export default async function VerifyPage({ params }: PageProps) {
                 allActive ? 'text-success' : 'text-danger'
               }`}
             >
-              {allActive ? 'Certificate verified — coverage active' : 'One or more policies have expired'}
+              {allActive
+                ? 'Certificate verified — coverage active'
+                : earliestExpiry
+                ? `Expired on ${formatDate(earliestExpiry)}`
+                : 'One or more policies have expired'}
             </p>
             <p className="mt-0.5 text-[0.78rem] text-ink-muted">
-              Verified as of {new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+              Last validated {validatedAtFull}
             </p>
           </div>
         </div>
@@ -193,10 +291,7 @@ export default async function VerifyPage({ params }: PageProps) {
           </p>
           {cert.sent_at && (
             <p className="mt-1">
-              Certificate sent{' '}
-              {new Date(cert.sent_at).toLocaleDateString(undefined, {
-                month: 'long', day: 'numeric', year: 'numeric',
-              })}
+              Certificate sent {formatLongDate(cert.sent_at)}
             </p>
           )}
         </div>
@@ -228,6 +323,32 @@ function InvalidCert({ certNumber }: { certNumber: string }) {
           <br /><br />
           If you received this certificate recently, try again in a few minutes. Otherwise, contact
           the issuing agency to confirm.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ForgedCert({ certNumber }: { certNumber: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-paper px-6">
+      <div className="max-w-md text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-danger/50 bg-danger-soft/60">
+          <span className="h-4 w-4 rounded-full bg-danger" />
+        </div>
+        <p className="caps text-[0.65rem] font-semibold text-danger">Checksum failed</p>
+        <h1 className="font-display mt-3 text-2xl font-medium text-ink">
+          Forged or mistyped certificate number.
+        </h1>
+        <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+          The certificate number{' '}
+          <span className="font-mono text-ink">{certNumber}</span> doesn't pass our
+          tamper-evident check. Double-check the trailing characters against the
+          original PDF — or, if it looks intentional, ask the sender to forward
+          the original email.
+        </p>
+        <p className="mt-6 text-[0.7rem] text-ink-faint">
+          Every Policy Place certificate ends with a three-character verification suffix.
         </p>
       </div>
     </div>

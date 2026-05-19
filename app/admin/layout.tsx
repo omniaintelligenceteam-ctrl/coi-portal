@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Header } from '../components/Header';
+import { AdminTabs } from './AdminTabs';
+import { CommandPalette } from './CommandPalette';
 
 function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? '')
@@ -22,7 +24,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <>
       <Header email={email} badge="Agent" />
+      <AdminTabs />
       {children}
+      <CommandPalette />
     </>
   );
 }

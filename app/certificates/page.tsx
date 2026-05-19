@@ -4,7 +4,6 @@ import { Header } from '@/app/components/Header';
 import { Hairline } from '@/app/components/Hairline';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { createClient } from '@/lib/supabase/server';
-import { ReissueButton } from './ReissueButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,71 +77,128 @@ export default async function CertificatesPage() {
         ) : list.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="overflow-x-auto border-y border-hairline">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-hairline">
-                  <Th>Certificate</Th>
-                  <Th>Holder</Th>
-                  <Th>Status</Th>
-                  <Th align="right">Requested</Th>
-                  <Th align="right">Sent</Th>
-                  <Th />
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/50"
-                  >
-                    <Td>
-                      <Link
-                        href={`/result/${r.cert_number}`}
-                        className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.78rem] font-medium text-ink"
-                      >
-                        {r.cert_number}
-                      </Link>
-                    </Td>
-                    <Td>
-                      <span className="text-[0.9rem] text-ink">{r.holder_name}</span>
-                    </Td>
-                    <Td>
-                      <StatusPill status={r.status} />
-                    </Td>
-                    <Td align="right">
-                      <span className="font-mono text-[0.75rem] text-ink-muted">
+          <>
+            {/* Mobile card stack — under sm */}
+            <ul className="space-y-3 sm:hidden">
+              {list.map((r) => (
+                <li key={r.id} className="mobile-card">
+                  <div className="flex items-start justify-between gap-3">
+                    <Link
+                      href={`/result/${r.cert_number}`}
+                      className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.85rem] font-semibold text-ink"
+                    >
+                      {r.cert_number}
+                    </Link>
+                    <StatusPill status={r.status} />
+                  </div>
+                  <p className="mt-2 text-[0.95rem] font-medium text-ink">{r.holder_name}</p>
+                  <dl className="mt-3">
+                    <div className="mobile-card-row">
+                      <dt>Requested</dt>
+                      <dd className="font-mono text-[0.78rem] text-ink-muted">
                         {formatDateTime(r.requested_at)}
-                      </span>
-                    </Td>
-                    <Td align="right">
-                      <span className="font-mono text-[0.75rem] text-ink-faint">
+                      </dd>
+                    </div>
+                    <div className="mobile-card-row">
+                      <dt>Sent</dt>
+                      <dd className="font-mono text-[0.78rem] text-ink-faint">
                         {r.sent_at ? formatDateTime(r.sent_at) : '—'}
-                      </span>
-                    </Td>
-                    <td className="py-4 pl-3 pr-2 text-right align-middle">
-                      <div className="flex items-center justify-end gap-3">
-                        {r.status === 'sent' && (
-                          <ReissueButton
-                            name={r.holder_name}
-                            address1={r.holder_address1}
-                            address2={r.holder_address2 ?? ''}
-                          />
-                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="mt-4 flex flex-col gap-2">
+                    {r.status === 'sent' && (
+                      <Link
+                        href={`/?reissue=${encodeURIComponent(r.cert_number)}`}
+                        aria-label={`Reissue certificate ${r.cert_number}`}
+                        className="focus-ring caps tap-target inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-seal/40 bg-seal-soft px-4 py-3 text-[0.7rem] font-semibold text-seal-deep transition-colors hover:border-seal hover:bg-seal/15"
+                      >
+                        <ReissueIcon className="h-3.5 w-3.5" />
+                        Reissue
+                      </Link>
+                    )}
+                    <Link
+                      href={`/result/${r.cert_number}`}
+                      className="focus-ring tap-target inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
+                    >
+                      Open certificate
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/* Desktop table — sm and up */}
+            <div className="hidden border-y border-hairline sm:block">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b border-hairline">
+                    <Th>Certificate</Th>
+                    <Th>Holder</Th>
+                    <Th>Status</Th>
+                    <Th align="right">Requested</Th>
+                    <Th align="right">Sent</Th>
+                    <Th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/50"
+                    >
+                      <Td>
                         <Link
                           href={`/result/${r.cert_number}`}
-                          className="focus-ring inline-flex items-center gap-1 rounded text-[0.78rem] font-semibold text-brand opacity-0 transition-opacity group-hover:opacity-100"
+                          className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.78rem] font-medium text-ink"
                         >
-                          Open
-                          <ArrowRight className="h-3.5 w-3.5" />
+                          {r.cert_number}
                         </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </Td>
+                      <Td>
+                        <span className="text-[0.9rem] text-ink">{r.holder_name}</span>
+                      </Td>
+                      <Td>
+                        <StatusPill status={r.status} />
+                      </Td>
+                      <Td align="right">
+                        <span className="font-mono text-[0.75rem] text-ink-muted">
+                          {formatDateTime(r.requested_at)}
+                        </span>
+                      </Td>
+                      <Td align="right">
+                        <span className="font-mono text-[0.75rem] text-ink-faint">
+                          {r.sent_at ? formatDateTime(r.sent_at) : '—'}
+                        </span>
+                      </Td>
+                      <td className="py-4 pl-3 pr-2 text-right align-middle">
+                        <div className="flex items-center justify-end gap-3">
+                          {r.status === 'sent' && (
+                            <Link
+                              href={`/?reissue=${encodeURIComponent(r.cert_number)}`}
+                              aria-label={`Reissue certificate ${r.cert_number}`}
+                              className="focus-ring caps inline-flex items-center gap-1.5 rounded-md border border-seal/40 bg-seal-soft px-2.5 py-1.5 text-[0.62rem] font-semibold text-seal-deep transition-colors hover:border-seal hover:bg-seal/15"
+                            >
+                              <ReissueIcon className="h-3 w-3" />
+                              Reissue
+                            </Link>
+                          )}
+                          <Link
+                            href={`/result/${r.cert_number}`}
+                            className="focus-ring inline-flex items-center gap-1 rounded text-[0.78rem] font-semibold text-brand opacity-0 transition-opacity group-hover:opacity-100"
+                          >
+                            Open
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         <Hairline className="mt-16" />
@@ -268,6 +324,25 @@ function ArrowRight({ className }: { className?: string }) {
       aria-hidden="true"
     >
       <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+    </svg>
+  );
+}
+
+function ReissueIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 4v6h6M20 20v-6h-6M20 9a8 8 0 00-14.93-2M4 15a8 8 0 0014.93 2"
+      />
     </svg>
   );
 }
