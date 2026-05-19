@@ -207,8 +207,8 @@
   "hotPaths": [
     {
       "path": "lib\\coords.ts",
-      "accessCount": 43,
-      "lastAccessed": 1779153710579,
+      "accessCount": 53,
+      "lastAccessed": 1779154937148,
       "type": "file"
     },
     {
@@ -219,8 +219,8 @@
     },
     {
       "path": "lib\\fillAcord25.ts",
-      "accessCount": 18,
-      "lastAccessed": 1779153709791,
+      "accessCount": 19,
+      "lastAccessed": 1779154637916,
       "type": "file"
     },
     {
@@ -230,16 +230,16 @@
       "type": "file"
     },
     {
+      "path": "app",
+      "accessCount": 17,
+      "lastAccessed": 1779154685455,
+      "type": "directory"
+    },
+    {
       "path": "lib\\email.ts",
       "accessCount": 15,
       "lastAccessed": 1779151700368,
       "type": "file"
-    },
-    {
-      "path": "app",
-      "accessCount": 15,
-      "lastAccessed": 1779153292219,
-      "type": "directory"
     },
     {
       "path": "",
@@ -284,6 +284,12 @@
       "type": "file"
     },
     {
+      "path": "lib\\coiInputBuilder.ts",
+      "accessCount": 10,
+      "lastAccessed": 1779154952356,
+      "type": "file"
+    },
+    {
       "path": "app\\admin\\queue\\page.tsx",
       "accessCount": 9,
       "lastAccessed": 1779145760499,
@@ -296,27 +302,27 @@
       "type": "file"
     },
     {
+      "path": ".claude\\skills\\pdf-overlay-precision\\SKILL.md",
+      "accessCount": 9,
+      "lastAccessed": 1779155356661,
+      "type": "file"
+    },
+    {
       "path": "lib\\types.ts",
       "accessCount": 8,
       "lastAccessed": 1779151085128,
       "type": "file"
     },
     {
-      "path": "lib\\coiInputBuilder.ts",
+      "path": "assets\\template-anchors.json",
       "accessCount": 8,
-      "lastAccessed": 1779151567302,
+      "lastAccessed": 1779154667997,
       "type": "file"
     },
     {
       "path": "app\\api\\decide-cert\\route.ts",
       "accessCount": 7,
       "lastAccessed": 1779145072927,
-      "type": "file"
-    },
-    {
-      "path": "assets\\template-anchors.json",
-      "accessCount": 7,
-      "lastAccessed": 1779150656032,
       "type": "file"
     },
     {
@@ -338,6 +344,12 @@
       "type": "file"
     },
     {
+      "path": "lib\\anchors.ts",
+      "accessCount": 7,
+      "lastAccessed": 1779154638405,
+      "type": "file"
+    },
+    {
       "path": "app\\admin\\queue\\[id]\\DecisionForm.tsx",
       "accessCount": 6,
       "lastAccessed": 1779144932340,
@@ -350,10 +362,10 @@
       "type": "file"
     },
     {
-      "path": "lib\\anchors.ts",
+      "path": "lib",
       "accessCount": 6,
-      "lastAccessed": 1779150835820,
-      "type": "file"
+      "lastAccessed": 1779154716848,
+      "type": "directory"
     },
     {
       "path": "scripts\\rasterizeTemplate.ts",
@@ -362,27 +374,15 @@
       "type": "file"
     },
     {
-      "path": "lib",
-      "accessCount": 5,
-      "lastAccessed": 1779153271054,
-      "type": "directory"
-    },
-    {
       "path": "tests\\fillAcord25.positions.test.ts",
-      "accessCount": 4,
-      "lastAccessed": 1779145174704,
+      "accessCount": 5,
+      "lastAccessed": 1779154956990,
       "type": "file"
     },
     {
       "path": "scripts\\extractAnchors.ts",
       "accessCount": 4,
       "lastAccessed": 1779145453295,
-      "type": "file"
-    },
-    {
-      "path": ".claude\\skills\\pdf-overlay-precision\\SKILL.md",
-      "accessCount": 4,
-      "lastAccessed": 1779146066582,
       "type": "file"
     },
     {

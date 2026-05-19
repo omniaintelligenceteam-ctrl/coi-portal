@@ -136,6 +136,7 @@ function buildCoverage(p: DbPolicyFull, letter: InsurerLetter): Coverage {
       const wc: WCCoverage = {
         ...base,
         type: 'WC',
+        officerExcluded: true,
         limits: {
           eachAccident: lim.eachAccident ?? 0,
           diseaseEaEmployee: lim.diseaseEaEmployee ?? 0,

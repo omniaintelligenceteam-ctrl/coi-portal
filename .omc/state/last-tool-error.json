@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd \\\"c:/Users/default.DESKTOP-ON29PVN/PolicyPlace/coi-portal\\\" && git add assets/policy-place-signature.png \\\"public/Screenshot 2026-05-18 202319.png\\\" public/Signature && git status --sho...",
-  "error": "Exit code 128\nfatal: pathspec 'public/Signature' did not match any files",
-  "timestamp": "2026-05-19T01:30:05.030Z",
-  "retry_count": 1
-}

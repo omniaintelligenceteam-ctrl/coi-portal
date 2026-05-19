@@ -22,6 +22,7 @@ See [methodology.md](methodology.md) for why this exists and the failure modes i
 2. `assets/template-regions.json` — hand-authored region rects for DATE_BOX, WC_OFFICER_BOX, DESC_BOX, SIG_BOX. Used by region-anchored fields.
 3. `lib/anchors.ts` — the resolver. Understand the six `side` values: `right`, `left`, `below`, `above`, `row`, `inside`.
 4. `lib/coords.ts` — the field declarations. Match the existing pattern.
+5. `coord-ledger.md` (in this skill folder) — running log of every `dx`/`dy`/`nearY` value, when it was last verified, against which rendered cert, and *why* it's at the current value. Read it before tuning — it tells you what's already been tried so you don't re-litigate offsets from scratch.
 
 ## Procedure (3 steps)
 
@@ -91,6 +92,8 @@ UMB_LIMIT_EACH_OCC: declare('UMB_LIMIT_EACH_OCC', {
 
 Anchor lookup is case + whitespace insensitive. If the anchor text isn't in `template-anchors.json` or `template-regions.json`, the resolver throws `MissingAnchorError` with the three closest matches by Levenshtein distance.
 
+**Ledger-sync rule (mandatory):** Whenever a `dx`/`dy`/`nearY` literal changes in `lib/coords.ts`, update the matching row in `coord-ledger.md` in the SAME commit. Bold the changed cell, set the "Last verified" date, set "Last cert" to the rendered cert that drove the change (e.g. `PP-20260519-0002`), and write one line in **Notes** explaining *why*. Also append a row to the "Iteration log" table at the bottom of the ledger. This is how the skill stays the source of truth on current offsets — not just the pattern doc.
+
 ### Step 3 — Run cert-doctor
 
 ```
@@ -141,6 +144,7 @@ Then commit the new golden alongside the `lib/coords.ts` change.
 - Don't manually edit `template-anchors.json` — regenerate it from the source PDF.
 - Don't manually edit `assets/golden-crops/*.png` — regenerate via `npm run crop-diff -- --baseline`.
 - Don't move `FIELD_ANCHORS` registration out of `declare()` — cert-doctor and tests rely on it.
+- Don't change a `dx`/`dy`/`nearY` literal without also updating `coord-ledger.md` in the same commit. The ledger is the only place that records the *reason* the current value is what it is.
 
 ## Related files
 
@@ -160,3 +164,4 @@ Then commit the new golden alongside the `lib/coords.ts` change.
 | `scripts/regenSheffer.ts` | Renders the canonical Sheffer fixture for spot-check |
 | `tests/anchors.test.ts` | Resolver unit tests |
 | `tests/fillAcord25.positions.test.ts` | ±3pt regression + no-overlap + text-width + collision gates |
+| `coord-ledger.md` (in this skill folder) | Running log of every field's current `dx`/`dy`/`nearY` + verification date, cert, reason. Update on every coord change. |
