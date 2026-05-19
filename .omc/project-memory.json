@@ -213,8 +213,8 @@
     },
     {
       "path": "",
-      "accessCount": 49,
-      "lastAccessed": 1779194195342,
+      "accessCount": 50,
+      "lastAccessed": 1779197040954,
       "type": "directory"
     },
     {
@@ -231,8 +231,8 @@
     },
     {
       "path": "app",
-      "accessCount": 41,
-      "lastAccessed": 1779195572689,
+      "accessCount": 42,
+      "lastAccessed": 1779197055237,
       "type": "directory"
     },
     {
@@ -261,8 +261,8 @@
     },
     {
       "path": "app\\components\\Header.tsx",
-      "accessCount": 29,
-      "lastAccessed": 1779194603939,
+      "accessCount": 30,
+      "lastAccessed": 1779197053646,
       "type": "file"
     },
     {
@@ -326,6 +326,12 @@
       "type": "file"
     },
     {
+      "path": "app\\components\\Logo.tsx",
+      "accessCount": 14,
+      "lastAccessed": 1779197141353,
+      "type": "file"
+    },
+    {
       "path": "tailwind.config.ts",
       "accessCount": 13,
       "lastAccessed": 1779194178727,
@@ -335,12 +341,6 @@
       "path": "lib\\coiInputBuilder.ts",
       "accessCount": 12,
       "lastAccessed": 1779163032144,
-      "type": "file"
-    },
-    {
-      "path": "app\\components\\Logo.tsx",
-      "accessCount": 12,
-      "lastAccessed": 1779194098203,
       "type": "file"
     },
     {
