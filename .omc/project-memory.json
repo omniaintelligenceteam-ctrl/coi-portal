@@ -207,26 +207,26 @@
   "hotPaths": [
     {
       "path": "lib\\coords.ts",
-      "accessCount": 41,
-      "lastAccessed": 1779151440277,
+      "accessCount": 43,
+      "lastAccessed": 1779153710579,
       "type": "file"
     },
     {
       "path": "app\\page.tsx",
-      "accessCount": 21,
-      "lastAccessed": 1779151084548,
+      "accessCount": 23,
+      "lastAccessed": 1779153325479,
       "type": "file"
     },
     {
       "path": "lib\\fillAcord25.ts",
-      "accessCount": 17,
-      "lastAccessed": 1779151090061,
+      "accessCount": 18,
+      "lastAccessed": 1779153709791,
       "type": "file"
     },
     {
       "path": "app\\CoverageForm.tsx",
-      "accessCount": 16,
-      "lastAccessed": 1779151084747,
+      "accessCount": 17,
+      "lastAccessed": 1779153261238,
       "type": "file"
     },
     {
@@ -236,10 +236,22 @@
       "type": "file"
     },
     {
-      "path": "",
-      "accessCount": 12,
-      "lastAccessed": 1779150341660,
+      "path": "app",
+      "accessCount": 15,
+      "lastAccessed": 1779153292219,
       "type": "directory"
+    },
+    {
+      "path": "",
+      "accessCount": 13,
+      "lastAccessed": 1779153274248,
+      "type": "directory"
+    },
+    {
+      "path": "app\\result\\[certNumber]\\page.tsx",
+      "accessCount": 13,
+      "lastAccessed": 1779153326183,
+      "type": "file"
     },
     {
       "path": "app\\admin\\queue\\[id]\\page.tsx",
@@ -248,21 +260,21 @@
       "type": "file"
     },
     {
-      "path": "app\\result\\[certNumber]\\page.tsx",
+      "path": "app\\login\\page.tsx",
       "accessCount": 11,
-      "lastAccessed": 1779151090378,
+      "lastAccessed": 1779153262904,
+      "type": "file"
+    },
+    {
+      "path": "app\\components\\Header.tsx",
+      "accessCount": 11,
+      "lastAccessed": 1779153448352,
       "type": "file"
     },
     {
       "path": "app\\layout.tsx",
       "accessCount": 10,
       "lastAccessed": 1779148733343,
-      "type": "file"
-    },
-    {
-      "path": "app\\login\\page.tsx",
-      "accessCount": 10,
-      "lastAccessed": 1779149056761,
       "type": "file"
     },
     {
@@ -275,18 +287,6 @@
       "path": "app\\admin\\queue\\page.tsx",
       "accessCount": 9,
       "lastAccessed": 1779145760499,
-      "type": "file"
-    },
-    {
-      "path": "app",
-      "accessCount": 9,
-      "lastAccessed": 1779148752500,
-      "type": "directory"
-    },
-    {
-      "path": "app\\components\\Header.tsx",
-      "accessCount": 9,
-      "lastAccessed": 1779149061425,
       "type": "file"
     },
     {
@@ -326,6 +326,18 @@
       "type": "file"
     },
     {
+      "path": "app\\globals.css",
+      "accessCount": 7,
+      "lastAccessed": 1779153262657,
+      "type": "file"
+    },
+    {
+      "path": "app\\components\\Logo.tsx",
+      "accessCount": 7,
+      "lastAccessed": 1779153493997,
+      "type": "file"
+    },
+    {
       "path": "app\\admin\\queue\\[id]\\DecisionForm.tsx",
       "accessCount": 6,
       "lastAccessed": 1779144932340,
@@ -335,12 +347,6 @@
       "path": "app\\admin\\layout.tsx",
       "accessCount": 6,
       "lastAccessed": 1779144933450,
-      "type": "file"
-    },
-    {
-      "path": "app\\globals.css",
-      "accessCount": 6,
-      "lastAccessed": 1779148667267,
       "type": "file"
     },
     {
@@ -354,6 +360,12 @@
       "accessCount": 5,
       "lastAccessed": 1779146346888,
       "type": "file"
+    },
+    {
+      "path": "lib",
+      "accessCount": 5,
+      "lastAccessed": 1779153271054,
+      "type": "directory"
     },
     {
       "path": "tests\\fillAcord25.positions.test.ts",
@@ -374,22 +386,10 @@
       "type": "file"
     },
     {
-      "path": "app\\components\\Logo.tsx",
-      "accessCount": 4,
-      "lastAccessed": 1779149276910,
-      "type": "file"
-    },
-    {
       "path": "scripts\\calibrate.ts",
       "accessCount": 4,
       "lastAccessed": 1779150629218,
       "type": "file"
-    },
-    {
-      "path": "lib",
-      "accessCount": 4,
-      "lastAccessed": 1779151105671,
-      "type": "directory"
     },
     {
       "path": "lib\\reviewerAgent.ts",
@@ -446,6 +446,12 @@
       "type": "file"
     },
     {
+      "path": "scripts\\extractSignature.ts",
+      "accessCount": 2,
+      "lastAccessed": 1779154056465,
+      "type": "file"
+    },
+    {
       "path": "next.config.mjs",
       "accessCount": 1,
       "lastAccessed": 1779143080465,
@@ -485,12 +491,6 @@
       "path": "tsconfig.json",
       "accessCount": 1,
       "lastAccessed": 1779143356244,
-      "type": "file"
-    },
-    {
-      "path": "scripts\\extractSignature.ts",
-      "accessCount": 1,
-      "lastAccessed": 1779143398956,
       "type": "file"
     },
     {
