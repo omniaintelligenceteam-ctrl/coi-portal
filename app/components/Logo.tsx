@@ -42,52 +42,57 @@ export function Logo({ tone = 'dark', compact = false }: { tone?: Tone; compact?
 /**
  * Chevron + oval mark from Brook's business card. Pure vector, currentColor
  * driven so it inherits the surrounding text color (ink on cream, white on
- * dark). The italic "the" inside the oval is inverted via the parent's
- * background paint.
+ * dark). Chevrons are filled wedges (constant-thickness rooftop bars) to
+ * match the actual card — the previous stroked-line version read too thin.
  */
 export function PolicyPlaceMark({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 240 110"
-      fill="none"
-      stroke="currentColor"
+      viewBox="0 0 260 130"
+      fill="currentColor"
+      stroke="none"
       aria-hidden="true"
     >
-      {/* Outer chevron — wide rooftop */}
-      <path
-        d="M 18 62 L 120 14 L 222 62"
-        strokeWidth="6"
-        strokeLinecap="square"
-        strokeLinejoin="miter"
+      {/* Outer chevron — wide filled rooftop wedge */}
+      <path d="M 10 76 L 130 12 L 250 76 L 228 76 L 130 30 L 32 76 Z" />
+      {/* Inner chevron — narrower filled wedge, nested below the outer */}
+      <path d="M 54 82 L 130 38 L 206 82 L 188 82 L 130 52 L 72 82 Z" />
+      {/* Left hairline + outer end dot */}
+      <line
+        x1="14"
+        y1="100"
+        x2="98"
+        y2="100"
+        stroke="currentColor"
+        strokeWidth="2"
       />
-      {/* Inner chevron — narrower, nested */}
-      <path
-        d="M 50 66 L 120 33 L 190 66"
-        strokeWidth="6"
-        strokeLinecap="square"
-        strokeLinejoin="miter"
+      <circle cx="12" cy="100" r="2.5" />
+      {/* Right hairline + outer end dot */}
+      <line
+        x1="162"
+        y1="100"
+        x2="246"
+        y2="100"
+        stroke="currentColor"
+        strokeWidth="2"
       />
-      {/* Left hairline + end dot */}
-      <line x1="22" y1="90" x2="92" y2="90" strokeWidth="2" />
-      <circle cx="20" cy="90" r="2.5" fill="currentColor" stroke="none" />
-      {/* Right hairline + end dot */}
-      <line x1="148" y1="90" x2="218" y2="90" strokeWidth="2" />
-      <circle cx="220" cy="90" r="2.5" fill="currentColor" stroke="none" />
-      {/* Center oval with italic "the" */}
-      <ellipse cx="120" cy="90" rx="24" ry="11" fill="currentColor" stroke="none" />
+      <circle cx="248" cy="100" r="2.5" />
+      {/* Center oval with italic "the" sitting on the hairline */}
+      <ellipse cx="130" cy="100" rx="28" ry="12" />
       <text
-        x="120"
-        y="94"
+        x="130"
+        y="104.5"
         textAnchor="middle"
-        fontSize="13"
+        fontSize="15"
         fontStyle="italic"
         fontFamily="var(--font-fraunces), Georgia, serif"
         fill="#fefcf7"
-        stroke="none"
       >
         the
       </text>
+      {/* Tiny center dot below the mark — matches the card decoration */}
+      <circle cx="130" cy="124" r="1.6" />
     </svg>
   );
 }
