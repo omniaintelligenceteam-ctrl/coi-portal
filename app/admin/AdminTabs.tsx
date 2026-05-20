@@ -27,6 +27,12 @@ const TABS: {
     variant: 'pill-filled',
   },
   {
+    label: 'Access',
+    href: '/admin/access-requests',
+    match: (p) => p.startsWith('/admin/access-requests'),
+    variant: 'pill-outline',
+  },
+  {
     label: 'Settings',
     href: '/admin/settings',
     match: (p) => p.startsWith('/admin/settings'),
