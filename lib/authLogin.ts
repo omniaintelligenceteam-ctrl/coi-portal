@@ -9,6 +9,7 @@ export type PortalLoginTicket = {
   confirmUrl: string;
   emailOtp: string;
   verificationType: EmailOtpType;
+  tokenHash: string;
 };
 
 export function normalizeEmail(value: string): string {
@@ -72,6 +73,7 @@ export async function createPortalLoginTicket(input: {
     confirmUrl: confirmUrl.toString(),
     emailOtp: data.properties.email_otp,
     verificationType,
+    tokenHash: data.properties.hashed_token,
   };
 }
 

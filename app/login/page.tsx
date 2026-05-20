@@ -9,6 +9,7 @@ import { Hairline } from '../components/Hairline';
 
 const CALLBACK_ERROR_MESSAGES: Record<string, string> = {
   auth_failed: 'Your last sign-in attempt expired. Enter your email and try again.',
+  revoked: 'Your access was removed. Contact your Policy Place admin if this is a mistake.',
 };
 
 function friendlyAuthError(raw: string): string {
