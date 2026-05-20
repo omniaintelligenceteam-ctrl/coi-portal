@@ -168,7 +168,14 @@ export const COORDS = {
   // ====================================================================
   GL_CHK_TYPE:           declare('GL_CHK_TYPE',         { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'left', dx: -12, dy: 0, size: 9 }),
   GL_CHK_OCCUR:          declare('GL_CHK_OCCUR',        { anchor: 'OCCUR',                        side: 'left', dx: -12, dy: 0, size: 9, nearY: 470 }),
+  GL_CHK_CLAIMS_MADE:    declare('GL_CHK_CLAIMS_MADE',  { anchor: 'CLAIMS-MADE',                  side: 'left', dx: -12, dy: 0, size: 9, nearY: 470 }),
   GL_CHK_AGG_POLICY:     declare('GL_CHK_AGG_POLICY',   { anchor: 'POLICY',                       side: 'left', dx: -12, dy: 0, size: 9, nearY: 422 }),
+  // PROJECT label isn't extracted — anchor to LOC (same row, y=422) and offset
+  // left to land between POLICY and LOC checkboxes (POLICY.x=54, LOC.x=140).
+  GL_CHK_AGG_PROJECT:    declare('GL_CHK_AGG_PROJECT',  { anchor: 'LOC',                          side: 'row', dx: 86, dy: 0, size: 9 }),
+  GL_CHK_AGG_LOC:        declare('GL_CHK_AGG_LOC',      { anchor: 'LOC',                          side: 'left', dx: -12, dy: 0, size: 9 }),
+  GL_CHK_AGG_OTHER:      declare('GL_CHK_AGG_OTHER',    { anchor: 'OTHER:',                       side: 'left', dx: -12, dy: 0, size: 9, nearY: 410 }),
+  GL_AGG_OTHER_TEXT:     declare('GL_AGG_OTHER_TEXT',   { anchor: 'OTHER:',                       side: 'right', dx: 4, dy: 0, size: 7.5, maxWidth: 110, nearY: 410 }),
   GL_INSR_LTR:           declare('GL_INSR_LTR',      { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx:  28, dy: -6, size: 7.5 }),
   GL_POLICY_NUMBER:      declare('GL_POLICY_NUMBER', { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx: 223, dy: -6, size: 7.5, maxWidth: 92 }),
   GL_EFF_DATE:           declare('GL_EFF_DATE',      { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx: 334, dy: -6, size: 7.5 }),
@@ -183,6 +190,12 @@ export const COORDS = {
   // ====================================================================
   // AUTO row
   // ====================================================================
+  AUTO_CHK_ANY_AUTO:      declare('AUTO_CHK_ANY_AUTO',  { anchor: 'ANY AUTO',  side: 'left', dx: -12, dy: 0, size: 9 }),
+  AUTO_CHK_OWNED:         declare('AUTO_CHK_OWNED',     { anchor: 'OWNED',     side: 'left', dx: -12, dy: 0, size: 9 }),
+  AUTO_CHK_SCHEDULED:     declare('AUTO_CHK_SCHEDULED', { anchor: 'SCHEDULED', side: 'left', dx: -12, dy: 0, size: 9 }),
+  AUTO_CHK_HIRED:         declare('AUTO_CHK_HIRED',     { anchor: 'HIRED',     side: 'left', dx: -12, dy: 0, size: 9 }),
+  AUTO_CHK_NON_OWNED:     declare('AUTO_CHK_NON_OWNED', { anchor: 'NON-OWNED', side: 'left', dx: -12, dy: 0, size: 9 }),
+
   AUTO_INSR_LTR:          declare('AUTO_INSR_LTR',      { anchor: 'AUTOMOBILE LIABILITY', side: 'row', dx:  28, dy: -6, size: 7.5 }),
   AUTO_POLICY_NUMBER:     declare('AUTO_POLICY_NUMBER', { anchor: 'AUTOMOBILE LIABILITY', side: 'row', dx: 223, dy: -6, size: 7.5, maxWidth: 92 }),
   AUTO_EFF_DATE:          declare('AUTO_EFF_DATE',      { anchor: 'AUTOMOBILE LIABILITY', side: 'row', dx: 334, dy: -6, size: 7.5 }),
@@ -195,17 +208,30 @@ export const COORDS = {
   // ====================================================================
   // UMBRELLA row — EACH OCCURRENCE has a GL duplicate; use nearY to pin
   // ====================================================================
+  UMB_CHK_UMBRELLA:   declare('UMB_CHK_UMBRELLA',  { anchor: 'UMBRELLA LIAB', side: 'left', dx: -12, dy: 0, size: 9 }),
+  UMB_CHK_EXCESS:     declare('UMB_CHK_EXCESS',    { anchor: 'EXCESS LIAB',   side: 'left', dx: -12, dy: 0, size: 9 }),
+  UMB_CHK_OCCUR:      declare('UMB_CHK_OCCUR',     { anchor: 'OCCUR',         side: 'left', dx: -12, dy: 0, size: 9, nearY: 337 }),
+  UMB_CHK_CLAIMS_MADE:declare('UMB_CHK_CLAIMS_MADE',{ anchor: 'CLAIMS-MADE',  side: 'left', dx: -12, dy: 0, size: 9, nearY: 326 }),
+  UMB_CHK_DED:        declare('UMB_CHK_DED',       { anchor: 'DED',           side: 'left', dx: -12, dy: 0, size: 9 }),
+  UMB_CHK_RETENTION:  declare('UMB_CHK_RETENTION', { anchor: 'RETENTION $',   side: 'left', dx: -12, dy: 0, size: 9 }),
   UMB_INSR_LTR:       declare('UMB_INSR_LTR',      { anchor: 'UMBRELLA LIAB', side: 'row', dx:  28, dy: -6, size: 7.5 }),
   UMB_POLICY_NUMBER:  declare('UMB_POLICY_NUMBER', { anchor: 'UMBRELLA LIAB', side: 'row', dx: 223, dy: -6, size: 7.5, maxWidth: 92 }),
   UMB_EFF_DATE:       declare('UMB_EFF_DATE',      { anchor: 'UMBRELLA LIAB', side: 'row', dx: 334, dy: -6, size: 7.5 }),
   UMB_EXP_DATE:       declare('UMB_EXP_DATE',      { anchor: 'UMBRELLA LIAB', side: 'row', dx: 380, dy: -6, size: 7.5 }),
   UMB_LIMIT_EACH_OCC: declare('UMB_LIMIT_EACH_OCC',{ anchor: 'EACH OCCURRENCE', side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60, nearY: 338 }),
   UMB_LIMIT_AGG:      declare('UMB_LIMIT_AGG',     { anchor: 'AGGREGATE',       side: 'row', dx: 523, dy: 0, size: 7.5, maxWidth: 60 }),
+  // Retention amount sits to the right of "RETENTION $" label. dx=5 to give
+  // ≥3pt anchor-clearance (regression gate).
+  UMB_LIMIT_RETENTION:declare('UMB_LIMIT_RETENTION',{anchor: 'RETENTION $',     side: 'right', dx: 5, dy: 0, size: 7.5, maxWidth: 78 }),
 
   // ====================================================================
   // WC row — PER STATUTE checkbox + Y/N officer-excluded character
   // ====================================================================
-  WC_CHK_PER_STATUTE:   declare('WC_CHK_PER_STATUTE', { anchor: 'PER', side: 'left', dx: -18, dy: -4, size: 9 }),
+  WC_CHK_PER_STATUTE:   declare('WC_CHK_PER_STATUTE', { anchor: 'PER',  side: 'left', dx: -18, dy: -4, size: 9 }),
+  WC_CHK_OTHER:         declare('WC_CHK_OTHER',       { anchor: 'OTH-', side: 'left', dx: -18, dy: -4, size: 9 }),
+  // Free-text sits below the OTH- checkbox, capped so it can't bleed into the
+  // WC limit column at x=523 (regression gate).
+  WC_OTHER_TEXT:        declare('WC_OTHER_TEXT',      { anchor: 'OTH-', side: 'below', dx: -18, dy: -2, size: 6.5, maxWidth: 40 }),
   WC_OFFICER_YN:        declare('WC_OFFICER_YN', { anchor: 'WC_OFFICER_BOX', side: 'inside', dx: 3.5, dy: 3, size: 8, validate: z.enum(['Y', 'N']) }),
   WC_INSR_LTR:          declare('WC_INSR_LTR',      { anchor: 'WORKERS COMPENSATION', side: 'row', dx:  28, dy: -9, size: 7.5 }),
   WC_POLICY_NUMBER:     declare('WC_POLICY_NUMBER', { anchor: 'WORKERS COMPENSATION', side: 'row', dx: 223, dy: -9, size: 7.5, maxWidth: 92 }),

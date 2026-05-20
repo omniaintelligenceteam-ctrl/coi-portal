@@ -41,6 +41,24 @@ export type EditableCoverage = {
   limits: Record<string, number>;
   insurerName: string;
   insurerNaic: string;
+  // GL
+  claimsMade?: boolean;
+  generalAggregateAppliesPer?: 'POLICY' | 'PROJECT' | 'LOC' | 'OTHER';
+  generalAggregateOtherText?: string;
+  // Auto
+  anyAuto?: boolean;
+  ownedAutosOnly?: boolean;
+  scheduledAutos?: boolean;
+  hiredAutosOnly?: boolean;
+  nonOwnedAutosOnly?: boolean;
+  // Umbrella
+  excess?: boolean;
+  umbClaimsMade?: boolean; // distinct from GL claimsMade — kept under the umbrella row
+  deductibleVsRetention?: 'DED' | 'RETENTION';
+  // WC
+  officerExcluded?: boolean;
+  perStatuteVsOther?: 'PER_STATUTE' | 'OTHER';
+  perStatuteOtherText?: string;
 };
 
 // Type-specific limit fields shown in the per-coverage editor. Mirrors the
@@ -168,6 +186,9 @@ export function DecisionForm({
   const [descriptionEdit, setDescriptionEdit] = useState<string>(
     currentCertOverrides?.description ?? '',
   );
+  const [revisionEdit, setRevisionEdit] = useState<string>(
+    currentCertOverrides?.revisionNumber ?? '',
+  );
   // Per-policy coverage edits. Each entry mirrors the EditableCoverage shape
   // but only diverges from the underlying record once the user actually types
   // into a field.
@@ -187,6 +208,27 @@ export function DecisionForm({
         limits: { ...c.limits, ...filterNumbers(ov?.limits) },
         insurerName: insurerOv?.name ?? c.insurerName,
         insurerNaic: insurerOv?.naic ?? c.insurerNaic,
+        // GL
+        claimsMade: ov?.claimsMade ?? c.claimsMade ?? false,
+        generalAggregateAppliesPer:
+          ov?.generalAggregateAppliesPer ?? c.generalAggregateAppliesPer ?? 'POLICY',
+        generalAggregateOtherText:
+          ov?.generalAggregateOtherText ?? c.generalAggregateOtherText ?? '',
+        // Auto
+        anyAuto:           ov?.anyAuto ?? c.anyAuto ?? false,
+        ownedAutosOnly:    ov?.ownedAutosOnly ?? c.ownedAutosOnly ?? false,
+        scheduledAutos:    ov?.scheduledAutos ?? c.scheduledAutos ?? false,
+        hiredAutosOnly:    ov?.hiredAutosOnly ?? c.hiredAutosOnly ?? false,
+        nonOwnedAutosOnly: ov?.nonOwnedAutosOnly ?? c.nonOwnedAutosOnly ?? false,
+        // Umbrella
+        excess:        ov?.excess ?? c.excess ?? false,
+        umbClaimsMade: ov?.claimsMade ?? c.umbClaimsMade ?? false,
+        deductibleVsRetention:
+          ov?.deductibleVsRetention ?? c.deductibleVsRetention ?? 'RETENTION',
+        // WC
+        officerExcluded:    ov?.officerExcluded ?? c.officerExcluded ?? true,
+        perStatuteVsOther:  ov?.perStatuteVsOther ?? c.perStatuteVsOther ?? 'PER_STATUTE',
+        perStatuteOtherText: ov?.perStatuteOtherText ?? c.perStatuteOtherText ?? '',
       };
     }
     return seed;
@@ -226,6 +268,7 @@ export function DecisionForm({
     if (Object.keys(agencyDiff).length > 0) out.agency = agencyDiff;
 
     if (descriptionEdit.trim() !== '') out.description = descriptionEdit;
+    if (revisionEdit.trim() !== '') out.revisionNumber = revisionEdit.trim();
 
     const coverageEntries: Record<string, CoverageOverride> = {};
     const insurerEntries: Record<string, { name?: string; naic?: string }> = {};
@@ -248,6 +291,40 @@ export function DecisionForm({
         }
       }
       if (Object.keys(limitDiff).length > 0) covDiff.limits = limitDiff;
+
+      // Type-specific flag diffs. Always emit them — there's no canonical
+      // "before" value on the EditableCoverage from the parent, so the diff
+      // is "is the user-chosen value different from the type-default?".
+      if (cur.type === 'GL') {
+        if (cur.claimsMade) covDiff.claimsMade = true;
+        if (cur.generalAggregateAppliesPer && cur.generalAggregateAppliesPer !== 'POLICY') {
+          covDiff.generalAggregateAppliesPer = cur.generalAggregateAppliesPer;
+        }
+        if (cur.generalAggregateAppliesPer === 'OTHER' && (cur.generalAggregateOtherText ?? '').trim() !== '') {
+          covDiff.generalAggregateOtherText = (cur.generalAggregateOtherText ?? '').trim();
+        }
+      } else if (cur.type === 'AUTO') {
+        if (cur.anyAuto)            covDiff.anyAuto = true;
+        if (cur.ownedAutosOnly)     covDiff.ownedAutosOnly = true;
+        if (cur.scheduledAutos)     covDiff.scheduledAutos = true;
+        if (cur.hiredAutosOnly)     covDiff.hiredAutosOnly = true;
+        if (cur.nonOwnedAutosOnly)  covDiff.nonOwnedAutosOnly = true;
+      } else if (cur.type === 'UMBRELLA') {
+        if (cur.excess) covDiff.excess = true;
+        if (cur.umbClaimsMade) covDiff.claimsMade = true;
+        if (cur.deductibleVsRetention && cur.deductibleVsRetention !== 'RETENTION') {
+          covDiff.deductibleVsRetention = cur.deductibleVsRetention;
+        }
+      } else if (cur.type === 'WC') {
+        if (cur.officerExcluded === false) covDiff.officerExcluded = false;
+        if (cur.perStatuteVsOther && cur.perStatuteVsOther !== 'PER_STATUTE') {
+          covDiff.perStatuteVsOther = cur.perStatuteVsOther;
+        }
+        if (cur.perStatuteVsOther === 'OTHER' && (cur.perStatuteOtherText ?? '').trim() !== '') {
+          covDiff.perStatuteOtherText = (cur.perStatuteOtherText ?? '').trim();
+        }
+      }
+
       if (Object.keys(covDiff).length > 0) coverageEntries[orig.policyId] = covDiff;
 
       // Insurer override is keyed by the ORIGINAL NAIC so applyInsurerOverrides
@@ -664,26 +741,221 @@ export function DecisionForm({
                           }
                         />
                       </div>
+
+                      {/* GL-specific controls */}
+                      {cur.type === 'GL' && (
+                        <div className="mt-6 space-y-4 border-t border-hairline pt-5">
+                          <RadioGroup
+                            label="Claims-made vs Occurrence"
+                            value={cur.claimsMade ? 'CLAIMS' : 'OCCUR'}
+                            onChange={(v) =>
+                              updateCoverage(setCoverageEdits, cur.policyId, {
+                                claimsMade: v === 'CLAIMS',
+                              })
+                            }
+                            options={[
+                              { value: 'OCCUR', label: 'Occurrence' },
+                              { value: 'CLAIMS', label: 'Claims-made' },
+                            ]}
+                          />
+                          <RadioGroup
+                            label="Gen'l Aggregate Limit Applies Per"
+                            value={cur.generalAggregateAppliesPer ?? 'POLICY'}
+                            onChange={(v) =>
+                              updateCoverage(setCoverageEdits, cur.policyId, {
+                                generalAggregateAppliesPer: v as 'POLICY' | 'PROJECT' | 'LOC' | 'OTHER',
+                              })
+                            }
+                            options={[
+                              { value: 'POLICY', label: 'Policy' },
+                              { value: 'PROJECT', label: 'Project' },
+                              { value: 'LOC', label: 'Loc' },
+                              { value: 'OTHER', label: 'Other' },
+                            ]}
+                          />
+                          {cur.generalAggregateAppliesPer === 'OTHER' && (
+                            <UnderlinedField
+                              id={`pol-${cur.policyId}-aggother`}
+                              label="Other (free-text shown next to checkbox)"
+                              value={cur.generalAggregateOtherText ?? ''}
+                              onChange={(v) =>
+                                updateCoverage(setCoverageEdits, cur.policyId, {
+                                  generalAggregateOtherText: v,
+                                })
+                              }
+                            />
+                          )}
+                        </div>
+                      )}
+
+                      {/* Auto-specific type checkboxes */}
+                      {cur.type === 'AUTO' && (
+                        <div className="mt-6 border-t border-hairline pt-5">
+                          <p className="caps mb-3 text-[0.6rem] font-medium text-ink-faint">
+                            Auto type (check all that apply)
+                          </p>
+                          <div className="flex flex-wrap gap-x-6 gap-y-3">
+                            <CheckboxField
+                              id={`pol-${cur.policyId}-anyauto`}
+                              label="Any Auto"
+                              checked={cur.anyAuto ?? false}
+                              onChange={(v) =>
+                                updateCoverage(setCoverageEdits, cur.policyId, { anyAuto: v })
+                              }
+                            />
+                            <CheckboxField
+                              id={`pol-${cur.policyId}-owned`}
+                              label="Owned Autos Only"
+                              checked={cur.ownedAutosOnly ?? false}
+                              onChange={(v) =>
+                                updateCoverage(setCoverageEdits, cur.policyId, { ownedAutosOnly: v })
+                              }
+                            />
+                            <CheckboxField
+                              id={`pol-${cur.policyId}-sched`}
+                              label="Scheduled Autos"
+                              checked={cur.scheduledAutos ?? false}
+                              onChange={(v) =>
+                                updateCoverage(setCoverageEdits, cur.policyId, { scheduledAutos: v })
+                              }
+                            />
+                            <CheckboxField
+                              id={`pol-${cur.policyId}-hired`}
+                              label="Hired Autos Only"
+                              checked={cur.hiredAutosOnly ?? false}
+                              onChange={(v) =>
+                                updateCoverage(setCoverageEdits, cur.policyId, { hiredAutosOnly: v })
+                              }
+                            />
+                            <CheckboxField
+                              id={`pol-${cur.policyId}-nonown`}
+                              label="Non-Owned Autos Only"
+                              checked={cur.nonOwnedAutosOnly ?? false}
+                              onChange={(v) =>
+                                updateCoverage(setCoverageEdits, cur.policyId, { nonOwnedAutosOnly: v })
+                              }
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Umbrella-specific controls */}
+                      {cur.type === 'UMBRELLA' && (
+                        <div className="mt-6 space-y-4 border-t border-hairline pt-5">
+                          <RadioGroup
+                            label="Coverage form"
+                            value={cur.excess ? 'EXCESS' : 'UMBRELLA'}
+                            onChange={(v) =>
+                              updateCoverage(setCoverageEdits, cur.policyId, {
+                                excess: v === 'EXCESS',
+                              })
+                            }
+                            options={[
+                              { value: 'UMBRELLA', label: 'Umbrella Liab' },
+                              { value: 'EXCESS', label: 'Excess Liab' },
+                            ]}
+                          />
+                          <RadioGroup
+                            label="Occur vs Claims-made"
+                            value={cur.umbClaimsMade ? 'CLAIMS' : 'OCCUR'}
+                            onChange={(v) =>
+                              updateCoverage(setCoverageEdits, cur.policyId, {
+                                umbClaimsMade: v === 'CLAIMS',
+                              })
+                            }
+                            options={[
+                              { value: 'OCCUR', label: 'Occurrence' },
+                              { value: 'CLAIMS', label: 'Claims-made' },
+                            ]}
+                          />
+                          <RadioGroup
+                            label="Deductible vs Retention (which side gets the X)"
+                            value={cur.deductibleVsRetention ?? 'RETENTION'}
+                            onChange={(v) =>
+                              updateCoverage(setCoverageEdits, cur.policyId, {
+                                deductibleVsRetention: v as 'DED' | 'RETENTION',
+                              })
+                            }
+                            options={[
+                              { value: 'DED', label: 'Ded' },
+                              { value: 'RETENTION', label: 'Retention' },
+                            ]}
+                          />
+                        </div>
+                      )}
+
+                      {/* WC-specific controls */}
+                      {cur.type === 'WC' && (
+                        <div className="mt-6 space-y-4 border-t border-hairline pt-5">
+                          <RadioGroup
+                            label="Per Statute vs Other"
+                            value={cur.perStatuteVsOther ?? 'PER_STATUTE'}
+                            onChange={(v) =>
+                              updateCoverage(setCoverageEdits, cur.policyId, {
+                                perStatuteVsOther: v as 'PER_STATUTE' | 'OTHER',
+                              })
+                            }
+                            options={[
+                              { value: 'PER_STATUTE', label: 'Per Statute' },
+                              { value: 'OTHER', label: 'Other' },
+                            ]}
+                          />
+                          {cur.perStatuteVsOther === 'OTHER' && (
+                            <UnderlinedField
+                              id={`pol-${cur.policyId}-othertext`}
+                              label="Other (free-text shown under OTH- checkbox)"
+                              value={cur.perStatuteOtherText ?? ''}
+                              onChange={(v) =>
+                                updateCoverage(setCoverageEdits, cur.policyId, {
+                                  perStatuteOtherText: v,
+                                })
+                              }
+                            />
+                          )}
+                          <RadioGroup
+                            label="Any Proprietor / Partner / Officer / Member Excluded?"
+                            value={cur.officerExcluded === false ? 'N' : 'Y'}
+                            onChange={(v) =>
+                              updateCoverage(setCoverageEdits, cur.policyId, {
+                                officerExcluded: v === 'Y',
+                              })
+                            }
+                            options={[
+                              { value: 'Y', label: 'Y (excluded)' },
+                              { value: 'N', label: 'N (not excluded)' },
+                            ]}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
 
               {editTab === 'description' && (
-                <div>
-                  <label
-                    htmlFor="desc-ops"
-                    className="caps block text-[0.62rem] font-semibold text-ink-muted"
-                  >
-                    Description of Operations / Locations / Vehicles
-                  </label>
-                  <textarea
-                    id="desc-ops"
-                    rows={6}
-                    value={descriptionEdit}
-                    onChange={(e) => setDescriptionEdit(e.target.value)}
-                    placeholder="e.g. ACME Corp is named as Additional Insured per blanket endorsement..."
-                    className="field-underline mt-2 block w-full resize-none text-base text-ink"
+                <div className="space-y-5">
+                  <UnderlinedField
+                    id="rev-number"
+                    label="Revision number (leave blank for original issuance)"
+                    value={revisionEdit}
+                    onChange={setRevisionEdit}
+                    placeholder="e.g. 1"
                   />
+                  <div>
+                    <label
+                      htmlFor="desc-ops"
+                      className="caps block text-[0.62rem] font-semibold text-ink-muted"
+                    >
+                      Description of Operations / Locations / Vehicles
+                    </label>
+                    <textarea
+                      id="desc-ops"
+                      rows={6}
+                      value={descriptionEdit}
+                      onChange={(e) => setDescriptionEdit(e.target.value)}
+                      placeholder="e.g. ACME Corp is named as Additional Insured per blanket endorsement..."
+                      className="field-underline mt-2 block w-full resize-none text-base text-ink"
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -906,5 +1178,41 @@ function CheckboxField({
       />
       <span>{label}</span>
     </label>
+  );
+}
+
+function RadioGroup({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: ReadonlyArray<{ value: string; label: string }>;
+}) {
+  return (
+    <div>
+      <p className="caps block text-[0.62rem] font-semibold text-ink-muted">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+        {options.map((o) => (
+          <label
+            key={o.value}
+            className="flex cursor-pointer items-center gap-2 text-[0.85rem] text-ink"
+          >
+            <input
+              type="radio"
+              name={label}
+              value={o.value}
+              checked={value === o.value}
+              onChange={() => onChange(o.value)}
+              className="h-4 w-4 shrink-0 border-hairline-strong text-brand focus:ring-brand/40"
+            />
+            <span>{o.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
   );
 }

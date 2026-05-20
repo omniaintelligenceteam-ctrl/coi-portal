@@ -131,6 +131,7 @@ function buildCoverage(p: DbPolicyFull, letter: InsurerLetter): Coverage {
       const umb: UmbrellaCoverage = {
         ...base,
         type: 'UMBRELLA',
+        deductibleVsRetention: 'RETENTION',
         limits: {
           eachOccurrence: lim.eachOccurrence ?? 0,
           aggregate: lim.aggregate ?? 0,
@@ -145,6 +146,7 @@ function buildCoverage(p: DbPolicyFull, letter: InsurerLetter): Coverage {
         ...base,
         type: 'WC',
         officerExcluded: true,
+        perStatuteVsOther: 'PER_STATUTE',
         limits: {
           eachAccident: lim.eachAccident ?? 0,
           diseaseEaEmployee: lim.diseaseEaEmployee ?? 0,
@@ -284,6 +286,13 @@ export function applyCertOverrides(input: CoiInput, overrides: CertOverrides): C
       delete out.description;
     }
   }
+  if (overrides.revisionNumber !== undefined) {
+    if (overrides.revisionNumber.length > 0) {
+      out.revisionNumber = overrides.revisionNumber;
+    } else {
+      delete out.revisionNumber;
+    }
+  }
   return out;
 }
 
@@ -359,6 +368,32 @@ function applyOneCoverageOverride(cov: Coverage, o: CoverageOverride): Coverage 
       if (v !== undefined) mergedLimits[k] = v;
     }
     (merged as { limits: Record<string, unknown> }).limits = mergedLimits;
+  }
+  // Type-specific flags. Only apply to the matching coverage type — silently
+  // skip GL flags on an Auto row, etc. (Brook can't physically tab to those
+  // controls anyway; this is defense in depth against a malformed payload.)
+  if (merged.type === 'GL') {
+    const gl = merged as GLCoverage;
+    if (o.claimsMade !== undefined) gl.claimsMade = o.claimsMade;
+    if (o.generalAggregateAppliesPer !== undefined) gl.generalAggregateAppliesPer = o.generalAggregateAppliesPer;
+    if (o.generalAggregateOtherText !== undefined) gl.generalAggregateOtherText = o.generalAggregateOtherText;
+  } else if (merged.type === 'AUTO') {
+    const a = merged as AutoCoverage;
+    if (o.anyAuto !== undefined) a.anyAuto = o.anyAuto;
+    if (o.ownedAutosOnly !== undefined) a.ownedAutosOnly = o.ownedAutosOnly;
+    if (o.scheduledAutos !== undefined) a.scheduledAutos = o.scheduledAutos;
+    if (o.hiredAutosOnly !== undefined) a.hiredAutosOnly = o.hiredAutosOnly;
+    if (o.nonOwnedAutosOnly !== undefined) a.nonOwnedAutosOnly = o.nonOwnedAutosOnly;
+  } else if (merged.type === 'UMBRELLA') {
+    const u = merged as UmbrellaCoverage;
+    if (o.excess !== undefined) u.excess = o.excess;
+    if (o.claimsMade !== undefined) u.claimsMade = o.claimsMade;
+    if (o.deductibleVsRetention !== undefined) u.deductibleVsRetention = o.deductibleVsRetention;
+  } else if (merged.type === 'WC') {
+    const w = merged as WCCoverage;
+    if (o.officerExcluded !== undefined) w.officerExcluded = o.officerExcluded;
+    if (o.perStatuteVsOther !== undefined) w.perStatuteVsOther = o.perStatuteVsOther;
+    if (o.perStatuteOtherText !== undefined) w.perStatuteOtherText = o.perStatuteOtherText;
   }
   return merged;
 }

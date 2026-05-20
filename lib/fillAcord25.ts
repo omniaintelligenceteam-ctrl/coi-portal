@@ -171,8 +171,22 @@ export async function fillAcord25(input: CoiInput): Promise<Uint8Array> {
   const gl = findCoverage(input.coverages, 'GL');
   if (gl) {
     drawAt(page, font, COORDS.GL_CHK_TYPE, 'X');
-    if (!gl.claimsMade) drawAt(page, font, COORDS.GL_CHK_OCCUR, 'X');
-    if (gl.generalAggregateAppliesPer === 'POLICY') drawAt(page, font, COORDS.GL_CHK_AGG_POLICY, 'X');
+    if (gl.claimsMade) {
+      drawAt(page, font, COORDS.GL_CHK_CLAIMS_MADE, 'X');
+    } else {
+      drawAt(page, font, COORDS.GL_CHK_OCCUR, 'X');
+    }
+    switch (gl.generalAggregateAppliesPer) {
+      case 'POLICY':  drawAt(page, font, COORDS.GL_CHK_AGG_POLICY,  'X'); break;
+      case 'PROJECT': drawAt(page, font, COORDS.GL_CHK_AGG_PROJECT, 'X'); break;
+      case 'LOC':     drawAt(page, font, COORDS.GL_CHK_AGG_LOC,     'X'); break;
+      case 'OTHER':
+        drawAt(page, font, COORDS.GL_CHK_AGG_OTHER, 'X');
+        if (gl.generalAggregateOtherText) {
+          drawAt(page, font, COORDS.GL_AGG_OTHER_TEXT, gl.generalAggregateOtherText);
+        }
+        break;
+    }
     drawAt(page, font, COORDS.GL_INSR_LTR, gl.insurerLetter);
     drawAt(page, font, COORDS.GL_POLICY_NUMBER, gl.policyNumber);
     drawAt(page, font, COORDS.GL_EFF_DATE, gl.effDate);
@@ -187,6 +201,11 @@ export async function fillAcord25(input: CoiInput): Promise<Uint8Array> {
 
   const auto = findCoverage(input.coverages, 'AUTO');
   if (auto) {
+    if (auto.anyAuto)            drawAt(page, font, COORDS.AUTO_CHK_ANY_AUTO,  'X');
+    if (auto.ownedAutosOnly)     drawAt(page, font, COORDS.AUTO_CHK_OWNED,     'X');
+    if (auto.scheduledAutos)     drawAt(page, font, COORDS.AUTO_CHK_SCHEDULED, 'X');
+    if (auto.hiredAutosOnly)     drawAt(page, font, COORDS.AUTO_CHK_HIRED,     'X');
+    if (auto.nonOwnedAutosOnly)  drawAt(page, font, COORDS.AUTO_CHK_NON_OWNED, 'X');
     drawAt(page, font, COORDS.AUTO_INSR_LTR, auto.insurerLetter);
     drawAt(page, font, COORDS.AUTO_POLICY_NUMBER, auto.policyNumber);
     drawAt(page, font, COORDS.AUTO_EFF_DATE, auto.effDate);
@@ -207,17 +226,42 @@ export async function fillAcord25(input: CoiInput): Promise<Uint8Array> {
 
   const umb = findCoverage(input.coverages, 'UMBRELLA');
   if (umb) {
+    if (umb.excess) {
+      drawAt(page, font, COORDS.UMB_CHK_EXCESS, 'X');
+    } else {
+      drawAt(page, font, COORDS.UMB_CHK_UMBRELLA, 'X');
+    }
+    if (umb.claimsMade) {
+      drawAt(page, font, COORDS.UMB_CHK_CLAIMS_MADE, 'X');
+    } else {
+      drawAt(page, font, COORDS.UMB_CHK_OCCUR, 'X');
+    }
+    if (umb.deductibleVsRetention === 'DED') {
+      drawAt(page, font, COORDS.UMB_CHK_DED, 'X');
+    } else if (umb.deductibleVsRetention === 'RETENTION') {
+      drawAt(page, font, COORDS.UMB_CHK_RETENTION, 'X');
+    }
     drawAt(page, font, COORDS.UMB_INSR_LTR, umb.insurerLetter);
     drawAt(page, font, COORDS.UMB_POLICY_NUMBER, umb.policyNumber);
     drawAt(page, font, COORDS.UMB_EFF_DATE, umb.effDate);
     drawAt(page, font, COORDS.UMB_EXP_DATE, umb.expDate);
     drawAt(page, font, COORDS.UMB_LIMIT_EACH_OCC, fmtMoney(umb.limits.eachOccurrence));
     drawAt(page, font, COORDS.UMB_LIMIT_AGG, fmtMoney(umb.limits.aggregate));
+    if (umb.limits.retention !== undefined && umb.limits.retention > 0) {
+      drawAt(page, font, COORDS.UMB_LIMIT_RETENTION, fmtMoney(umb.limits.retention));
+    }
   }
 
   const wc = findCoverage(input.coverages, 'WC');
   if (wc) {
-    drawAt(page, font, COORDS.WC_CHK_PER_STATUTE, 'X');
+    if (wc.perStatuteVsOther === 'OTHER') {
+      drawAt(page, font, COORDS.WC_CHK_OTHER, 'X');
+      if (wc.perStatuteOtherText) {
+        drawAt(page, font, COORDS.WC_OTHER_TEXT, wc.perStatuteOtherText);
+      }
+    } else {
+      drawAt(page, font, COORDS.WC_CHK_PER_STATUTE, 'X');
+    }
     drawAt(page, font, COORDS.WC_OFFICER_YN, wc.officerExcluded ? 'Y' : 'N');
     drawAt(page, font, COORDS.WC_INSR_LTR, wc.insurerLetter);
     drawAt(page, font, COORDS.WC_POLICY_NUMBER, wc.policyNumber);

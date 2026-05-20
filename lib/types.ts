@@ -78,6 +78,8 @@ export type GLCoverage = CoverageBase & {
   type: 'GL';
   claimsMade?: boolean;     // false → occurrence (default for ACORD 25)
   generalAggregateAppliesPer: 'POLICY' | 'PROJECT' | 'LOC' | 'OTHER';
+  /** Free-text shown next to the OTHER: checkbox when generalAggregateAppliesPer === 'OTHER'. */
+  generalAggregateOtherText?: string;
   limits: GeneralLiabilityLimits;
 };
 
@@ -93,14 +95,21 @@ export type AutoCoverage = CoverageBase & {
 
 export type UmbrellaCoverage = CoverageBase & {
   type: 'UMBRELLA';
+  /** true → render EXCESS LIAB checkbox, false/undefined → render UMBRELLA LIAB checkbox. */
   excess?: boolean;
   claimsMade?: boolean;
+  /** Which retention-side checkbox to mark: 'DED' or 'RETENTION'. Default 'RETENTION'. */
+  deductibleVsRetention?: 'DED' | 'RETENTION';
   limits: UmbrellaLimits;
 };
 
 export type WCCoverage = CoverageBase & {
   type: 'WC';
   officerExcluded?: boolean;
+  /** Which statute-side checkbox to mark. Default 'PER_STATUTE'. */
+  perStatuteVsOther?: 'PER_STATUTE' | 'OTHER';
+  /** Free-text shown below the OTH- checkbox when perStatuteVsOther === 'OTHER'. */
+  perStatuteOtherText?: string;
   limits: WorkersCompLimits;
 };
 
@@ -173,6 +182,23 @@ export type CoverageOverride = {
   subrogationWaived?: boolean;
   /** EQUIPMENT / OTHER per-coverage description override. */
   description?: string;
+  // ── GL-specific ───────────────────────────────────────────────────────────
+  claimsMade?: boolean;
+  generalAggregateAppliesPer?: 'POLICY' | 'PROJECT' | 'LOC' | 'OTHER';
+  generalAggregateOtherText?: string;
+  // ── Auto-specific (which "type" checkboxes to mark in the row) ────────────
+  anyAuto?: boolean;
+  ownedAutosOnly?: boolean;
+  scheduledAutos?: boolean;
+  hiredAutosOnly?: boolean;
+  nonOwnedAutosOnly?: boolean;
+  // ── Umbrella-specific ─────────────────────────────────────────────────────
+  excess?: boolean;
+  deductibleVsRetention?: 'DED' | 'RETENTION';
+  // ── WC-specific ───────────────────────────────────────────────────────────
+  officerExcluded?: boolean;
+  perStatuteVsOther?: 'PER_STATUTE' | 'OTHER';
+  perStatuteOtherText?: string;
 };
 
 export type CertOverrides = {
@@ -184,4 +210,6 @@ export type CertOverrides = {
   insurers?: Record<string, InsurerOverride>;
   /** Keyed by policy_id (uuid). */
   coverages?: Record<string, CoverageOverride>;
+  /** Revision-number stamp on the rendered cert (e.g. "1"). */
+  revisionNumber?: string;
 };

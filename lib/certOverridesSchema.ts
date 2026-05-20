@@ -50,6 +50,23 @@ export const CoverageOverrideSchema = z
     addlInsuredBlanket: z.boolean().optional(),
     subrogationWaived: z.boolean().optional(),
     description: text(2000).optional(),
+    // GL
+    claimsMade: z.boolean().optional(),
+    generalAggregateAppliesPer: z.enum(['POLICY', 'PROJECT', 'LOC', 'OTHER']).optional(),
+    generalAggregateOtherText: text(60).optional(),
+    // Auto
+    anyAuto: z.boolean().optional(),
+    ownedAutosOnly: z.boolean().optional(),
+    scheduledAutos: z.boolean().optional(),
+    hiredAutosOnly: z.boolean().optional(),
+    nonOwnedAutosOnly: z.boolean().optional(),
+    // Umbrella
+    excess: z.boolean().optional(),
+    deductibleVsRetention: z.enum(['DED', 'RETENTION']).optional(),
+    // WC
+    officerExcluded: z.boolean().optional(),
+    perStatuteVsOther: z.enum(['PER_STATUTE', 'OTHER']).optional(),
+    perStatuteOtherText: text(60).optional(),
   })
   .strict();
 
@@ -60,6 +77,7 @@ export const CertOverridesSchema = z
     description: text(2000).optional(),
     insurers: z.record(z.string(), InsurerOverrideSchema).optional(),
     coverages: z.record(z.string().uuid(), CoverageOverrideSchema).optional(),
+    revisionNumber: text(40).optional(),
   })
   .strict();
 
@@ -75,6 +93,7 @@ export function hasOverrides(overrides: CertOverridesValidated | null | undefine
   if (overrides.insured && Object.keys(overrides.insured).length > 0) return true;
   if (overrides.description && overrides.description.length > 0) return true;
   if (overrides.insurers && Object.keys(overrides.insurers).length > 0) return true;
+  if (overrides.revisionNumber && overrides.revisionNumber.length > 0) return true;
   if (overrides.coverages && Object.keys(overrides.coverages).length > 0) {
     for (const cov of Object.values(overrides.coverages)) {
       if (Object.keys(cov).length > 0) return true;
