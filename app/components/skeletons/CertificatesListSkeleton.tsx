@@ -29,7 +29,7 @@ export function CertificatesListSkeleton() {
       `}</style>
 
       <main
-        className="mx-auto max-w-5xl px-6 pb-24 pt-12 sm:px-10 lg:pt-16"
+        className="mx-auto max-w-5xl px-8 pb-24 pt-12 sm:px-12 lg:px-20 lg:pt-16 xl:px-32"
         aria-busy="true"
         aria-live="polite"
       >

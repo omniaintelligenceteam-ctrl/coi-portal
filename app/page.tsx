@@ -95,7 +95,7 @@ export default async function HomePage() {
     <>
       <Header email={user.email} showMyCerts />
 
-      <main className="mx-auto w-full max-w-5xl px-6 pb-16 pt-8 sm:px-10 sm:pb-24 sm:pt-12 lg:px-16 lg:pt-14 xl:px-24">
+      <main className="mx-auto w-full max-w-5xl px-8 pb-16 pt-8 sm:px-12 sm:pb-24 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
         {/* Insured identity — editorial card with corner seal mark */}
         <section className="relative mb-8 overflow-hidden rounded-[var(--r-lg)] border border-hairline bg-card px-5 py-6 shadow-card sm:mb-12 sm:px-8 sm:py-8">
           <span
@@ -189,7 +189,7 @@ export default async function HomePage() {
 function NoClientFound({ email }: { email: string }) {
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      <div className="mx-auto w-full max-w-5xl px-6 pt-safe sm:px-10">
+      <div className="mx-auto w-full max-w-5xl px-8 pt-safe sm:px-12 lg:px-20 xl:px-32">
         <Link
           href="/"
           aria-label="The Policy Place — home"
@@ -199,7 +199,7 @@ function NoClientFound({ email }: { email: string }) {
         </Link>
       </div>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-16 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-8 pb-16 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
         <div className="mx-auto max-w-2xl">
           <Card padding="lg" raised>
             <p className="caps text-[0.65rem] font-semibold text-warning">Access pending</p>

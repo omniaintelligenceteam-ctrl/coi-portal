@@ -159,7 +159,7 @@ export default async function VerifyPage({ params }: PageProps) {
   });
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 pb-20 pt-8 sm:px-10 sm:pb-24 sm:pt-12 lg:px-16 lg:pt-14 xl:px-24">
+    <main className="mx-auto w-full max-w-5xl px-8 pb-20 pt-8 sm:px-12 sm:pb-24 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
       <div
         className={`mx-auto max-w-2xl ${
           isExpired ? 'opacity-90 [&_*:not(.expired-banner)]:grayscale' : ''

@@ -63,7 +63,7 @@ export function AdminTabs() {
       aria-label="Admin sections"
       className="sticky top-[3.5rem] z-20 border-b border-hairline bg-paper/85 backdrop-blur-md sm:top-[3.75rem]"
     >
-      <div className="mx-auto flex w-full max-w-5xl items-center gap-0 overflow-x-auto px-4 sm:gap-1 sm:px-10 lg:px-16 xl:px-24">
+      <div className="mx-auto flex w-full max-w-5xl items-center gap-0 overflow-x-auto px-6 sm:gap-1 sm:px-12 lg:px-20 xl:px-32">
         {TABS.map((t) => {
           const active = t.match(pathname);
           const Icon = t.icon;

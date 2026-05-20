@@ -21,7 +21,7 @@ export default async function SignaturePreview() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
+    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
       <div className="mx-auto max-w-2xl">
         <p className="caps text-[0.65rem] font-semibold text-seal-deep">Asset preview</p>
         <h1 className="font-display mt-3 text-[2.25rem] font-medium leading-[1.05] tracking-display text-ink">

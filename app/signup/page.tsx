@@ -48,7 +48,7 @@ export default function SignupPage() {
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col">
-      <div className="mx-auto w-full max-w-5xl px-6 pt-safe sm:px-10">
+      <div className="mx-auto w-full max-w-5xl px-8 pt-safe sm:px-12">
         <Link
           href="/"
           aria-label="The Policy Place — home"
@@ -58,7 +58,7 @@ export default function SignupPage() {
         </Link>
       </div>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-6 pb-16 pt-8 sm:px-10 sm:pt-12 lg:pt-16">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-8 pb-16 pt-8 sm:px-12 sm:pt-12 lg:pt-16">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -185,7 +185,7 @@ export default function SignupPage() {
         </motion.div>
       </main>
 
-      <footer className="mx-auto w-full max-w-5xl px-6 pb-8 pb-safe sm:px-10">
+      <footer className="mx-auto w-full max-w-5xl px-8 pb-8 pb-safe sm:px-12">
         <Hairline />
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="caps text-[0.65rem] font-medium tracking-[0.18em] text-ink-faint">

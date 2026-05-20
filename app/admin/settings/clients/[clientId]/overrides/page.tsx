@@ -47,7 +47,7 @@ export default async function ClientOverridesPage({
     .returns<OverrideRow[]>();
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
+    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
       <div className="mx-auto max-w-2xl">
       <Link
         href="/admin/settings/clients"

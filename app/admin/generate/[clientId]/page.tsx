@@ -94,7 +94,7 @@ export default async function GenerateForClientPage({
   }));
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-8 sm:px-10 sm:pt-12 lg:px-16 lg:pt-14 xl:px-24">
+    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
       <div className="mx-auto max-w-2xl">
         <Link
           href="/admin/generate"

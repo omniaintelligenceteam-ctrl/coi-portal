@@ -23,13 +23,13 @@ export default function GlobalError({
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      <div className="mx-auto w-full max-w-5xl px-6 pt-safe sm:px-10">
+      <div className="mx-auto w-full max-w-5xl px-8 pt-safe sm:px-12 lg:px-20 xl:px-32">
         <div className="mt-6 inline-flex sm:mt-8">
           <Logo tone="dark" />
         </div>
       </div>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-6 pb-16 pt-10 sm:px-10 sm:pt-12 lg:px-16 xl:px-24">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-8 pb-16 pt-10 sm:px-12 sm:pt-12 lg:px-20 xl:px-32">
         <Card padding="lg" raised tone="danger" className="w-full max-w-xl text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-danger/40 bg-danger-soft/60">
             <AlertOctagon className="h-6 w-6 text-danger" aria-hidden="true" />
