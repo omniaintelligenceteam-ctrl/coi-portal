@@ -5,8 +5,10 @@
  * values + any prior corrections Brook has logged for this client. Returns
  * structured JSON the admin queue can render alongside the cert preview.
  *
- * Brook is still the gatekeeper — this agent flags, she decides. Per-client
- * `auto_approve_enabled` can skip Brook when the reviewer passes cleanly.
+ * Brook is the gatekeeper for manual-mode clients — this agent flags, she
+ * decides. For clients with `auto_approve_enabled = true`, reviewer flags
+ * are recorded for audit but do NOT block sending; the cert ships to the
+ * client's email regardless of pass/fail.
  */
 
 import Anthropic from '@anthropic-ai/sdk';

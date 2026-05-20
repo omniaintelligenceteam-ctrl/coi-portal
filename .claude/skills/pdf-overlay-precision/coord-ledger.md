@@ -67,9 +67,9 @@ Columns: `anchor` · `side` · `dx` · `dy` · `nearY` · `last verified` · `la
 
 | Field | Anchor | Side | dx | dy | nearY | Last verified | Last cert | Notes |
 |---|---|---|---|---|---|---|---|---|
-| GL_CHK_TYPE | COMMERCIAL GENERAL LIABILITY | left | **-9** | **0** | — | 2026-05-18 | PP-20260519-0002 | **Second pass: Wes wanted X further left + lower. -6.5/1.5 → -9/0** |
-| GL_CHK_OCCUR | OCCUR | left | **-9** | **0** | 470 | 2026-05-18 | PP-20260519-0002 | **Second pass: -6.5/1.5 → -9/0** |
-| GL_CHK_AGG_POLICY | POLICY | left | **-9** | **0** | 422 | 2026-05-18 | PP-20260519-0002 | **Second pass: -6.5/1.5 → -9/0** |
+| GL_CHK_TYPE | COMMERCIAL GENERAL LIABILITY | left | **-12** | 0 | — | 2026-05-20 | PP-20260519-0002 | **Third pass: Wes flagged X still right-of-center in boxes. -9 → -12 (3pt further left)** |
+| GL_CHK_OCCUR | OCCUR | left | **-12** | 0 | 470 | 2026-05-20 | PP-20260519-0002 | **Third pass: -9 → -12 to center X in OCCUR checkbox** |
+| GL_CHK_AGG_POLICY | POLICY | left | **-12** | 0 | 422 | 2026-05-20 | PP-20260519-0002 | **Third pass: -9 → -12 to center X in POLICY checkbox** |
 | GL_INSR_LTR | COMMERCIAL GENERAL LIABILITY | row | 28 | -6 | — | 2026-05-18 | PP-20260408-0001 | — |
 | GL_POLICY_NUMBER | COMMERCIAL GENERAL LIABILITY | row | 223 | -6 | — | 2026-05-18 | PP-20260408-0001 | maxWidth 92 |
 | GL_EFF_DATE | COMMERCIAL GENERAL LIABILITY | row | **334** | -6 | — | 2026-05-18 | PP-20260519-0002 | **Second pass 328→334 — Wes flagged GL dates still left of others; matched OTHER row** |
@@ -109,7 +109,7 @@ Columns: `anchor` · `side` · `dx` · `dy` · `nearY` · `last verified` · `la
 
 | Field | Anchor | Side | dx | dy | nearY | Last verified | Last cert | Notes |
 |---|---|---|---|---|---|---|---|---|
-| WC_CHK_PER_STATUTE | PER | left | **-9** | **0** | — | 2026-05-18 | PP-20260519-0002 | **Second pass with GL checks: -6.5/1.5 → -9/0** |
+| WC_CHK_PER_STATUTE | PER | left | **-18** | **-4** | — | 2026-05-20 | PP-20260519-0002 | **Third pass: dx -9→-18, dy 0→-4. The PER STATUTE "checkbox" is a wider, taller cell that spans the two-line "PER / STATUTE" label height. Needs both a larger leftward shift (cell width) AND a dy drop (cell height) so the X centers between the two text lines instead of riding the top line. Visually verified at 400dpi.** |
 | WC_OFFICER_YN | WC_OFFICER_BOX | inside | 3.5 | 3 | — | 2026-05-18 | PP-20260519-0002 | Region-anchored. Value sourced via `coiInputBuilder` (officerExcluded: true → "Y") |
 | WC_INSR_LTR | WORKERS COMPENSATION | row | 28 | -9 | — | 2026-05-18 | PP-20260408-0001 | — |
 | WC_POLICY_NUMBER | WORKERS COMPENSATION | row | 223 | -9 | — | 2026-05-18 | PP-20260408-0001 | maxWidth 92 |
@@ -159,3 +159,4 @@ All anchor to `E.L. DISEASE - POLICY LIMIT` with `dy: -26` (one row below WC).
 | Date | Cert | Round | Outcome |
 |---|---|---|---|
 | 2026-05-18 | PP-20260519-0002 | 1 | Initial pass: phone +5pt, four checkbox X marks centered (-6.5/+1.5), Damage-to-Rented limit dy -8, all eff/exp dates +6pt, officerExcluded defaulted true in builder. Awaiting Wes visual sign-off → if "still off," iterate the specific offset and append a new row here. |
+| 2026-05-20 | PP-20260519-0002 | 3 | Wes flagged all four checkbox X marks still right-of-center in their boxes. First moved all four uniformly from -9 → -12; visual check at 400dpi showed the three GL checkboxes (TYPE, OCCUR, AGG_POLICY) landed centered, but WC PER STATUTE overshot LEFT of its cell. Root cause: PER STATUTE's "checkbox" is a wider empty table cell (no small inner box drawn) while the GL boxes are small inner squares — they need different offsets. Final values: GL three at -12, WC PER STATUTE at -18. Both visually verified at 400dpi against rendered Sheffer cert. cert-doctor PASS 71/71. **Lesson: not all ACORD checkboxes share geometry; per-anchor visual verification beats uniform tuning.** |

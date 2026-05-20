@@ -68,8 +68,9 @@ export default async function SettingsPage() {
       <section className="mb-16">
         <Hairline label="Approval mode" className="mb-3" />
         <p className="mb-6 max-w-2xl text-sm leading-relaxed text-ink-muted">
-          Auto-approve sends a certificate immediately after the AI reviewer
-          passes it. Reviewer failures still route to the queue for Brook.
+          Auto-approve sends every certificate this client generates straight
+          to their contact email. The AI reviewer still runs and its flags
+          are stored on the request for audit, but they don't block sending.
           Default for new clients is Manual until they've been watched for a
           stretch.
         </p>

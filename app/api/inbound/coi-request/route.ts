@@ -456,6 +456,9 @@ Happy to get this out to you. I just need ${askText} so the certificate is fille
     }
 
     // 9. Run reviewer SYNCHRONOUSLY so we only auto-send when it passes clean.
+    // Clients with auto_approve_enabled bypass the reviewer-flag escalation
+    // gate — their certs ship regardless of pass/fail. Reviewer findings are
+    // still recorded on the row for audit.
     const { data: overrides } = await admin
       .from('client_overrides')
       .select('scope, pattern, correction')
@@ -482,7 +485,14 @@ Happy to get this out to you. I just need ${askText} so the certificate is fille
       log.error('inbound.reviewer_failed', { certNumber: result.certNumber, error: (err as Error).message });
     }
 
-    if (!reviewerPass) {
+    const { data: autoApproveRow } = await admin
+      .from('coi_clients')
+      .select('auto_approve_enabled')
+      .eq('id', result.client.id)
+      .maybeSingle();
+    const autoApprove = Boolean(autoApproveRow?.auto_approve_enabled);
+
+    if (!reviewerPass && !autoApprove) {
       // Reviewer flagged or failed → don't auto-send to client. Escalate Brook.
       await alertBrookUrgent({
         admin,
@@ -507,6 +517,15 @@ Happy to get this out to you. I just need ${askText} so the certificate is fille
         ok: true,
         status: 'reviewer_flagged_escalated',
         certNumber: result.certNumber,
+      });
+    }
+
+    if (autoApprove && !reviewerPass) {
+      log.info('inbound.auto_approved_with_reviewer_flags', {
+        certNumber: result.certNumber,
+        requestId: result.requestId,
+        clientId: result.client.id,
+        flagCount: reviewerFlagCount,
       });
     }
 

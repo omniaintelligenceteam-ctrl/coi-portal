@@ -166,9 +166,9 @@ export const COORDS = {
   // Limits anchor to each limit-label individually
   // Checkboxes: X marks sit left of their labels (the form's checkbox glyphs).
   // ====================================================================
-  GL_CHK_TYPE:           declare('GL_CHK_TYPE',         { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'left', dx: -9, dy: 0, size: 9 }),
-  GL_CHK_OCCUR:          declare('GL_CHK_OCCUR',        { anchor: 'OCCUR',                        side: 'left', dx: -9, dy: 0, size: 9, nearY: 470 }),
-  GL_CHK_AGG_POLICY:     declare('GL_CHK_AGG_POLICY',   { anchor: 'POLICY',                       side: 'left', dx: -9, dy: 0, size: 9, nearY: 422 }),
+  GL_CHK_TYPE:           declare('GL_CHK_TYPE',         { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'left', dx: -12, dy: 0, size: 9 }),
+  GL_CHK_OCCUR:          declare('GL_CHK_OCCUR',        { anchor: 'OCCUR',                        side: 'left', dx: -12, dy: 0, size: 9, nearY: 470 }),
+  GL_CHK_AGG_POLICY:     declare('GL_CHK_AGG_POLICY',   { anchor: 'POLICY',                       side: 'left', dx: -12, dy: 0, size: 9, nearY: 422 }),
   GL_INSR_LTR:           declare('GL_INSR_LTR',      { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx:  28, dy: -6, size: 7.5 }),
   GL_POLICY_NUMBER:      declare('GL_POLICY_NUMBER', { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx: 223, dy: -6, size: 7.5, maxWidth: 92 }),
   GL_EFF_DATE:           declare('GL_EFF_DATE',      { anchor: 'COMMERCIAL GENERAL LIABILITY', side: 'row', dx: 334, dy: -6, size: 7.5 }),
@@ -205,7 +205,7 @@ export const COORDS = {
   // ====================================================================
   // WC row — PER STATUTE checkbox + Y/N officer-excluded character
   // ====================================================================
-  WC_CHK_PER_STATUTE:   declare('WC_CHK_PER_STATUTE', { anchor: 'PER', side: 'left', dx: -9, dy: 0, size: 9 }),
+  WC_CHK_PER_STATUTE:   declare('WC_CHK_PER_STATUTE', { anchor: 'PER', side: 'left', dx: -18, dy: -4, size: 9 }),
   WC_OFFICER_YN:        declare('WC_OFFICER_YN', { anchor: 'WC_OFFICER_BOX', side: 'inside', dx: 3.5, dy: 3, size: 8, validate: z.enum(['Y', 'N']) }),
   WC_INSR_LTR:          declare('WC_INSR_LTR',      { anchor: 'WORKERS COMPENSATION', side: 'row', dx:  28, dy: -9, size: 7.5 }),
   WC_POLICY_NUMBER:     declare('WC_POLICY_NUMBER', { anchor: 'WORKERS COMPENSATION', side: 'row', dx: 223, dy: -9, size: 7.5, maxWidth: 92 }),
