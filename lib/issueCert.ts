@@ -349,61 +349,58 @@ export async function issueCert(input: {
         durationMs: Date.now() - reviewT0,
       });
 
-      // Auto-approve branch: reviewer green + client opted-in => send now.
-      // Reviewer fails (pass=false) always fall through to the queue.
+      // Auto-approve branch: client opted-in => send now, regardless of
+      // reviewer pass/fail. Reviewer flags are still recorded on the row for
+      // audit, but they don't gate sending — per Wes's directive, whatever an
+      // auto-approve client generates ships straight to their inbox. Reviewer
+      // crashes (caught below) still fall through to the queue because the
+      // row never reaches status='reviewed'.
       let autoApproved = false;
-      if (review.pass) {
-        const { data: clientRow } = await admin
-          .from('coi_clients')
-          .select('auto_approve_enabled')
-          .eq('id', clientSnapshot.id)
-          .maybeSingle();
-        if (clientRow?.auto_approve_enabled) {
-          try {
-            // Guard — only auto-approve a row still at status='reviewed'. If
-            // Brook (or another path) already decided between the reviewer
-            // update and now, this returns 0 rows and we fall through to the
-            // queue notification so the existing decision sticks.
-            const { data: autoRow } = await admin
-              .from('cert_requests')
-              .update({
-                status: 'approved',
-                decided_by_email: 'system:auto-approve',
-                decided_at: new Date().toISOString(),
-              })
-              .eq('id', requestId)
-              .eq('status', 'reviewed')
-              .select('id')
-              .maybeSingle();
-            if (!autoRow) {
-              log.info('cert.auto_approve_skipped_already_decided', {
-                certNumber,
-                requestId,
-              });
-              throw new Error('auto-approve lost race with manual decision');
-            }
-            await sendApprovedCert(admin, requestId);
-            autoApproved = true;
-            log.info('cert.auto_approved', {
+      const { data: clientRow } = await admin
+        .from('coi_clients')
+        .select('auto_approve_enabled')
+        .eq('id', clientSnapshot.id)
+        .maybeSingle();
+      if (clientRow?.auto_approve_enabled) {
+        try {
+          const { data: autoRow } = await admin
+            .from('cert_requests')
+            .update({
+              status: 'approved',
+              decided_by_email: 'system:auto-approve',
+              decided_at: new Date().toISOString(),
+            })
+            .eq('id', requestId)
+            .eq('status', 'reviewed')
+            .select('id')
+            .maybeSingle();
+          if (!autoRow) {
+            log.info('cert.auto_approve_skipped_already_decided', {
               certNumber,
               requestId,
-              clientId: clientSnapshot.id,
             });
-          } catch (err) {
-            // Row is at status='approved' but send failed — RetrySend in the
-            // queue picks it up. Fall through to queue notification so Brook
-            // sees it.
-            log.error('cert.auto_approve_failed', {
-              certNumber,
-              requestId,
-              error: (err as Error).message,
-            });
+            throw new Error('auto-approve lost race with manual decision');
           }
+          await sendApprovedCert(admin, requestId);
+          autoApproved = true;
+          log.info('cert.auto_approved', {
+            certNumber,
+            requestId,
+            clientId: clientSnapshot.id,
+            reviewerPass: review.pass,
+            flagCount: review.flags.length,
+          });
+        } catch (err) {
+          log.error('cert.auto_approve_failed', {
+            certNumber,
+            requestId,
+            error: (err as Error).message,
+          });
         }
       }
 
       if (!autoApproved) {
-        await sendQueueNotification({
+        await sendQueueNotification(admin, {
           certNumber,
           requestId,
           clientName: clientSnapshot.business_name,
@@ -421,7 +418,7 @@ export async function issueCert(input: {
       });
       // Cert stays at 'pending' — Brook reviews manually.
       try {
-        await sendQueueNotification({
+        await sendQueueNotification(admin, {
           certNumber,
           requestId,
           clientName: clientSnapshot.business_name,

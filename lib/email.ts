@@ -5,6 +5,9 @@
  * Resend account; in prod we switch to Brook's certs@ alias on her own domain.
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { mintApprovalToken } from './approvalToken';
+
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
 function portalBase(): string {
@@ -178,38 +181,152 @@ export type QueueNotificationInput = {
   flagCount: number;
 };
 
-export async function sendQueueNotification(input: QueueNotificationInput): Promise<void> {
+function buildQueueText(args: {
+  certNumber: string;
+  clientName: string;
+  holderName: string;
+  reviewerLine: string;
+  approveUrl: string;
+  dashboardUrl: string;
+}): string {
+  return `New cert request ready for review.
+
+Cert: ${args.certNumber}
+Client: ${args.clientName}
+Holder: ${args.holderName}
+${args.reviewerLine}
+
+One-tap approve (mobile-friendly, no login):
+${args.approveUrl}
+
+Or open the full dashboard:
+${args.dashboardUrl}
+
+— The Policy Place`;
+}
+
+function buildQueueHtml(args: {
+  certNumber: string;
+  clientName: string;
+  holderName: string;
+  reviewerLine: string;
+  approveUrl: string;
+  dashboardUrl: string;
+}): string {
+  const cert = escapeHtml(args.certNumber);
+  const client = escapeHtml(args.clientName);
+  const holder = escapeHtml(args.holderName);
+  const reviewer = escapeHtml(args.reviewerLine);
+  const approve = escapeHtml(args.approveUrl);
+  const dashboard = escapeHtml(args.dashboardUrl);
+  return `<!doctype html>
+<html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;color:#1f2937;margin:0;padding:0;">
+<div style="max-width:560px;margin:0 auto;padding:24px 20px;">
+<p style="margin:0 0 6px 0;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">Action needed</p>
+<h1 style="margin:0 0 16px 0;font-size:20px;line-height:1.3;color:#1f2937;">New cert request ready for review</h1>
+
+<table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0 24px 0;font-size:14px;">
+  <tr><td style="padding:6px 0;color:#6b7280;width:90px;">Cert</td><td style="padding:6px 0;color:#1f2937;font-family:ui-monospace,Menlo,Consolas,monospace;">${cert}</td></tr>
+  <tr><td style="padding:6px 0;color:#6b7280;">Client</td><td style="padding:6px 0;color:#1f2937;">${client}</td></tr>
+  <tr><td style="padding:6px 0;color:#6b7280;">Holder</td><td style="padding:6px 0;color:#1f2937;">${holder}</td></tr>
+  <tr><td style="padding:6px 0;color:#6b7280;">Review</td><td style="padding:6px 0;color:#1f2937;">${reviewer}</td></tr>
+</table>
+
+<p style="margin:24px 0;">
+  <a href="${approve}" style="display:inline-block;background:#3d6b73;color:#fff;padding:14px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:16px;min-width:200px;text-align:center;">Approve on phone</a>
+</p>
+
+<p style="margin:8px 0 24px 0;font-size:13px;color:#6b7280;">
+  The "Approve on phone" link signs you in automatically — no password, no second tap. Works from any mail app or webview. Expires in 72 hours, single use.
+</p>
+
+<p style="margin:16px 0;font-size:13px;color:#6b7280;">
+  Or open the full dashboard:<br/>
+  <a href="${dashboard}" style="color:#3d6b73;">${dashboard}</a>
+</p>
+
+<p style="margin-top:32px;font-size:13px;color:#6b7280;">— The Policy Place</p>
+</div>
+</body></html>`;
+}
+
+/**
+ * Send the queue-review email to each admin individually with a unique signed
+ * approval token in the URL. The token lets that admin land on the approval
+ * card without a session — solving the "Gmail webview cookie isolation"
+ * mobile re-login problem (plan: jazzy-questing-squirrel.md).
+ *
+ * Mints one token per admin via lib/approvalToken.ts. Single email per admin
+ * so each gets their own token; no to:[] broadcast (would break single-use).
+ * A mint failure for one admin doesn't stop the others.
+ *
+ * `admin` is a service-role Supabase client (createAdminClient()).
+ */
+export async function sendQueueNotification(
+  admin: SupabaseClient,
+  input: QueueNotificationInput,
+): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !fromEmail) return;
-  const adminEmails = adminNotifyList();
 
-  const reviewerLine = input.reviewerPass === null
-    ? 'Reviewer still running.'
-    : input.reviewerPass && input.flagCount === 0
-      ? 'AI reviewer: clean.'
-      : `AI reviewer: ${input.flagCount} flag(s) — review carefully.`;
+  const recipients = adminNotifyList();
+  if (recipients.length === 0) return;
 
-  const text = `New cert request ready for review.
+  const reviewerLine =
+    input.reviewerPass === null
+      ? 'Reviewer still running.'
+      : input.reviewerPass && input.flagCount === 0
+        ? 'AI reviewer: clean.'
+        : `AI reviewer: ${input.flagCount} flag(s) — review carefully.`;
 
-Cert: ${input.certNumber}
-Client: ${input.clientName}
-Holder: ${input.holderName}
-${reviewerLine}
+  const dashboardUrl = `${portalBase()}/admin/queue/${input.requestId}`;
+  const subject = `[Action needed] Cert request ${input.certNumber} — ${input.clientName}`;
 
-Review and approve: ${portalBase()}/admin/queue/${input.requestId}`;
+  await Promise.all(
+    recipients.map(async (adminEmail) => {
+      let rawToken: string;
+      try {
+        const minted = await mintApprovalToken({
+          admin,
+          requestId: input.requestId,
+          adminEmail,
+        });
+        rawToken = minted.rawToken;
+      } catch (err) {
+        console.error(`approval token mint for ${adminEmail} failed:`, err);
+        return;
+      }
 
-  await fetch(RESEND_ENDPOINT, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: `The Policy Place <${fromEmail}>`,
-      to: adminEmails,
-      subject: `[Action needed] Cert request ${input.certNumber} — ${input.clientName}`,
-      text,
+      const approveUrl = `${portalBase()}/api/approve/${input.requestId}?t=${rawToken}`;
+      const body = {
+        certNumber: input.certNumber,
+        clientName: input.clientName,
+        holderName: input.holderName,
+        reviewerLine,
+        approveUrl,
+        dashboardUrl,
+      };
+      try {
+        await fetch(RESEND_ENDPOINT, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: `The Policy Place <${fromEmail}>`,
+            to: [adminEmail],
+            subject,
+            text: buildQueueText(body),
+            html: buildQueueHtml(body),
+          }),
+        });
+      } catch (err) {
+        console.error(`queue notification to ${adminEmail} failed:`, err);
+      }
     }),
-  });
+  );
 }
+
+export { adminNotifyList };
 
 export type RejectionEmailInput = {
   to: string;

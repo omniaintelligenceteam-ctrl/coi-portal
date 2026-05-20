@@ -24,6 +24,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { reviewCert, type ClientOverride } from '@/lib/reviewerAgent';
 import { sendQueueNotification } from '@/lib/email';
 import { generateCertificate } from '@/lib/certPipeline';
+import { sendApprovedCert } from '@/lib/sendApprovedCert';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -109,18 +110,64 @@ export async function POST(req: NextRequest) {
         return;
       }
 
-      await sendQueueNotification({
-        certNumber,
-        requestId,
-        clientName: client.business_name,
-        holderName,
-        reviewerPass: review.pass,
-        flagCount: review.flags.length,
-      });
+      // Auto-approve branch: client opted-in => send now, regardless of
+      // reviewer pass/fail. Mirrors lib/issueCert.ts behavior so the per-client
+      // toggle applies uniformly across portal, API, and inbound paths.
+      let autoApproved = false;
+      const { data: clientRow } = await admin
+        .from('coi_clients')
+        .select('auto_approve_enabled')
+        .eq('id', client.id)
+        .maybeSingle();
+      if (clientRow?.auto_approve_enabled) {
+        try {
+          const { data: autoRow } = await admin
+            .from('cert_requests')
+            .update({
+              status: 'approved',
+              decided_by_email: 'system:auto-approve',
+              decided_at: new Date().toISOString(),
+            })
+            .eq('id', requestId)
+            .eq('status', 'reviewed')
+            .select('id')
+            .maybeSingle();
+          if (!autoRow) {
+            log.info('v1.cert.auto_approve_skipped_already_decided', { certNumber, requestId });
+            throw new Error('auto-approve lost race with manual decision');
+          }
+          await sendApprovedCert(admin, requestId);
+          autoApproved = true;
+          log.info('v1.cert.auto_approved', {
+            certNumber,
+            requestId,
+            clientId: client.id,
+            reviewerPass: review.pass,
+            flagCount: review.flags.length,
+          });
+        } catch (err) {
+          log.error('v1.cert.auto_approve_failed', {
+            certNumber,
+            requestId,
+            error: (err as Error).message,
+          });
+        }
+      }
+
+      if (!autoApproved) {
+        await sendQueueNotification(admin, {
+          certNumber,
+          requestId,
+          clientName: client.business_name,
+          holderName,
+          reviewerPass: review.pass,
+          flagCount: review.flags.length,
+        });
+      }
     } catch (err) {
       log.error('v1.cert.reviewer_failed', { certNumber, requestId, error: (err as Error).message });
       try {
-        await sendQueueNotification({
+        await sendQueueNotification(admin, {
           certNumber,
           requestId,
           clientName: client.business_name,

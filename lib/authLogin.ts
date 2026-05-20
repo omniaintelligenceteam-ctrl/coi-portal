@@ -1,9 +1,12 @@
 import type { EmailOtpType } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const LOGIN_LINK_EXPIRES_MINUTES = 60;
+export const PORTAL_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365; // 365 days
 
 export type PortalLoginTicket = {
   confirmUrl: string;
@@ -75,5 +78,66 @@ export async function createPortalLoginTicket(input: {
     verificationType,
     tokenHash: data.properties.hashed_token,
   };
+}
+
+/**
+ * Mints a real Supabase session for an admin who has already proven mailbox
+ * possession via a signed approval token. Side effect: sets sb-*-auth-token
+ * cookies + pp_remember on the current cookie store. Must be called from a
+ * Route Handler or Server Action — Server Components silently drop cookie
+ * writes (see lib/supabase/server.ts setAll comment).
+ *
+ * Used by app/api/approve/[id]/route.ts so a Brook can land on the approval
+ * card already logged in, and follow-up clicks (Edit → /admin/queue/[id])
+ * work without a re-login.
+ *
+ * Mirrors the cookie-setting flow in app/api/auth/request-login/route.ts.
+ */
+export async function mintAdminSession(email: string): Promise<void> {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, {
+              ...options,
+              maxAge: PORTAL_SESSION_MAX_AGE_SECONDS,
+            });
+          });
+        },
+      },
+    },
+  );
+
+  const ticket = await createPortalLoginTicket({ email, remember: true });
+  const primary = await supabase.auth.verifyOtp({
+    token_hash: ticket.tokenHash,
+    type: ticket.verificationType,
+  });
+  let error = primary.error;
+  if (error && ticket.verificationType === 'magiclink') {
+    const fallback = await supabase.auth.verifyOtp({
+      token_hash: ticket.tokenHash,
+      type: 'email',
+    });
+    error = fallback.error;
+  }
+  if (error) {
+    throw new Error(`mintAdminSession verifyOtp failed: ${error.message}`);
+  }
+
+  cookieStore.set('pp_remember', '1', {
+    path: '/',
+    sameSite: 'lax',
+    secure: true,
+    httpOnly: false,
+    maxAge: PORTAL_SESSION_MAX_AGE_SECONDS,
+  });
 }
 
