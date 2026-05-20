@@ -66,6 +66,20 @@
   --shadow-lift: 0 1px 0 rgb(0 0 0 / 0.02), 0 8px 24px -8px rgb(26 31 46 / 0.12);
   --shadow-seal: 0 0 0 1px var(--color-seal) inset, 0 1px 0 rgb(0 0 0 / 0.04);
   --shadow-sticky: 0 -1px 0 var(--color-hairline), 0 -8px 16px -10px rgb(26 31 46 / 0.08);
+  --shadow-sheet: 0 -1px 0 var(--color-hairline-strong), 0 -16px 40px -16px rgb(26 31 46 / 0.18);
+
+  /* Radius — systematic, used by Button, Card, Input primitives */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-pill: 9999px;
+
+  /* Row density — compact mobile rows, default desktop, loose for hero cards */
+  --row-tight: 0.625rem;
+  --row-default: 0.875rem;
+  --row-loose: 1.125rem;
 
   /* Motion — durations + easings (editorial, confident, fast).
      Every new animation should pick one of these. Keeps the product on tempo. */
@@ -219,6 +233,24 @@
   animation: stroke-draw 1200ms var(--ease-out-quint) both;
 }
 
+/* Sheet / drawer slide-up from bottom (mobile nav, mobile PDF preview, decision sheets). */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.slide-up {
+  animation: slide-up 280ms var(--ease-out-quint) both;
+}
+
+/* Scrim fade for overlay backdrops. */
+@keyframes fade-scrim {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.fade-scrim {
+  animation: fade-scrim 200ms var(--ease-in-out-soft) both;
+}
+
 /* ------------------------------------------------------------------
  * Base reset
  * ------------------------------------------------------------------ */
@@ -342,6 +374,107 @@ a {
   outline: none;
   box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-brand);
   border-radius: 4px;
+}
+
+/* Boxed form field — the alternative to .field-underline for forms that
+   need clear field affordance (login, address blocks, decision notes). */
+.field-box {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--color-hairline-strong);
+  background: var(--color-card);
+  border-radius: var(--r-sm);
+  font-size: 1rem; /* 16px to defeat iOS Safari auto-zoom */
+  line-height: 1.45;
+  padding: 0.6875rem 0.875rem;
+  min-height: 2.75rem;
+  color: var(--color-ink);
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+.field-box::placeholder {
+  color: var(--color-ink-faint);
+}
+.field-box:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--color-brand-soft);
+}
+.field-box:disabled,
+.field-box[aria-disabled='true'] {
+  background: var(--color-paper-deep);
+  color: var(--color-ink-muted);
+  cursor: not-allowed;
+}
+.field-box[data-invalid='true'],
+.field-box[aria-invalid='true'] {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px var(--color-danger-soft);
+}
+
+/* Sticky bottom action bar — used on mobile (and full-width on small forms)
+   for primary CTAs like Approve/Reject/Submit. Sits above the safe area. */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: color-mix(in oklab, var(--color-paper) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--color-hairline);
+  box-shadow: var(--shadow-sticky);
+  padding: 0.75rem 1rem;
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.75rem);
+}
+
+/* Bottom sheet container — used by MobileSheet primitive. */
+.bottom-sheet {
+  background: var(--color-card);
+  border-top-left-radius: var(--r-xl);
+  border-top-right-radius: var(--r-xl);
+  border-top: 1px solid var(--color-hairline-strong);
+  box-shadow: var(--shadow-sheet);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
+  max-height: 92dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.bottom-sheet-handle {
+  display: block;
+  margin: 0.625rem auto 0.25rem;
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-hairline-strong);
+}
+
+/* Scrim backdrop for sheets / drawers. */
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in oklab, var(--color-ink) 35%, transparent);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  z-index: 40;
+}
+
+/* Section card — the standard surface used across pages. */
+.section-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+}
+
+/* Hairline divider between stacked list items inside cards. */
+.divide-hairline > * + * {
+  border-top: 1px solid var(--color-hairline);
+}
+
+/* Tabular numbers for cert numbers, dates, dollar amounts. */
+.num-tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Reduced motion */

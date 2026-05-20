@@ -4,10 +4,90 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { Hairline } from '@/app/components/Hairline';
+import type {
+  AgencyOverride,
+  CertOverrides,
+  CoverageOverride,
+  InsuredOverride,
+} from '@/lib/types';
+import { PdfPreviewModal } from './PdfPreviewModal';
 
 type Decision = 'approve' | 'edit' | 'reject';
+type EditTab = 'holder' | 'insured' | 'producer' | 'coverages' | 'description';
 
 type HolderEdit = { name: string; address1: string; address2: string };
+
+type AgencyEdit = {
+  name: string;
+  address1: string;
+  address2: string;
+  contactName: string;
+  phone: string;
+  fax: string;
+  email: string;
+};
+
+type InsuredEdit = { name: string; address1: string; address2: string };
+
+export type EditableCoverage = {
+  policyId: string;
+  type: string;
+  policyNumber: string;
+  effDate: string; // 'YYYY-MM-DD'
+  expDate: string; // 'YYYY-MM-DD'
+  addlInsuredBlanket: boolean;
+  subrogationWaived: boolean;
+  description: string;
+  limits: Record<string, number>;
+  insurerName: string;
+  insurerNaic: string;
+};
+
+// Type-specific limit fields shown in the per-coverage editor. Mirrors the
+// shape buildCoiInput expects in policies.limits_jsonb.
+const LIMIT_FIELDS: Record<string, Array<{ key: string; label: string }>> = {
+  GL: [
+    { key: 'eachOccurrence', label: 'Each Occurrence' },
+    { key: 'damageToRented', label: 'Damage to Rented' },
+    { key: 'medExp', label: 'Med Exp (any one person)' },
+    { key: 'personalAdvInjury', label: 'Personal & Adv Injury' },
+    { key: 'generalAggregate', label: 'General Aggregate' },
+    { key: 'productsCompOp', label: 'Products / Comp / Op' },
+  ],
+  AUTO: [
+    { key: 'combinedSingleLimit', label: 'Combined Single Limit' },
+    { key: 'bodilyInjuryPerPerson', label: 'BI per person' },
+    { key: 'bodilyInjuryPerAccident', label: 'BI per accident' },
+    { key: 'propertyDamage', label: 'Property Damage' },
+  ],
+  UMBRELLA: [
+    { key: 'eachOccurrence', label: 'Each Occurrence' },
+    { key: 'aggregate', label: 'Aggregate' },
+    { key: 'retention', label: 'Retention' },
+  ],
+  WC: [
+    { key: 'eachAccident', label: 'E.L. Each Accident' },
+    { key: 'diseaseEaEmployee', label: 'E.L. Disease — Ea Employee' },
+    { key: 'diseasePolicyLimit', label: 'E.L. Disease — Policy Limit' },
+  ],
+  EQUIPMENT: [{ key: 'equipmentLimit', label: 'Equipment Limit' }],
+  OTHER: [{ key: 'equipmentLimit', label: 'Limit' }],
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  GL: 'General Liability',
+  WC: "Workers' Compensation",
+  AUTO: 'Commercial Auto',
+  UMBRELLA: 'Umbrella / Excess',
+  EQUIPMENT: 'Contractors Equipment',
+  OTHER: 'Other Coverage',
+};
+
+function isoToUs(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  if (!y || !m || !d) return iso;
+  return `${m}/${d}/${y}`;
+}
 
 const MODE_CONFIG = {
   approve: {
@@ -43,14 +123,75 @@ export function DecisionForm({
   requestId,
   clientId,
   currentHolder,
+  currentInsured,
+  currentAgency,
+  currentCoverages,
+  currentCertOverrides,
 }: {
   requestId: string;
   clientId: string;
   currentHolder: HolderEdit;
+  currentInsured: InsuredEdit;
+  currentAgency: AgencyEdit;
+  currentCoverages: EditableCoverage[];
+  currentCertOverrides: CertOverrides;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Decision>('approve');
+  const [editTab, setEditTab] = useState<EditTab>('holder');
+
+  // Holder edit (existing column-level edit path)
   const [holder, setHolder] = useState<HolderEdit>(currentHolder);
+
+  // Cert-level overrides — what gets persisted to cert_requests.cert_overrides.
+  // Initialize from any existing overrides on the row so re-opening a saved
+  // edit doesn't drop the work Brook did last time.
+  const [overrides, setOverrides] = useState<CertOverrides>(currentCertOverrides ?? {});
+
+  // Per-tab working copies. We hold them in local state and merge into
+  // overrides on every change — keeps the field UI snappy and lets us strip
+  // empty-string sentinel values when computing what to persist.
+  const [insuredEdit, setInsuredEdit] = useState<InsuredEdit>({
+    name: currentCertOverrides?.insured?.name ?? currentInsured.name,
+    address1: currentCertOverrides?.insured?.address1 ?? currentInsured.address1,
+    address2: currentCertOverrides?.insured?.address2 ?? currentInsured.address2,
+  });
+  const [agencyEdit, setAgencyEdit] = useState<AgencyEdit>({
+    name: currentCertOverrides?.agency?.name ?? currentAgency.name,
+    address1: currentCertOverrides?.agency?.address1 ?? currentAgency.address1,
+    address2: currentCertOverrides?.agency?.address2 ?? currentAgency.address2,
+    contactName: currentCertOverrides?.agency?.contactName ?? currentAgency.contactName,
+    phone: currentCertOverrides?.agency?.phone ?? currentAgency.phone,
+    fax: currentCertOverrides?.agency?.fax ?? currentAgency.fax,
+    email: currentCertOverrides?.agency?.email ?? currentAgency.email,
+  });
+  const [descriptionEdit, setDescriptionEdit] = useState<string>(
+    currentCertOverrides?.description ?? '',
+  );
+  // Per-policy coverage edits. Each entry mirrors the EditableCoverage shape
+  // but only diverges from the underlying record once the user actually types
+  // into a field.
+  const [coverageEdits, setCoverageEdits] = useState<Record<string, EditableCoverage>>(() => {
+    const seed: Record<string, EditableCoverage> = {};
+    for (const c of currentCoverages) {
+      const ov = currentCertOverrides?.coverages?.[c.policyId];
+      const insurerOv = currentCertOverrides?.insurers?.[c.insurerNaic];
+      seed[c.policyId] = {
+        ...c,
+        policyNumber: ov?.policyNumber ?? c.policyNumber,
+        effDate: ov?.effDate ? usToIso(ov.effDate) : c.effDate,
+        expDate: ov?.expDate ? usToIso(ov.expDate) : c.expDate,
+        addlInsuredBlanket: ov?.addlInsuredBlanket ?? c.addlInsuredBlanket,
+        subrogationWaived: ov?.subrogationWaived ?? c.subrogationWaived,
+        description: ov?.description ?? c.description,
+        limits: { ...c.limits, ...filterNumbers(ov?.limits) },
+        insurerName: insurerOv?.name ?? c.insurerName,
+        insurerNaic: insurerOv?.naic ?? c.insurerNaic,
+      };
+    }
+    return seed;
+  });
+
   const [rejectReason, setRejectReason] = useState('');
   const [rememberThis, setRememberThis] = useState(false);
   const [overrideScope, setOverrideScope] = useState<'holder' | 'coverage' | 'general'>('holder');
@@ -58,6 +199,71 @@ export function DecisionForm({
   const [overrideCorrection, setOverrideCorrection] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Compute the CertOverrides payload from all per-tab state. Only fields that
+  // diverge from the underlying canonical values are persisted — keeps the
+  // jsonb column tidy and the audit trail accurate.
+  function buildCertOverridesPayload(): CertOverrides {
+    const out: CertOverrides = {};
+
+    const insuredDiff: InsuredOverride = {};
+    if (insuredEdit.name !== currentInsured.name) insuredDiff.name = insuredEdit.name;
+    if (insuredEdit.address1 !== currentInsured.address1) insuredDiff.address1 = insuredEdit.address1;
+    if (insuredEdit.address2 !== currentInsured.address2) insuredDiff.address2 = insuredEdit.address2;
+    if (Object.keys(insuredDiff).length > 0) out.insured = insuredDiff;
+
+    const agencyDiff: AgencyOverride = {};
+    if (agencyEdit.name !== currentAgency.name) agencyDiff.name = agencyEdit.name;
+    if (agencyEdit.address1 !== currentAgency.address1) agencyDiff.address1 = agencyEdit.address1;
+    if (agencyEdit.address2 !== currentAgency.address2) agencyDiff.address2 = agencyEdit.address2;
+    if (agencyEdit.contactName !== currentAgency.contactName) agencyDiff.contactName = agencyEdit.contactName;
+    if (agencyEdit.phone !== currentAgency.phone) agencyDiff.phone = agencyEdit.phone;
+    if (agencyEdit.fax !== currentAgency.fax) agencyDiff.fax = agencyEdit.fax;
+    if (agencyEdit.email !== currentAgency.email) agencyDiff.email = agencyEdit.email;
+    if (Object.keys(agencyDiff).length > 0) out.agency = agencyDiff;
+
+    if (descriptionEdit.trim() !== '') out.description = descriptionEdit;
+
+    const coverageEntries: Record<string, CoverageOverride> = {};
+    const insurerEntries: Record<string, { name?: string; naic?: string }> = {};
+    for (const orig of currentCoverages) {
+      const cur = coverageEdits[orig.policyId];
+      if (!cur) continue;
+      const covDiff: CoverageOverride = {};
+      if (cur.policyNumber !== orig.policyNumber) covDiff.policyNumber = cur.policyNumber;
+      if (cur.effDate !== orig.effDate) covDiff.effDate = isoToUs(cur.effDate);
+      if (cur.expDate !== orig.expDate) covDiff.expDate = isoToUs(cur.expDate);
+      if (cur.addlInsuredBlanket !== orig.addlInsuredBlanket) covDiff.addlInsuredBlanket = cur.addlInsuredBlanket;
+      if (cur.subrogationWaived !== orig.subrogationWaived) covDiff.subrogationWaived = cur.subrogationWaived;
+      if (cur.description !== orig.description) covDiff.description = cur.description;
+      const limitDiff: Record<string, number> = {};
+      for (const f of LIMIT_FIELDS[cur.type] ?? []) {
+        const before = orig.limits[f.key];
+        const after = cur.limits[f.key];
+        if (after !== before && after !== undefined && !Number.isNaN(after)) {
+          limitDiff[f.key] = after;
+        }
+      }
+      if (Object.keys(limitDiff).length > 0) covDiff.limits = limitDiff;
+      if (Object.keys(covDiff).length > 0) coverageEntries[orig.policyId] = covDiff;
+
+      // Insurer override is keyed by the ORIGINAL NAIC so applyInsurerOverrides
+      // can find the right insurer record at render time.
+      const insDiff: { name?: string; naic?: string } = {};
+      if (cur.insurerName !== orig.insurerName) insDiff.name = cur.insurerName;
+      if (cur.insurerNaic !== orig.insurerNaic) insDiff.naic = cur.insurerNaic;
+      if (Object.keys(insDiff).length > 0 && orig.insurerNaic) {
+        insurerEntries[orig.insurerNaic] = insDiff;
+      }
+    }
+    if (Object.keys(coverageEntries).length > 0) out.coverages = coverageEntries;
+    if (Object.keys(insurerEntries).length > 0) out.insurers = insurerEntries;
+
+    return out;
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -65,7 +271,14 @@ export function DecisionForm({
     setError(null);
     try {
       const body: Record<string, unknown> = { requestId, decision: mode };
-      if (mode === 'edit') body.holder = holder;
+      if (mode === 'edit') {
+        body.holder = holder;
+        const certOverrides = buildCertOverridesPayload();
+        // Keep the persisted payload in step with what we built — also lets
+        // the next reopen re-hydrate cleanly.
+        setOverrides(certOverrides);
+        if (Object.keys(certOverrides).length > 0) body.certOverrides = certOverrides;
+      }
       if (mode === 'reject') body.decisionNote = rejectReason;
       if (rememberThis && mode !== 'reject') {
         body.override = {
@@ -87,8 +300,6 @@ export function DecisionForm({
         // Non-JSON body — keep payload empty and fall through to status-code error.
       }
       if (!res.ok || !payload.ok) {
-        // 502 → send failed AFTER decision was recorded. Steer Brook to the
-        // detail page where the Retry CTA is rendered for approved/edited.
         if (res.status === 502) {
           setError(
             (payload.detail || payload.error || 'Send failed.') +
@@ -109,7 +320,48 @@ export function DecisionForm({
     }
   }
 
+  async function handlePreview() {
+    setPreviewLoading(true);
+    setError(null);
+    try {
+      const certOverrides = buildCertOverridesPayload();
+      const res = await fetch('/api/admin/preview-cert', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          holder,
+          certOverrides: Object.keys(certOverrides).length > 0 ? certOverrides : undefined,
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        setError(`Preview failed: ${text || res.statusText}`);
+        return;
+      }
+      const blob = await res.blob();
+      // Revoke any previous URL — only one preview alive at a time.
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
+      setShowPreview(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function handleClosePreview() {
+    setShowPreview(false);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  }
+
   const cfg = MODE_CONFIG[mode];
+  // Hint that bubbles to the user — shows up in the heading of the Edit panel.
+  const overridesActive = Object.keys(overrides).length > 0 || Object.keys(buildCertOverridesPayload()).length > 0;
 
   return (
     <form onSubmit={handleSubmit}>
@@ -160,27 +412,291 @@ export function DecisionForm({
             className="mt-8"
           >
             <p className="caps text-[0.6rem] font-medium text-ink-faint">
-              Holder fields will be re-rendered before send
+              Edits re-render the PDF on send · today's date is always stamped fresh
+              {overridesActive && (
+                <span className="ml-2 text-warning">· field edits active</span>
+              )}
             </p>
-            <div className="mt-4 space-y-5">
-              <UnderlinedField
-                id="holder-name"
-                label="Holder name"
-                value={holder.name}
-                onChange={(name) => setHolder((h) => ({ ...h, name }))}
-              />
-              <UnderlinedField
-                id="holder-addr1"
-                label="Address line 1"
-                value={holder.address1}
-                onChange={(address1) => setHolder((h) => ({ ...h, address1 }))}
-              />
-              <UnderlinedField
-                id="holder-addr2"
-                label="Address line 2"
-                value={holder.address2}
-                onChange={(address2) => setHolder((h) => ({ ...h, address2 }))}
-              />
+
+            {/* Edit tabs */}
+            <div
+              role="tablist"
+              aria-label="Edit section"
+              className="mt-4 flex flex-wrap gap-1 border-b border-hairline-strong"
+            >
+              {(
+                [
+                  ['holder', 'Holder'],
+                  ['insured', 'Insured'],
+                  ['producer', 'Producer'],
+                  ['coverages', 'Coverages'],
+                  ['description', 'Operations'],
+                ] as const
+              ).map(([id, label]) => {
+                const isActive = editTab === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setEditTab(id)}
+                    className={`focus-ring -mb-px border-b-2 px-3 py-2 text-[0.78rem] font-medium transition-colors ${
+                      isActive
+                        ? 'border-warning text-warning'
+                        : 'border-transparent text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 space-y-5">
+              {editTab === 'holder' && (
+                <>
+                  <UnderlinedField
+                    id="holder-name"
+                    label="Holder name"
+                    value={holder.name}
+                    onChange={(v) => setHolder((h) => ({ ...h, name: v }))}
+                  />
+                  <UnderlinedField
+                    id="holder-addr1"
+                    label="Address line 1"
+                    value={holder.address1}
+                    onChange={(v) => setHolder((h) => ({ ...h, address1: v }))}
+                  />
+                  <UnderlinedField
+                    id="holder-addr2"
+                    label="Address line 2"
+                    value={holder.address2}
+                    onChange={(v) => setHolder((h) => ({ ...h, address2: v }))}
+                  />
+                </>
+              )}
+
+              {editTab === 'insured' && (
+                <>
+                  <UnderlinedField
+                    id="ins-name"
+                    label="Insured name"
+                    value={insuredEdit.name}
+                    onChange={(v) => setInsuredEdit((s) => ({ ...s, name: v }))}
+                  />
+                  <UnderlinedField
+                    id="ins-addr1"
+                    label="Address line 1"
+                    value={insuredEdit.address1}
+                    onChange={(v) => setInsuredEdit((s) => ({ ...s, address1: v }))}
+                  />
+                  <UnderlinedField
+                    id="ins-addr2"
+                    label="Address line 2"
+                    value={insuredEdit.address2}
+                    onChange={(v) => setInsuredEdit((s) => ({ ...s, address2: v }))}
+                  />
+                </>
+              )}
+
+              {editTab === 'producer' && (
+                <>
+                  <UnderlinedField
+                    id="ag-name"
+                    label="Producer name"
+                    value={agencyEdit.name}
+                    onChange={(v) => setAgencyEdit((s) => ({ ...s, name: v }))}
+                  />
+                  <UnderlinedField
+                    id="ag-addr1"
+                    label="Address line 1"
+                    value={agencyEdit.address1}
+                    onChange={(v) => setAgencyEdit((s) => ({ ...s, address1: v }))}
+                  />
+                  <UnderlinedField
+                    id="ag-addr2"
+                    label="Address line 2"
+                    value={agencyEdit.address2}
+                    onChange={(v) => setAgencyEdit((s) => ({ ...s, address2: v }))}
+                  />
+                  <UnderlinedField
+                    id="ag-contact"
+                    label="Contact name"
+                    value={agencyEdit.contactName}
+                    onChange={(v) => setAgencyEdit((s) => ({ ...s, contactName: v }))}
+                  />
+                  <UnderlinedField
+                    id="ag-phone"
+                    label="Phone"
+                    value={agencyEdit.phone}
+                    onChange={(v) => setAgencyEdit((s) => ({ ...s, phone: v }))}
+                  />
+                  <UnderlinedField
+                    id="ag-fax"
+                    label="Fax"
+                    value={agencyEdit.fax}
+                    onChange={(v) => setAgencyEdit((s) => ({ ...s, fax: v }))}
+                  />
+                  <UnderlinedField
+                    id="ag-email"
+                    label="Email"
+                    value={agencyEdit.email}
+                    onChange={(v) => setAgencyEdit((s) => ({ ...s, email: v }))}
+                  />
+                </>
+              )}
+
+              {editTab === 'coverages' &&
+                currentCoverages.map((orig) => {
+                  const cur = coverageEdits[orig.policyId];
+                  if (!cur) return null;
+                  return (
+                    <div
+                      key={orig.policyId}
+                      className="border border-hairline-strong bg-card p-5"
+                    >
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="font-display text-[1rem] font-semibold text-ink">
+                          {TYPE_LABEL[cur.type] ?? cur.type}
+                        </span>
+                        <span className="caps text-[0.6rem] font-medium text-ink-faint">
+                          {cur.type}
+                        </span>
+                      </div>
+                      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <UnderlinedField
+                          id={`pol-${cur.policyId}-num`}
+                          label="Policy number"
+                          value={cur.policyNumber}
+                          onChange={(v) =>
+                            updateCoverage(setCoverageEdits, cur.policyId, { policyNumber: v })
+                          }
+                        />
+                        <UnderlinedField
+                          id={`pol-${cur.policyId}-eff`}
+                          label="Eff date (YYYY-MM-DD)"
+                          value={cur.effDate}
+                          onChange={(v) =>
+                            updateCoverage(setCoverageEdits, cur.policyId, { effDate: v })
+                          }
+                        />
+                        <UnderlinedField
+                          id={`pol-${cur.policyId}-exp`}
+                          label="Exp date (YYYY-MM-DD)"
+                          value={cur.expDate}
+                          onChange={(v) =>
+                            updateCoverage(setCoverageEdits, cur.policyId, { expDate: v })
+                          }
+                        />
+                        <UnderlinedField
+                          id={`pol-${cur.policyId}-ins-name`}
+                          label="Insurer name"
+                          value={cur.insurerName}
+                          onChange={(v) =>
+                            updateCoverage(setCoverageEdits, cur.policyId, { insurerName: v })
+                          }
+                        />
+                        <UnderlinedField
+                          id={`pol-${cur.policyId}-naic`}
+                          label="NAIC"
+                          value={cur.insurerNaic}
+                          onChange={(v) =>
+                            updateCoverage(setCoverageEdits, cur.policyId, { insurerNaic: v })
+                          }
+                        />
+                        <UnderlinedField
+                          id={`pol-${cur.policyId}-desc`}
+                          label="Per-coverage description"
+                          value={cur.description}
+                          onChange={(v) =>
+                            updateCoverage(setCoverageEdits, cur.policyId, { description: v })
+                          }
+                        />
+                      </div>
+
+                      <p className="caps mt-6 text-[0.6rem] font-medium text-ink-faint">Limits</p>
+                      <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        {(LIMIT_FIELDS[cur.type] ?? []).map((f) => (
+                          <UnderlinedField
+                            key={f.key}
+                            id={`pol-${cur.policyId}-lim-${f.key}`}
+                            label={f.label}
+                            value={
+                              cur.limits[f.key] !== undefined ? String(cur.limits[f.key]) : ''
+                            }
+                            onChange={(v) => {
+                              const n = v === '' ? undefined : Number(v.replace(/[^\d.-]/g, ''));
+                              setCoverageEdits((m) => {
+                                const next = { ...m };
+                                const c = next[cur.policyId];
+                                if (!c) return m;
+                                const limits = { ...c.limits };
+                                if (n === undefined || Number.isNaN(n)) delete limits[f.key];
+                                else limits[f.key] = n;
+                                next[cur.policyId] = { ...c, limits };
+                                return next;
+                              });
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3">
+                        <CheckboxField
+                          id={`pol-${cur.policyId}-ai`}
+                          label="Additional Insured (blanket)"
+                          checked={cur.addlInsuredBlanket}
+                          onChange={(v) =>
+                            updateCoverage(setCoverageEdits, cur.policyId, {
+                              addlInsuredBlanket: v,
+                            })
+                          }
+                        />
+                        <CheckboxField
+                          id={`pol-${cur.policyId}-wos`}
+                          label="Waiver of Subrogation"
+                          checked={cur.subrogationWaived}
+                          onChange={(v) =>
+                            updateCoverage(setCoverageEdits, cur.policyId, {
+                              subrogationWaived: v,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+
+              {editTab === 'description' && (
+                <div>
+                  <label
+                    htmlFor="desc-ops"
+                    className="caps block text-[0.62rem] font-semibold text-ink-muted"
+                  >
+                    Description of Operations / Locations / Vehicles
+                  </label>
+                  <textarea
+                    id="desc-ops"
+                    rows={6}
+                    value={descriptionEdit}
+                    onChange={(e) => setDescriptionEdit(e.target.value)}
+                    placeholder="e.g. ACME Corp is named as Additional Insured per blanket endorsement..."
+                    className="field-underline mt-2 block w-full resize-none text-base text-ink"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8">
+              <button
+                type="button"
+                onClick={handlePreview}
+                disabled={previewLoading}
+                className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline-strong bg-white px-4 py-2 text-[0.78rem] font-semibold text-ink transition-colors hover:bg-paper-deep/40 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {previewLoading ? 'Rendering…' : 'Preview PDF'}
+              </button>
             </div>
           </motion.div>
         )}
@@ -296,8 +812,43 @@ export function DecisionForm({
           {submitting ? 'Working…' : cfg.submitLabel}
         </button>
       </div>
+
+      {showPreview && previewUrl && (
+        <PdfPreviewModal url={previewUrl} onClose={handleClosePreview} />
+      )}
     </form>
   );
+}
+
+function usToIso(us: string): string {
+  // Expect MM/DD/YYYY → YYYY-MM-DD. If input doesn't match, return as-is so
+  // the caller can detect and recover.
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(us);
+  if (!m) return us;
+  return `${m[3]}-${m[1]}-${m[2]}`;
+}
+
+function filterNumbers(o: Record<string, number | undefined> | undefined): Record<string, number> {
+  if (!o) return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (typeof v === 'number' && !Number.isNaN(v)) out[k] = v;
+  }
+  return out;
+}
+
+function updateCoverage(
+  setter: React.Dispatch<React.SetStateAction<Record<string, EditableCoverage>>>,
+  policyId: string,
+  patch: Partial<EditableCoverage>,
+): void {
+  setter((m) => {
+    const next = { ...m };
+    const cur = next[policyId];
+    if (!cur) return m;
+    next[policyId] = { ...cur, ...patch };
+    return next;
+  });
 }
 
 function UnderlinedField({
@@ -330,5 +881,30 @@ function UnderlinedField({
         className="field-underline mt-2 block w-full text-base text-ink"
       />
     </div>
+  );
+}
+
+function CheckboxField({
+  id,
+  label,
+  checked,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label htmlFor={id} className="flex cursor-pointer items-center gap-2 text-[0.85rem] text-ink">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 shrink-0 rounded-[3px] border-hairline-strong text-brand focus:ring-brand/40"
+      />
+      <span>{label}</span>
+    </label>
   );
 }

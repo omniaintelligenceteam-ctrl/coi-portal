@@ -30,3 +30,8 @@ assets/license/
 .env.prod.check
 
 .vercel
+
+.vercel
+
+# OMC session/state — local agent tooling, never commit
+.omc/

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { toast } from 'sonner';
+import { ArrowRight, Send } from 'lucide-react';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { useRowPulse } from '@/app/components/motion';
+import { Button, ButtonLink, Banner } from '@/app/components/ui';
 import { createClient } from '@/lib/supabase/browser';
 import { useQueueShortcuts } from '../useQueueShortcuts';
 import { ShortcutHelp } from '../ShortcutHelp';
@@ -333,28 +335,36 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     <div>
       {/* Bulk action toolbar */}
       {eligibleIds.size > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <button
+        <div className="mb-5 flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
+            uppercase
             onClick={toggleAll}
-            className="focus-ring caps inline-flex items-center gap-1.5 rounded border border-hairline-strong bg-white px-3 py-1.5 text-[0.62rem] font-semibold text-ink transition-colors hover:bg-paper-deep/40"
           >
-            {allEligibleSelected ? 'Deselect all' : `Select all eligible (${eligibleIds.size})`}
-          </button>
+            {allEligibleSelected ? 'Deselect all' : `Select all (${eligibleIds.size})`}
+          </Button>
           {selectedEligible.length > 0 && (
-            <button
+            <Button
               type="button"
               onClick={bulkApprove}
-              disabled={bulkState.kind === 'running'}
-              className="focus-ring inline-flex items-center gap-2 rounded-md bg-success px-4 py-1.5 text-sm font-semibold text-white transition-all hover:bg-success/90 disabled:cursor-not-allowed disabled:opacity-60"
+              loading={bulkState.kind === 'running'}
+              size="sm"
+              leadingIcon={
+                bulkState.kind !== 'running' ? (
+                  <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : null
+              }
+              className="bg-success hover:bg-success/90 active:bg-success/95 disabled:bg-success/60"
             >
               {bulkState.kind === 'running'
                 ? 'Sending…'
-                : `Approve & send ${selectedEligible.length} selected`}
-            </button>
+                : `Approve & send ${selectedEligible.length}`}
+            </Button>
           )}
           {bulkState.kind === 'done' && (
-            <span className="text-sm text-ink-muted">
+            <span className="text-[0.8125rem] text-ink-muted">
               {bulkState.succeeded > 0 && (
                 <span className="font-semibold text-success">{bulkState.succeeded} sent. </span>
               )}
@@ -370,15 +380,16 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
 
       {/* Failures detail */}
       {bulkState.kind === 'done' && bulkState.failed.length > 0 && (
-        <div className="mb-4 border border-danger/30 bg-danger-soft/30 px-4 py-3">
-          <p className="caps mb-2 text-[0.6rem] font-semibold text-danger">Failed to send</p>
-          <ul className="space-y-1">
-            {bulkState.failed.map((f) => (
-              <li key={f.id} className="font-mono text-[0.72rem] text-ink">
-                {f.certNumber ?? f.id.slice(0, 8)} — {f.error}
-              </li>
-            ))}
-          </ul>
+        <div className="mb-5">
+          <Banner tone="danger" title="Failed to send">
+            <ul className="space-y-1">
+              {bulkState.failed.map((f) => (
+                <li key={f.id} className="font-mono text-[0.75rem] text-ink">
+                  {f.certNumber ?? f.id.slice(0, 8)} — {f.error}
+                </li>
+              ))}
+            </ul>
+          </Banner>
         </div>
       )}
 
@@ -398,20 +409,28 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
               isNew={isNew}
               idx={idx}
               reduce={Boolean(reduce)}
-              className={`mobile-card ${isSelected ? 'bg-brand-soft/20' : ''} ${
-                isFocused ? 'ring-2 ring-brand/40 ring-offset-1 ring-offset-paper' : ''
-              }`}
+              className={`relative rounded-[var(--r-md)] border border-hairline bg-card p-4 shadow-card transition-colors ${
+                isSelected ? 'border-brand/40 bg-brand-soft/30' : ''
+              } ${isFocused ? 'ring-2 ring-brand/40 ring-offset-1 ring-offset-paper' : ''}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <Link
-                    href={`/admin/queue/${r.id}`}
-                    className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.85rem] font-semibold text-ink"
-                  >
-                    {r.cert_number}
-                  </Link>
-                  <p className="mt-1 truncate font-medium text-[0.95rem] text-ink">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/admin/queue/${r.id}`}
+                      className="focus-ring num-tabular -m-1 inline-block rounded p-1 font-mono text-[0.8rem] font-semibold text-ink"
+                    >
+                      {r.cert_number}
+                    </Link>
+                    <span className="num-tabular font-mono text-[0.72rem] text-ink-faint">
+                      &middot; {relativeTime(r.requested_at)}
+                    </span>
+                  </div>
+                  <p className="font-display mt-1.5 truncate text-[1.05rem] font-medium leading-[1.2] text-ink">
                     {r.client?.business_name ?? '—'}
+                  </p>
+                  <p className="mt-0.5 truncate text-[0.8125rem] text-ink-muted">
+                    To {r.holder_name}
                   </p>
                 </div>
                 <input
@@ -419,43 +438,27 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
                   checked={isSelected}
                   disabled={!isEligible}
                   onChange={() => toggleRow(r.id)}
-                  className="tap-target h-5 w-5 shrink-0 rounded-[3px] border-hairline-strong text-brand disabled:cursor-not-allowed disabled:opacity-30 focus:ring-brand/40"
+                  className="tap-target mt-1 h-5 w-5 shrink-0 rounded-[3px] border-hairline-strong text-brand disabled:cursor-not-allowed disabled:opacity-30 focus:ring-brand/40"
                   aria-label={`Select ${r.cert_number}`}
                 />
               </div>
-              <dl className="mt-3">
-                <div className="mobile-card-row">
-                  <dt>Holder</dt>
-                  <dd className="text-[0.85rem]">{r.holder_name}</dd>
-                </div>
-                <div className="mobile-card-row">
-                  <dt>Status</dt>
-                  <dd><StatusPill status={r.status} /></dd>
-                </div>
-                <div className="mobile-card-row">
-                  <dt>AI review</dt>
-                  <dd>
-                    <AiReviewIndicator
-                      pass={r.reviewer_pass}
-                      errors={counts.errors}
-                      warnings={counts.warnings}
-                    />
-                  </dd>
-                </div>
-                <div className="mobile-card-row">
-                  <dt>Received</dt>
-                  <dd className="font-mono text-[0.78rem] text-ink-faint">
-                    {relativeTime(r.requested_at)}
-                  </dd>
-                </div>
-              </dl>
-              <Link
+              <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-hairline pt-3">
+                <StatusPill status={r.status} />
+                <AiReviewIndicator
+                  pass={r.reviewer_pass}
+                  errors={counts.errors}
+                  warnings={counts.warnings}
+                />
+              </div>
+              <ButtonLink
                 href={`/admin/queue/${r.id}`}
-                className="focus-ring tap-target mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
+                size="md"
+                fullWidth
+                trailingIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                className="mt-4"
               >
                 Review request
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+              </ButtonLink>
             </PulseLi>
           );
         })}
@@ -777,17 +780,3 @@ function Td({
   );
 }
 
-function ArrowRight({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-    </svg>
-  );
-}

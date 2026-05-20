@@ -133,6 +133,7 @@ export async function generateCertificate(
     .from('policies')
     .select(
       `id, type, policy_number, eff_date, exp_date, active,
+       status, cancelled_at, cancelled_reason,
        addl_insured_blanket, subrogation_waived, description, limits_jsonb,
        insurer:insurers ( name, naic )`,
     )

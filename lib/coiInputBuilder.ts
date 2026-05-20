@@ -7,8 +7,10 @@
 
 import type {
   Agency,
+  CertOverrides,
   CoiInput,
   Coverage,
+  CoverageOverride,
   GLCoverage,
   AutoCoverage,
   UmbrellaCoverage,
@@ -43,6 +45,11 @@ export type DbPolicyFull = {
   eff_date: string; // 'YYYY-MM-DD'
   exp_date: string;
   active: boolean;
+  /** Coverage lifecycle (migration 20260520_0002). Optional for backward
+   *  compat with older callers — missing/undefined treated as 'active'. */
+  status?: 'active' | 'cancelled' | 'expired';
+  cancelled_at?: string | null;
+  cancelled_reason?: string | null;
   limits_jsonb: Record<string, number>;
   addl_insured_blanket: boolean;
   subrogation_waived: boolean;
@@ -85,6 +92,7 @@ function buildCoverage(p: DbPolicyFull, letter: InsurerLetter): Coverage {
     expDate: isoToUsDate(p.exp_date),
     addlInsuredBlanket: p.addl_insured_blanket,
     subrogationWaived: p.subrogation_waived,
+    policyId: p.id,
   };
   switch (p.type) {
     case 'GL': {
@@ -180,6 +188,10 @@ export function buildCoiInput(args: {
   signaturePngPath: string;
   description?: string;
   revisionNumber?: string;
+  /** Brook-edited cert field snapshot. Merged over DB-derived values. */
+  overrides?: CertOverrides;
+  /** Stamp the rendered PDF with a VOIDED watermark. */
+  voided?: boolean;
 }): CoiInput {
   const agency: Agency = {
     name: args.agency.name,
@@ -220,7 +232,7 @@ export function buildCoiInput(args: {
   const y = args.today.getFullYear().toString();
   const certDate = `${m}/${d}/${y}`;
 
-  return {
+  const base: CoiInput = {
     agency,
     insured,
     insurers,
@@ -232,7 +244,123 @@ export function buildCoiInput(args: {
     ...(args.revisionNumber ? { revisionNumber: args.revisionNumber } : {}),
     signaturePngPath: args.signaturePngPath,
     templatePngPath: args.templatePngPath,
+    ...(args.voided ? { voided: true } : {}),
   };
+
+  return args.overrides ? applyCertOverrides(base, args.overrides) : base;
+}
+
+// =============================================================================
+// applyCertOverrides — merge a Brook-edited overrides snapshot over a CoiInput.
+// =============================================================================
+// Pure function. The caller is responsible for sourcing the canonical CoiInput
+// from the DB. Used:
+//   - From buildCoiInput at render time (overrides come from cert_requests row)
+//   - From the preview flow (overrides come from un-saved DecisionForm state)
+//
+// INVARIANTS:
+//   - certDate, certNumber, signaturePngPath, templatePngPath, revisionNumber
+//     are NEVER mutated. Mode is structurally enforced by CertOverrides type.
+//   - holder is NEVER mutated here — it lives on cert_requests row columns.
+//   - Coverage overrides match on policyId. Coverages without policyId (legacy)
+//     are passed through untouched.
+//   - Insurer overrides match on the CURRENT naic. If the override mutates the
+//     naic itself, the insurer block is updated but coverages still reference
+//     it by letter, so no coverage rewrites are needed.
+// =============================================================================
+
+export function applyCertOverrides(input: CoiInput, overrides: CertOverrides): CoiInput {
+  const out: CoiInput = {
+    ...input,
+    agency: applyAgencyOverride(input.agency, overrides.agency),
+    insured: applyInsuredOverride(input.insured, overrides.insured),
+    insurers: applyInsurerOverrides(input.insurers, overrides.insurers),
+    coverages: applyCoverageOverrides(input.coverages, overrides.coverages),
+  };
+  if (overrides.description !== undefined) {
+    if (overrides.description.length > 0) {
+      out.description = overrides.description;
+    } else {
+      delete out.description;
+    }
+  }
+  return out;
+}
+
+function applyAgencyOverride(agency: Agency, ov: CertOverrides['agency']): Agency {
+  if (!ov) return agency;
+  return {
+    name: ov.name ?? agency.name,
+    address1: ov.address1 ?? agency.address1,
+    address2: ov.address2 ?? agency.address2,
+    contactName: ov.contactName ?? agency.contactName,
+    phone: ov.phone ?? agency.phone,
+    fax: ov.fax ?? agency.fax,
+    email: ov.email ?? agency.email,
+  };
+}
+
+function applyInsuredOverride(insured: Insured, ov: CertOverrides['insured']): Insured {
+  if (!ov) return insured;
+  return {
+    name: ov.name ?? insured.name,
+    address1: ov.address1 ?? insured.address1,
+    address2: ov.address2 ?? insured.address2,
+  };
+}
+
+function applyInsurerOverrides(
+  insurers: Insurer[],
+  ov: CertOverrides['insurers'],
+): Insurer[] {
+  if (!ov || Object.keys(ov).length === 0) return insurers;
+  return insurers.map((ins) => {
+    const o = ov[ins.naic];
+    if (!o) return ins;
+    return {
+      letter: ins.letter,
+      name: o.name ?? ins.name,
+      naic: o.naic ?? ins.naic,
+    };
+  });
+}
+
+function applyCoverageOverrides(
+  coverages: Coverage[],
+  ov: CertOverrides['coverages'],
+): Coverage[] {
+  if (!ov || Object.keys(ov).length === 0) return coverages;
+  return coverages.map((cov) => {
+    const pid = cov.policyId;
+    if (!pid) return cov;
+    const o = ov[pid];
+    if (!o) return cov;
+    return applyOneCoverageOverride(cov, o);
+  });
+}
+
+function applyOneCoverageOverride(cov: Coverage, o: CoverageOverride): Coverage {
+  const merged: Coverage = { ...cov };
+  if (o.policyNumber !== undefined) merged.policyNumber = o.policyNumber;
+  if (o.effDate !== undefined) merged.effDate = o.effDate;
+  if (o.expDate !== undefined) merged.expDate = o.expDate;
+  if (o.addlInsuredBlanket !== undefined) merged.addlInsuredBlanket = o.addlInsuredBlanket;
+  if (o.subrogationWaived !== undefined) merged.subrogationWaived = o.subrogationWaived;
+  // Per-coverage description (EQUIPMENT / OTHER use this slot)
+  if (o.description !== undefined && (merged.type === 'EQUIPMENT')) {
+    (merged as EquipmentCoverage).description = o.description;
+  }
+  // Limits: shallow-merge over the existing limits object. Keys in the override
+  // that map to `undefined` are ignored (zod stripped them).
+  if (o.limits && Object.keys(o.limits).length > 0) {
+    const existingLimits = (merged as { limits?: Record<string, unknown> }).limits;
+    const mergedLimits: Record<string, unknown> = { ...(existingLimits ?? {}) };
+    for (const [k, v] of Object.entries(o.limits)) {
+      if (v !== undefined) mergedLimits[k] = v;
+    }
+    (merged as { limits: Record<string, unknown> }).limits = mergedLimits;
+  }
+  return merged;
 }
 
 /**

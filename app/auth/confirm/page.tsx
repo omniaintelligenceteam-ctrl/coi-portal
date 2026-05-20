@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { ArrowRight, Lock } from 'lucide-react';
 import { Logo } from '@/app/components/Logo';
+import { Banner, Button, Card } from '@/app/components/ui';
 
 type ParsedParams = {
   tokenHash: string;
@@ -33,7 +35,7 @@ export default function ConfirmSignInPage() {
 
   const missingToken = params.tokenHash.length < 20;
   const helperText = !params.ready
-    ? 'Loading...'
+    ? 'Loading…'
     : missingToken
       ? 'This sign-in link is incomplete.'
       : 'Tap Continue to finish signing in securely.';
@@ -64,35 +66,58 @@ export default function ConfirmSignInPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 pb-20 pt-10 sm:px-8">
-      <Link href="/" aria-label="The Policy Place home" className="focus-ring -m-1 inline-flex w-fit rounded p-1">
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-xl flex-col px-6 pb-12 pt-safe sm:px-8">
+      <Link
+        href="/"
+        aria-label="The Policy Place home"
+        className="focus-ring -m-1 mt-6 inline-flex w-fit rounded p-1 sm:mt-8"
+      >
         <Logo tone="dark" />
       </Link>
 
-      <div className="mt-16 rounded-xl border border-hairline bg-card p-6 sm:p-8">
-        <p className="caps text-[0.65rem] font-semibold text-seal-deep">Secure sign-in</p>
-        <h1 className="font-display mt-3 text-3xl leading-tight text-ink">Continue sign-in</h1>
-        <p className="mt-4 text-sm leading-relaxed text-ink-muted">{helperText}</p>
+      <Card padding="lg" raised className="mt-14">
+        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-seal/35 bg-seal-soft">
+          <Lock className="h-5 w-5 text-seal-deep" aria-hidden="true" />
+        </div>
+        <p className="caps text-[0.65rem] font-semibold tracking-[0.22em] text-seal-deep">
+          Secure sign-in
+        </p>
+        <h1 className="font-display mt-3 text-[1.75rem] font-medium leading-[1.1] tracking-tight text-ink sm:text-[2rem]">
+          Continue sign-in
+        </h1>
+        <p className="mt-3 text-[0.9375rem] leading-[1.55] text-ink-muted">{helperText}</p>
 
-        {error && <p className="mt-4 text-sm leading-relaxed text-danger">{error}</p>}
+        {error && (
+          <Banner tone="danger" className="mt-5">
+            {error}
+          </Banner>
+        )}
 
-        <button
+        <Button
           type="button"
           onClick={completeSignIn}
-          disabled={!params.ready || missingToken || status === 'working'}
-          className="focus-ring mt-7 inline-flex w-full items-center justify-center rounded-md bg-brand px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-55"
+          disabled={!params.ready || missingToken}
+          loading={status === 'working'}
+          size="lg"
+          fullWidth
+          trailingIcon={
+            status !== 'working' ? (
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            ) : null
+          }
+          className="mt-7"
         >
-          {status === 'working' ? 'Signing you in...' : 'Continue'}
-        </button>
+          {status === 'working' ? 'Signing you in…' : 'Continue'}
+        </Button>
 
-        <p className="mt-4 text-xs leading-relaxed text-ink-faint">
+        <p className="mt-4 text-[0.78rem] leading-[1.55] text-ink-faint">
           If this fails, return to the{' '}
-          <Link href="/login" className="text-brand underline-offset-4 hover:underline">
+          <Link href="/login" className="text-brand-deep underline-offset-4 hover:underline">
             sign-in page
           </Link>
           {' '}and enter your email again.
         </p>
-      </div>
+      </Card>
     </main>
   );
 }

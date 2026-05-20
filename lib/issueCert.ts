@@ -113,11 +113,26 @@ export async function issueCert(input: {
   holder: IssueCertHolder;
   requestedByEmail: string;
   requestedIp: string | null;
+  /** Master cert: holder = insured. When true the server forces the holder
+   *  block to mirror the insured's business name + address regardless of any
+   *  client-supplied holder values. */
+  isMaster?: boolean;
 }): Promise<IssueCertResult> {
   const t0 = Date.now();
   const { reader, admin, client, selectedPolicyIds, requestedByEmail, requestedIp } = input;
+  const isMaster = input.isMaster === true;
 
-  const holderResult = validateHolderInput(input.holder);
+  // For master certs, the holder is ALWAYS the insured. Don't trust any value
+  // the form may have submitted — pre-fill from the canonical client row.
+  const incomingHolder: IssueCertHolder = isMaster
+    ? {
+        name: client.business_name,
+        address1: client.business_address1 ?? '',
+        address2: client.business_address2 ?? '',
+      }
+    : input.holder;
+
+  const holderResult = validateHolderInput(incomingHolder);
   if (!holderResult.ok) {
     return { ok: false, status: 400, error: holderResult.error };
   }
@@ -170,6 +185,7 @@ export async function issueCert(input: {
     .from('policies')
     .select(
       `id, type, policy_number, eff_date, exp_date, active,
+       status, cancelled_at, cancelled_reason,
        addl_insured_blanket, subrogation_waived, description, limits_jsonb,
        insurer:insurers ( name, naic )`,
     )
@@ -266,6 +282,7 @@ export async function issueCert(input: {
       status: 'pending',
       requested_by_email: requestedByEmail,
       requested_ip: requestedIp,
+      is_master: isMaster,
     })
     .select('id')
     .single();

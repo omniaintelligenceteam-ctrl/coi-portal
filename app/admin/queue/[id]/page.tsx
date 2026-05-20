@@ -1,13 +1,17 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ChevronLeft, FileText } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
 import { MonoTag } from '@/app/components/MonoTag';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
-import { DecisionForm } from './DecisionForm';
+import { Banner, Card } from '@/app/components/ui';
+import { DecisionForm, type EditableCoverage } from './DecisionForm';
+import { PdfPreviewPanel } from './PdfPreviewPanel';
 import { RetrySend } from './RetrySend';
 import { DeleteRequest } from './DeleteRequest';
+import type { CertOverrides } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +22,17 @@ type ClientJoin = {
   business_address2: string | null;
 };
 
-// PostgREST returns the joined client as either an object or a single-element
-// array depending on how it infers the relationship. The TS generator can't
-// pick one without manual hints, so we accept both shapes here and normalize
-// below.
+type AgencyJoin = {
+  id: string;
+  name: string;
+  address1: string | null;
+  address2: string | null;
+  contact_name: string | null;
+  phone: string | null;
+  fax: string | null;
+  email: string | null;
+};
+
 type RequestDetail = {
   id: string;
   cert_number: string;
@@ -37,10 +48,12 @@ type RequestDetail = {
   pdf_storage_path: string | null;
   requested_at: string;
   requested_by_email: string;
+  cert_overrides: CertOverrides | null;
+  is_master: boolean;
   client: ClientJoin | ClientJoin[] | null;
+  agency: AgencyJoin | AgencyJoin[] | null;
 };
 
-// Known flash codes coming back via ?error= / ?deleted= from queue [id] actions.
 const FLASH_MESSAGES: Record<string, { tone: 'ok' | 'error'; text: string }> = {
   delete_failed: { tone: 'error', text: "Couldn't delete this request — try again." },
   email_failed: { tone: 'error', text: 'Decision saved but the email failed to send.' },
@@ -56,6 +69,7 @@ type CoverageDetail = {
   addl_insured_blanket: boolean;
   subrogation_waived: boolean;
   description: string | null;
+  limits_jsonb: Record<string, number> | null;
   insurer: { name: string; naic: string } | null;
 };
 
@@ -84,10 +98,6 @@ export default async function CertDetailPage({
   const sp = await searchParams;
   const flashKey = sp.error;
   const flash = flashKey ? FLASH_MESSAGES[flashKey] : null;
-  // Admin pages bypass RLS — gate is the layout's ADMIN_EMAILS check. The
-  // user-session client is RLS-bound to the cert_requests_self_select policy,
-  // which only matches rows where coi_clients.contact_email = auth.email(),
-  // so admins viewing other clients' requests would 404.
   const supabase = createAdminClient();
 
   const { data: req } = await supabase
@@ -96,20 +106,21 @@ export default async function CertDetailPage({
       `id, cert_number, holder_name, holder_address1, holder_address2,
        coverages_selected, status, pdf_storage_path,
        reviewer_pass, reviewer_flags, reviewer_notes, reviewer_model,
-       requested_at, requested_by_email,
-       client:coi_clients ( id, business_name, business_address1, business_address2 )`,
+       requested_at, requested_by_email, cert_overrides, is_master,
+       client:coi_clients ( id, business_name, business_address1, business_address2 ),
+       agency:agencies ( id, name, address1, address2, contact_name, phone, fax, email )`,
     )
     .eq('id', id)
     .maybeSingle<RequestDetail>();
 
   if (!req) notFound();
 
-  // PostgREST may return the join as ClientJoin | ClientJoin[] depending on
-  // how it sees the FK. Collapse to a single object so the rest of the page
-  // can read req.client.business_name etc. unconditionally.
   const client: ClientJoin | null = Array.isArray(req.client)
     ? req.client[0] ?? null
     : req.client;
+  const agency: AgencyJoin | null = Array.isArray(req.agency)
+    ? req.agency[0] ?? null
+    : req.agency;
 
   const policyIds = req.coverages_selected ?? [];
   const { data: coverages } = policyIds.length
@@ -117,7 +128,7 @@ export default async function CertDetailPage({
         .from('policies')
         .select(
           `id, type, policy_number, eff_date, exp_date,
-           addl_insured_blanket, subrogation_waived, description,
+           addl_insured_blanket, subrogation_waived, description, limits_jsonb,
            insurer:insurers ( name, naic )`,
         )
         .in('id', policyIds)
@@ -125,11 +136,8 @@ export default async function CertDetailPage({
     : { data: [] as CoverageDetail[] };
 
   const canDecide = req.status === 'pending' || req.status === 'reviewed';
-  // approved/edited means Brook already decided but the email didn't finish —
-  // surface a retry instead of pretending the cert is "closed".
   const canRetrySend = req.status === 'approved' || req.status === 'edited';
 
-  // Mint signed URL for inline PDF preview (private bucket → service-role).
   let previewUrl: string | null = null;
   let downloadUrl: string | null = null;
   if (req.pdf_storage_path) {
@@ -149,52 +157,49 @@ export default async function CertDetailPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
+    <main className="mx-auto w-full max-w-5xl px-6 pb-32 pt-8 sm:px-10 sm:pt-12 lg:px-16 lg:pt-14 xl:px-24">
       <Link
         href="/admin/queue"
-        className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
+        className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
       >
-        <ChevronLeft className="h-3 w-3" />
+        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
         Back to queue
       </Link>
 
       {flash && (
-        <div
-          className={
-            flash.tone === 'ok'
-              ? 'mt-6 border border-seal/40 bg-seal-soft/50 px-5 py-3 text-sm text-seal-deep'
-              : 'mt-6 border border-danger/40 bg-danger-soft/50 px-5 py-3 text-sm text-danger'
-          }
-        >
-          {flash.text}
+        <div className="mt-5">
+          <Banner tone={flash.tone === 'ok' ? 'seal' : 'danger'}>{flash.text}</Banner>
         </div>
       )}
 
-      {/* Document-style header — spans full width above the split */}
-      <header className="mt-8">
-        <p className="caps text-[0.65rem] font-semibold text-seal-deep">Certificate of Insurance</p>
-        <h1 className="mt-3 font-mono text-[2.25rem] font-medium leading-none tabular-nums text-ink sm:text-[2.75rem]">
+      {/* Document-style header */}
+      <header className="mt-7">
+        <p className="caps text-[0.65rem] font-semibold tracking-[0.22em] text-seal-deep">
+          Certificate of Insurance
+        </p>
+        <h1 className="num-tabular mt-3 font-mono text-[1.875rem] font-medium leading-[1] text-ink sm:text-[2.5rem]">
           {req.cert_number}
         </h1>
-        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mt-5 sm:gap-x-4">
           <StatusPill status={req.status} size="md" />
-          <span className="caps text-[0.6rem] font-medium text-ink-faint">
+          <span className="caps text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
             Requested by
           </span>
-          <span className="font-mono text-[0.75rem] text-ink">{req.requested_by_email}</span>
-          <span className="text-hairline-strong">·</span>
+          <span className="font-mono text-[0.78rem] text-ink">{req.requested_by_email}</span>
+          <span className="text-hairline-strong" aria-hidden="true">
+            ·
+          </span>
           <span className="font-mono text-[0.75rem] text-ink-muted">
             {new Date(req.requested_at).toLocaleString()}
           </span>
         </div>
       </header>
 
-      <Hairline className="mt-10" />
+      <Hairline className="mt-8 sm:mt-10" />
 
-      {/* Two-column split: details/decision left, sticky PDF preview right */}
-      <div className="mt-10 grid grid-cols-1 gap-12 xl:grid-cols-[minmax(0,1fr),minmax(0,560px)]">
-        <div className="min-w-0">
-          {/* AI Reviewer card */}
+      {/* Two-column split */}
+      <div className="mt-8 grid grid-cols-1 gap-10 xl:grid-cols-[minmax(0,1fr),minmax(0,560px)] xl:gap-12 sm:mt-10">
+        <div className="min-w-0 space-y-10 sm:space-y-12">
           <section>
             <ReviewerCard
               pass={req.reviewer_pass}
@@ -204,8 +209,7 @@ export default async function CertDetailPage({
             />
           </section>
 
-          {/* Insured + Holder */}
-          <section className="mt-12 grid grid-cols-1 gap-10 sm:grid-cols-2">
+          <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
             <PartyCard
               label="Insured"
               name={client?.business_name ?? 'Unknown client'}
@@ -213,62 +217,78 @@ export default async function CertDetailPage({
               address2={client?.business_address2}
             />
             <PartyCard
-              label="Certificate Holder"
+              label="Certificate holder"
               name={req.holder_name}
               address1={req.holder_address1}
               address2={req.holder_address2}
             />
           </section>
 
-          {/* Coverages */}
-          <section className="mt-14">
-            <Hairline label="Coverages selected" className="mb-6" />
-            <ul className="divide-y divide-hairline border-y border-hairline">
-              {(coverages ?? []).map((c) => (
-                <li key={c.id} className="py-5">
-                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="font-display text-[1.05rem] font-semibold tracking-tight text-ink">
-                      {TYPE_LABEL[c.type] ?? c.type}
-                    </span>
-                    <span className="caps text-[0.6rem] font-medium text-ink-faint">{c.type}</span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.78rem] text-ink-muted">
-                    <span>{c.insurer?.name ?? 'Unknown insurer'}</span>
-                    <span className="text-hairline-strong">·</span>
-                    <MonoTag size="sm" tone="subtle">{c.policy_number}</MonoTag>
-                    <span className="text-hairline-strong">·</span>
-                    <span className="font-mono">
-                      {formatDate(c.eff_date)} → {formatDate(c.exp_date)}
-                    </span>
-                  </div>
-                  {(c.addl_insured_blanket || c.subrogation_waived || c.description) && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {c.addl_insured_blanket && (
-                        <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
-                          <span className="h-1 w-1 rounded-full bg-seal" />
-                          AI · blanket
-                        </span>
-                      )}
-                      {c.subrogation_waived && (
-                        <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
-                          <span className="h-1 w-1 rounded-full bg-seal" />
-                          WoS
-                        </span>
-                      )}
-                      {c.description && (
-                        <span className="rounded-[3px] border border-hairline-strong bg-white px-2 py-0.5 text-[0.7rem] text-ink-muted">
-                          {c.description}
-                        </span>
-                      )}
+          <section>
+            <Hairline label="Coverages selected" className="mb-5" />
+            <Card padding="none" className="overflow-hidden">
+              <ul className="divide-y divide-hairline">
+                {(coverages ?? []).map((c) => (
+                  <li key={c.id} className="px-5 py-5 sm:px-6">
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="font-display text-[1.05rem] font-semibold tracking-tight text-ink">
+                        {TYPE_LABEL[c.type] ?? c.type}
+                      </span>
+                      <span className="caps text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
+                        {c.type}
+                      </span>
                     </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[0.78rem] text-ink-muted">
+                      <span>{c.insurer?.name ?? 'Unknown insurer'}</span>
+                      <span className="text-hairline-strong" aria-hidden="true">·</span>
+                      <MonoTag size="sm" tone="subtle">
+                        {c.policy_number}
+                      </MonoTag>
+                      <span className="text-hairline-strong" aria-hidden="true">·</span>
+                      <span className="font-mono">
+                        {formatDate(c.eff_date)} → {formatDate(c.exp_date)}
+                      </span>
+                    </div>
+                    {(c.addl_insured_blanket || c.subrogation_waived || c.description) && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {c.addl_insured_blanket && (
+                          <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
+                            <span className="h-1 w-1 rounded-full bg-seal" aria-hidden="true" />
+                            AI · blanket
+                          </span>
+                        )}
+                        {c.subrogation_waived && (
+                          <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
+                            <span className="h-1 w-1 rounded-full bg-seal" aria-hidden="true" />
+                            WoS
+                          </span>
+                        )}
+                        {c.description && (
+                          <span className="rounded-[3px] border border-hairline-strong bg-card px-2 py-0.5 text-[0.72rem] text-ink-muted">
+                            {c.description}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Card>
           </section>
 
-          {/* Decision form, retry CTA, or resolved state */}
-          <section className="mt-14">
+          {/* Mobile-only PDF preview button — opens fullscreen sheet */}
+          {previewUrl && (
+            <div className="xl:hidden">
+              <PdfPreviewPanel
+                previewUrl={previewUrl}
+                downloadUrl={downloadUrl ?? previewUrl}
+                certNumber={req.cert_number}
+                variant="mobile"
+              />
+            </div>
+          )}
+
+          <section>
             {canDecide ? (
               <DecisionForm
                 requestId={req.id}
@@ -278,26 +298,56 @@ export default async function CertDetailPage({
                   address1: req.holder_address1,
                   address2: req.holder_address2 ?? '',
                 }}
+                currentInsured={{
+                  name: client?.business_name ?? '',
+                  address1: client?.business_address1 ?? '',
+                  address2: client?.business_address2 ?? '',
+                }}
+                currentAgency={{
+                  name: agency?.name ?? '',
+                  address1: agency?.address1 ?? '',
+                  address2: agency?.address2 ?? '',
+                  contactName: agency?.contact_name ?? '',
+                  phone: agency?.phone ?? '',
+                  fax: agency?.fax ?? '',
+                  email: agency?.email ?? '',
+                }}
+                currentCoverages={(coverages ?? []).map(
+                  (c): EditableCoverage => ({
+                    policyId: c.id,
+                    type: c.type,
+                    policyNumber: c.policy_number,
+                    effDate: c.eff_date,
+                    expDate: c.exp_date,
+                    addlInsuredBlanket: c.addl_insured_blanket,
+                    subrogationWaived: c.subrogation_waived,
+                    description: c.description ?? '',
+                    limits: c.limits_jsonb ?? {},
+                    insurerName: c.insurer?.name ?? '',
+                    insurerNaic: c.insurer?.naic ?? '',
+                  }),
+                )}
+                currentCertOverrides={req.cert_overrides ?? {}}
               />
             ) : canRetrySend ? (
               <RetrySend requestId={req.id} />
             ) : (
-              <div className="border-l-2 border-hairline-strong pl-5">
-                <p className="caps text-[0.62rem] font-semibold text-ink-faint">Closed</p>
-                <p className="mt-2 text-sm leading-relaxed text-ink">
+              <Card padding="md" surface="paper" bordered>
+                <p className="caps text-[0.62rem] font-semibold tracking-[0.18em] text-ink-faint">
+                  Closed
+                </p>
+                <p className="mt-2 text-[0.875rem] leading-[1.55] text-ink">
                   This request is{' '}
                   <span className="font-semibold text-ink">{req.status}</span> — no further action
                   needed.
                 </p>
-              </div>
+              </Card>
             )}
 
-            {/* Destructive escape hatch — admin can purge any row (e.g. spam,
-                test submissions, duplicates). client_overrides.source_request_id
-                is ON DELETE SET NULL and coi_audit is independent, so the
-                institutional memory + sent-cert audit trail survive. */}
             <div className="mt-10 border-t border-hairline pt-6">
-              <p className="caps text-[0.6rem] font-medium text-ink-faint">Danger zone</p>
+              <p className="caps text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
+                Danger zone
+              </p>
               <div className="mt-3">
                 <DeleteRequest requestId={req.id} certNumber={req.cert_number} />
               </div>
@@ -305,56 +355,26 @@ export default async function CertDetailPage({
           </section>
         </div>
 
-        {/* Right column: sticky PDF preview */}
-        <aside className="min-w-0 xl:sticky xl:top-24 xl:self-start">
+        {/* Right column: sticky PDF preview (desktop only) */}
+        <aside className="hidden min-w-0 xl:sticky xl:top-28 xl:block xl:self-start">
           <Hairline label="PDF preview" className="mb-4" />
           {previewUrl ? (
-            <>
-              <div className="border border-hairline bg-card">
-                <iframe
-                  src={previewUrl}
-                  title={`Certificate ${req.cert_number} preview`}
-                  className="block h-[60vh] min-h-[400px] w-full xl:h-[760px]"
-                />
-              </div>
-              {/* Mobile escape hatch — PDFs frequently render small in iframes
-                  on phones; a direct link guarantees the reviewer can always
-                  see the document at full size. */}
-              <p className="caps mt-2 text-[0.6rem] font-medium text-ink-faint xl:hidden">
-                {previewUrl && (
-                  <a
-                    href={downloadUrl ?? previewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-brand hover:underline"
-                  >
-                    Open PDF in a new tab →
-                  </a>
-                )}
-              </p>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <p className="caps text-[0.58rem] font-medium text-ink-faint">
-                  Holder + signature reflect the current row · re-rendered on send
-                </p>
-                {downloadUrl && (
-                  <a
-                    href={downloadUrl}
-                    className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-hairline-strong bg-white px-3 py-1.5 text-[0.72rem] font-semibold text-ink transition-colors hover:bg-paper-deep/40"
-                  >
-                    Download
-                    <ArrowDown className="h-3 w-3" />
-                  </a>
-                )}
-              </div>
-            </>
+            <PdfPreviewPanel
+              previewUrl={previewUrl}
+              downloadUrl={downloadUrl ?? previewUrl}
+              certNumber={req.cert_number}
+              variant="desktop"
+            />
           ) : (
-            <div className="border border-warning/30 bg-warning-soft/40 px-5 py-6">
-              <p className="caps text-[0.6rem] font-semibold text-warning">No PDF on file</p>
-              <p className="mt-2 text-sm leading-relaxed text-ink">
-                The cert record has no <code className="font-mono text-[0.78rem]">pdf_storage_path</code>.
-                The submit pipeline may have failed mid-flight. Investigate before approving.
-              </p>
-            </div>
+            <Banner
+              tone="warning"
+              icon={<FileText className="h-4 w-4" aria-hidden="true" />}
+              title="No PDF on file"
+            >
+              The cert record has no{' '}
+              <code className="font-mono text-[0.78rem]">pdf_storage_path</code>. The submit
+              pipeline may have failed mid-flight. Investigate before approving.
+            </Banner>
           )}
         </aside>
       </div>
@@ -375,12 +395,12 @@ function PartyCard({
 }) {
   return (
     <div>
-      <p className="caps text-[0.62rem] font-semibold text-ink-faint">{label}</p>
-      <p className="font-display mt-3 text-[1.4rem] font-medium leading-tight tracking-tight text-ink">
+      <p className="caps text-[0.62rem] font-semibold tracking-[0.18em] text-ink-faint">{label}</p>
+      <p className="font-display mt-2.5 text-[1.3rem] font-medium leading-[1.15] tracking-tight text-ink sm:text-[1.5rem]">
         {name}
       </p>
       {address1 && (
-        <p className="mt-3 font-mono text-[0.78rem] leading-relaxed text-ink-muted">
+        <p className="mt-3 font-mono text-[0.78rem] leading-[1.55] text-ink-muted">
           {address1}
           {address2 && (
             <>
@@ -407,88 +427,62 @@ function ReviewerCard({
 }) {
   if (pass === null) {
     return (
-      <div className="border border-hairline bg-card px-6 py-5">
-        <p className="caps flex items-center gap-2 text-[0.65rem] font-semibold text-ink-muted">
+      <Card padding="md">
+        <p className="caps flex items-center gap-2 text-[0.65rem] font-semibold tracking-[0.18em] text-ink-muted">
           <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ink-muted opacity-50" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ink-muted" />
           </span>
-          AI Review · running
+          AI review · running
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+        <p className="mt-3 text-[0.875rem] leading-[1.55] text-ink-muted">
           The reviewer is checking this request now. Reload in a moment.
         </p>
-      </div>
+      </Card>
     );
   }
 
   const hasError = flags.some((f) => f.severity === 'error');
   const hasWarning = flags.some((f) => f.severity === 'warning');
-
-  const tone: {
-    border: string;
-    bg: string;
-    dot: string;
-    title: string;
-    label: string;
-  } = hasError
-    ? {
-        border: 'border-danger/40',
-        bg: 'bg-danger-soft/40',
-        dot: 'bg-danger',
-        title: 'text-danger',
-        label: 'Needs attention',
-      }
-    : hasWarning || !pass
-    ? {
-        border: 'border-warning/40',
-        bg: 'bg-warning-soft/30',
-        dot: 'bg-warning',
-        title: 'text-warning',
-        label: 'Warnings',
-      }
-    : {
-        border: 'border-success/30',
-        bg: 'bg-success-soft/30',
-        dot: 'bg-success',
-        title: 'text-success',
-        label: 'All clear',
-      };
+  const tone = hasError ? 'danger' : hasWarning || !pass ? 'warning' : 'success';
+  const label = hasError ? 'Needs attention' : hasWarning || !pass ? 'Warnings' : 'All clear';
+  const dotClass =
+    tone === 'danger' ? 'bg-danger' : tone === 'warning' ? 'bg-warning' : 'bg-success';
+  const titleClass =
+    tone === 'danger' ? 'text-danger' : tone === 'warning' ? 'text-warning' : 'text-success';
 
   return (
-    <div className={`border ${tone.border} ${tone.bg} px-6 py-5`}>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <Card padding="md" tone={tone}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-2.5">
-          <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
-          <p className={`caps text-[0.65rem] font-semibold ${tone.title}`}>
-            AI Review · {tone.label}
+          <span className={`h-2 w-2 rounded-full ${dotClass}`} aria-hidden="true" />
+          <p className={`caps text-[0.65rem] font-semibold tracking-[0.18em] ${titleClass}`}>
+            AI review · {label}
           </p>
         </div>
         {model && (
-          <span className="font-mono text-[0.68rem] text-ink-faint">{model}</span>
+          <span className="font-mono text-[0.7rem] text-ink-faint">{model}</span>
         )}
       </div>
       {notes && (
-        <p className="mt-4 text-sm leading-relaxed text-ink">{notes}</p>
+        <p className="mt-4 text-[0.875rem] leading-[1.55] text-ink">{notes}</p>
       )}
       {flags.length > 0 && (
         <ul className="mt-5 space-y-3 border-t border-hairline pt-4">
           {flags.map((f, i) => (
-            <li key={i} className="flex items-start gap-3 text-sm">
+            <li key={i} className="flex items-start gap-3 text-[0.875rem]">
               <SeverityChip severity={f.severity} />
               <div className="min-w-0 flex-1">
                 {f.field && (
-                  <span className="font-mono text-[0.72rem] text-ink-faint">
-                    {f.field}
-                  </span>
+                  <span className="font-mono text-[0.72rem] text-ink-faint">{f.field}</span>
                 )}
-                <p className="mt-0.5 leading-relaxed text-ink">{f.message}</p>
+                <p className="mt-0.5 leading-[1.55] text-ink">{f.message}</p>
               </div>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -501,32 +495,9 @@ function SeverityChip({ severity }: { severity: 'error' | 'warning' | 'info' }) 
   const s = map[severity];
   return (
     <span
-      className={`caps mt-0.5 inline-flex shrink-0 items-center rounded-[3px] px-1.5 py-0.5 text-[0.55rem] font-semibold ${s.bg} ${s.text}`}
+      className={`caps mt-0.5 inline-flex shrink-0 items-center rounded-[3px] px-1.5 py-0.5 text-[0.55rem] font-semibold tracking-[0.16em] ${s.bg} ${s.text}`}
     >
       {s.label}
     </span>
-  );
-}
-
-function ChevronLeft({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-    </svg>
-  );
-}
-
-function ArrowDown({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-    </svg>
   );
 }

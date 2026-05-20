@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { decideCertRequest, type DecisionResultErrCode } from '@/lib/decideCert';
+import { CertOverridesSchema } from '@/lib/certOverridesSchema';
 
 /**
  * Admin endpoint — Brook (or any ADMIN_EMAILS user) decides on a queued cert
@@ -45,6 +46,8 @@ const BodySchema = z.discriminatedUnion('decision', [
     decision: z.literal('edit'),
     requestId: z.string().uuid(),
     holder: HolderSchema,
+    /** Cert-level edits beyond holder (insured, producer, coverages, etc.). */
+    certOverrides: CertOverridesSchema.optional(),
     override: OverrideSchema.optional(),
   }),
   z.object({

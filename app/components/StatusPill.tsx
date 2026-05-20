@@ -16,7 +16,8 @@ export type CertStatus =
   | 'approved'
   | 'edited'
   | 'rejected'
-  | 'sent';
+  | 'sent'
+  | 'voided';
 
 const STYLE: Record<CertStatus, { dot: string; pill: string; label: string }> = {
   pending:  { dot: 'bg-warning',  pill: 'bg-warning-soft text-warning border-warning/20',     label: 'Pending review' },
@@ -25,6 +26,7 @@ const STYLE: Record<CertStatus, { dot: string; pill: string; label: string }> = 
   edited:   { dot: 'bg-success',  pill: 'bg-success-soft text-success border-success/20',    label: 'Approved · edited' },
   rejected: { dot: 'bg-danger',   pill: 'bg-danger-soft text-danger border-danger/20',       label: 'Rejected' },
   sent:     { dot: 'bg-seal',     pill: 'bg-seal-soft text-seal-deep border-seal/30',         label: 'Sent' },
+  voided:   { dot: 'bg-danger',   pill: 'bg-danger-soft text-danger border-danger/30',        label: 'Voided' },
 };
 
 export function StatusPill({

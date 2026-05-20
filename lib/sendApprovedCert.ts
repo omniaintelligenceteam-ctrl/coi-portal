@@ -16,7 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { fillAcord25 } from './fillAcord25';
 import { sendCoiEmail } from './email';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
-import type { Holder } from './types';
+import type { CertOverrides, Holder } from './types';
 import { selectableCoverages } from './getClientPolicies';
 import { stampVerifyQr } from './verifyQr';
 import { log } from './logger';
@@ -35,6 +35,7 @@ type CertRequestRow = {
   coverages_selected: string[];
   pdf_storage_path: string | null;
   status: string;
+  cert_overrides: CertOverrides | null;
 };
 
 type AgencyRow = {
@@ -72,7 +73,7 @@ export async function sendApprovedCert(
     .select(
       `id, client_id, agency_id, cert_number,
        holder_name, holder_address1, holder_address2,
-       coverages_selected, pdf_storage_path, status`,
+       coverages_selected, pdf_storage_path, status, cert_overrides`,
     )
     .eq('id', certRequestId)
     .maybeSingle<CertRequestRow>();
@@ -125,6 +126,7 @@ export async function sendApprovedCert(
     .from('policies')
     .select(
       `id, type, policy_number, eff_date, exp_date, active,
+       status, cancelled_at, cancelled_reason,
        addl_insured_blanket, subrogation_waived, description, limits_jsonb,
        insurer:insurers ( name, naic )`,
     )
@@ -178,6 +180,8 @@ export async function sendApprovedCert(
     today: new Date(),
     templatePngPath: TEMPLATE_PATH,
     signaturePngPath: SIGNATURE_PATH,
+    // cert-level edits applied by Brook in DecisionForm. Date stays today's.
+    overrides: req.cert_overrides ?? undefined,
   });
   let pdfBytes = await fillAcord25(coiInput);
   try {

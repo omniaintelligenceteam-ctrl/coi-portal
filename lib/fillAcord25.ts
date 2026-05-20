@@ -20,7 +20,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
+import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
 import type { CoiInput, Coverage } from './types';
 import { COORDS, FIELD_VALIDATORS, DEFAULT_SIZE, PAGE_WIDTH, PAGE_HEIGHT, type Coord } from './coords';
 import { LINE_HEIGHT } from './anchors';
@@ -261,5 +261,45 @@ export async function fillAcord25(input: CoiInput): Promise<Uint8Array> {
     }
   }
 
+  // 12. VOIDED watermark — stamped LAST so it sits on top of every field.
+  // The cert remains legible underneath (opacity 0.35), but no holder could
+  // mistake it for a valid in-force certificate.
+  if (input.voided) {
+    const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    await drawVoidedWatermark(page, bold);
+  }
+
   return pdfDoc.save();
+}
+
+/**
+ * Draw a diagonal "VOIDED" watermark across the rendered cert.
+ *
+ * Positioned to span the page centerline. Rotated 30° counter-clockwise from
+ * horizontal — the standard "void" stamp angle on insurance / legal docs.
+ * Size and tracking are tuned so the word reaches from the lower-left card
+ * area up through the upper-right insurer block at US-Letter dimensions.
+ */
+async function drawVoidedWatermark(page: PDFPage, font: PDFFont): Promise<void> {
+  const text = 'VOIDED';
+  const size = 130;
+  const angleDeg = 30;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const textWidth = font.widthOfTextAtSize(text, size);
+  // Position so the rotated text is roughly centered on the page.
+  const centerX = PAGE_WIDTH / 2;
+  const centerY = PAGE_HEIGHT / 2;
+  // Rotation in pdf-lib pivots around (x, y). We offset so the text's center
+  // lands on (centerX, centerY) after rotation.
+  const dx = (textWidth / 2) * Math.cos(angleRad) - (size / 2) * Math.sin(angleRad);
+  const dy = (textWidth / 2) * Math.sin(angleRad) + (size / 2) * Math.cos(angleRad);
+  page.drawText(text, {
+    x: centerX - dx,
+    y: centerY - dy,
+    size,
+    font,
+    color: rgb(0.78, 0.12, 0.12), // muted red — readable but obviously a stamp
+    opacity: 0.35,
+    rotate: degrees(angleDeg),
+  });
 }

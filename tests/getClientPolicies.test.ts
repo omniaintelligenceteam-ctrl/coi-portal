@@ -42,6 +42,27 @@ describe('selectableCoverages', () => {
     expect(selectableCoverages([inactiveButValid], TODAY)).toEqual([]);
   });
 
+  it('excludes policies with status=cancelled even when active and unexpired', () => {
+    const cancelled = makePolicy({ status: 'cancelled', exp_date: '2027-01-01' });
+    expect(selectableCoverages([cancelled], TODAY)).toEqual([]);
+  });
+
+  it('excludes policies with status=expired even when active and unexpired by date', () => {
+    const expired = makePolicy({ status: 'expired', exp_date: '2027-01-01' });
+    expect(selectableCoverages([expired], TODAY)).toEqual([]);
+  });
+
+  it('includes policies with status=active explicitly set', () => {
+    const active = makePolicy({ status: 'active', exp_date: '2027-01-01' });
+    expect(selectableCoverages([active], TODAY)).toEqual([active]);
+  });
+
+  it('treats missing status as active (backward compat with older callers)', () => {
+    const noStatus = makePolicy({ exp_date: '2027-01-01' });
+    expect(noStatus.status).toBeUndefined();
+    expect(selectableCoverages([noStatus], TODAY)).toEqual([noStatus]);
+  });
+
   it('returns an empty array for empty input', () => {
     expect(selectableCoverages([], TODAY)).toEqual([]);
   });

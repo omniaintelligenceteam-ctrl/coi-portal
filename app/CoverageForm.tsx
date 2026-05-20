@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { SectionLabel } from './components/SectionLabel';
 import { MonoTag } from './components/MonoTag';
+import { ActionBar, Banner, Button, ButtonLink, Card } from './components/ui';
 
 export type PolicyForForm = {
   id: string;
@@ -96,7 +98,6 @@ export function CoverageForm({
   const [suggestOpen, setSuggestOpen] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // On mount: check for re-issue prefill first, then autosaved draft
   useEffect(() => {
     const prefill = localStorage.getItem(PREFILL_KEY);
     if (prefill) {
@@ -131,7 +132,6 @@ export function CoverageForm({
     }
   }, [clientId]);
 
-  // Debounced autosave to localStorage
   useEffect(() => {
     if (state.kind === 'success') return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -151,13 +151,12 @@ export function CoverageForm({
     };
   }, [holderName, holderAddress1, holderAddress2, selected, clientId, state.kind]);
 
-  // Holder suggestions: filter saved holders by current name input
   const filteredSuggestions =
     suggestOpen && holderName.trim().length > 0
       ? savedHolders
           .filter((h) => h.name.toLowerCase().includes(holderName.toLowerCase().trim()))
           .slice(0, 6)
-      : savedHolders.slice(0, 6); // show all when field is empty but focused
+      : savedHolders.slice(0, 6);
 
   function applyHolder(h: SavedHolder) {
     setHolderName(h.name);
@@ -222,8 +221,6 @@ export function CoverageForm({
       }
       const json = (await res.json().catch(() => ({}))) as { certNumber?: string };
       const certNumber = (json.certNumber ?? '').trim();
-      // F4: server returned 200 but no usable cert number — never claim success
-      // and never link to /result/pending. Surface as a retry-able error.
       if (!certNumber || certNumber.toLowerCase() === 'pending') {
         setState({
           kind: 'error',
@@ -244,23 +241,22 @@ export function CoverageForm({
   }
 
   const showSuggest = suggestOpen && filteredSuggestions.length > 0;
-
   const quickHolders = savedHolders.slice(0, 3);
+  const submitDisabled = state.kind === 'submitting';
+  const submitting = state.kind === 'submitting';
+  const ready =
+    selected.size > 0 && holderName.trim().length > 0 && holderAddress1.trim().length > 0;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-10 pb-28 sm:space-y-14 sm:pb-0">
+    <form onSubmit={handleSubmit} className="space-y-8 pb-32 sm:space-y-12 sm:pb-0">
       {mode === 'admin' && (
-        <div className="border border-brand/30 bg-brand-soft/40 px-4 py-3">
-          <p className="caps text-[0.6rem] font-semibold text-brand-deep">Agent mode</p>
-          <p className="mt-1 text-sm text-ink">
-            Generating on behalf of{' '}
-            <span className="font-semibold">{onBehalfOf ?? 'this client'}</span>. This cert will be
-            audit-trailed to your email.
-          </p>
-        </div>
+        <Banner tone="info" title="Agent mode">
+          Generating on behalf of{' '}
+          <span className="font-semibold text-ink">{onBehalfOf ?? 'this client'}</span>. This cert
+          will be audit-trailed to your email.
+        </Banner>
       )}
 
-      {/* Restore banners */}
       <AnimatePresence>
         {(showPrefillBanner || showDraftBanner) && (
           <motion.div
@@ -268,43 +264,47 @@ export function CoverageForm({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="flex items-center justify-between gap-4 border border-seal/30 bg-seal-soft px-4 py-3"
           >
-            <p className="text-sm text-seal-deep">
-              {showPrefillBanner
-                ? 'Holder details pre-filled from a previous certificate.'
-                : 'Draft restored from your last session.'}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                if (showPrefillBanner) setShowPrefillBanner(false);
-                else {
-                  setShowDraftBanner(false);
-                  setHolderName('');
-                  setHolderAddress1('');
-                  setHolderAddress2('');
-                  setSelected(new Set(policies.map((p) => p.id)));
-                  localStorage.removeItem(draftKey(clientId));
-                }
-              }}
-              className="caps shrink-0 text-[0.6rem] font-semibold text-seal-deep underline-offset-2 hover:underline"
-            >
-              {showPrefillBanner ? 'Dismiss' : 'Clear draft'}
-            </button>
+            <Banner
+              tone="seal"
+              title={
+                showPrefillBanner
+                  ? 'Holder details pre-filled from a previous certificate'
+                  : 'Draft restored from your last session'
+              }
+              actions={
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showPrefillBanner) setShowPrefillBanner(false);
+                    else {
+                      setShowDraftBanner(false);
+                      setHolderName('');
+                      setHolderAddress1('');
+                      setHolderAddress2('');
+                      setSelected(new Set(policies.map((p) => p.id)));
+                      localStorage.removeItem(draftKey(clientId));
+                    }
+                  }}
+                  className="caps focus-ring shrink-0 rounded text-[0.62rem] font-semibold text-seal-deep underline-offset-2 hover:underline"
+                >
+                  {showPrefillBanner ? 'Dismiss' : 'Clear draft'}
+                </button>
+              }
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* 01 · Coverages */}
-      <section>
+      <Card padding="md" className="overflow-hidden">
         <SectionLabel number={1}>Select coverages</SectionLabel>
-        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-          All in-force policies are included by default. Uncheck any you'd like to leave off this
-          certificate.
+        <p className="mt-2 text-[0.875rem] leading-[1.55] text-ink-muted">
+          All in-force policies are included by default. Uncheck any you&apos;d like to leave off
+          this certificate.
         </p>
 
-        <ul className="mt-6 divide-y divide-hairline border-y border-hairline">
+        <ul className="mt-5 divide-y divide-hairline border-y border-hairline -mx-5 sm:-mx-6">
           {policies.map((p) => (
             <CoverageRow
               key={p.id}
@@ -317,27 +317,28 @@ export function CoverageForm({
         <p className="caps mt-3 text-[0.6rem] font-medium text-ink-faint">
           {selected.size} of {policies.length} selected
         </p>
-      </section>
+      </Card>
 
       {/* 02 · Holder */}
-      <section>
-        <SectionLabel number={2}>Certificate Holder</SectionLabel>
-        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+      <Card padding="md">
+        <SectionLabel number={2}>Certificate holder</SectionLabel>
+        <p className="mt-2 text-[0.875rem] leading-[1.55] text-ink-muted">
           The company or person this certificate is issued to — the name your contract requires it
           to be made out to.
         </p>
 
-        {/* Quick-pick lane: recent holders for one-tap fill on mobile */}
         {quickHolders.length > 0 && (
           <div className="mt-5">
-            <p className="caps mb-2 text-[0.6rem] font-medium text-ink-faint">Recent holders</p>
+            <p className="caps mb-2 text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
+              Recent holders
+            </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {quickHolders.map((h, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => applyHolder(h)}
-                  className="focus-ring tap-target group inline-flex w-full items-center gap-2 rounded-full border border-hairline-strong bg-white px-4 py-3 text-left text-sm text-ink transition-colors hover:border-brand hover:bg-brand-soft/50 sm:w-auto sm:max-w-[15rem] sm:px-3 sm:py-2 sm:text-[0.78rem]"
+                  className="focus-ring tap-target group inline-flex w-full items-center gap-2 rounded-full border border-hairline-strong bg-card px-4 py-3 text-left text-[0.875rem] text-ink transition-colors hover:border-brand hover:bg-brand-soft/50 sm:w-auto sm:max-w-[15rem] sm:px-3.5 sm:py-2 sm:text-[0.8125rem]"
                   aria-label={`Use ${h.name}`}
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-seal" aria-hidden="true" />
@@ -348,8 +349,7 @@ export function CoverageForm({
           </div>
         )}
 
-        <div className="mt-6 space-y-6">
-          {/* Holder name with saved-holder suggest dropdown */}
+        <div className="mt-6 space-y-5">
           <div className="relative">
             <UnderlinedField
               id="holder-name"
@@ -369,7 +369,7 @@ export function CoverageForm({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute left-0 right-0 top-full z-20 mt-1 border border-hairline-strong bg-white shadow-lg"
+                  className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-hairline-strong bg-card shadow-lift"
                   role="listbox"
                   aria-label="Saved holders"
                 >
@@ -381,7 +381,7 @@ export function CoverageForm({
                         onClick={() => applyHolder(h)}
                         className="focus-ring block w-full px-4 py-3 text-left transition-colors hover:bg-paper-deep/50"
                       >
-                        <span className="block text-sm font-medium text-ink">{h.name}</span>
+                        <span className="block text-[0.875rem] font-medium text-ink">{h.name}</span>
                         <span className="mt-0.5 block font-mono text-[0.72rem] text-ink-muted">
                           {h.address1}
                           {h.address2 ? `, ${h.address2}` : ''}
@@ -412,44 +412,54 @@ export function CoverageForm({
             autoComplete="address-line2"
           />
         </div>
-      </section>
+      </Card>
 
       {state.kind === 'error' && (
-        <p className="border-l-2 border-danger pl-4 text-sm leading-relaxed text-danger">
+        <Banner tone="danger" title="Couldn't submit">
           {state.message}
-        </p>
+        </Banner>
       )}
 
-      {/* Submit — sticky on mobile, inline on sm+ */}
-      <section
-        className="sticky bottom-0 -mx-6 bg-paper/95 px-6 pb-safe pt-3 backdrop-blur-md sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-2 sm:backdrop-blur-none"
-        style={{ boxShadow: 'var(--shadow-sticky)' }}
-      >
-        {/* Trust microcopy sits above the button on mobile so the button is the last thing under the thumb */}
-        <p className="caps mb-3 flex items-center gap-1.5 text-[0.6rem] font-medium text-ink-faint sm:order-2 sm:mb-0 sm:mt-4">
-          <ShieldGlyph className="h-3 w-3 text-seal" />
+      {/* Submit — sticky ActionBar on mobile, inline on desktop */}
+      <div className="hidden sm:flex sm:items-center sm:justify-between sm:gap-4 sm:pt-2">
+        <p className="caps flex items-center gap-1.5 text-[0.62rem] font-medium tracking-[0.18em] text-ink-faint">
+          <ShieldCheck className="h-3.5 w-3.5 text-seal" aria-hidden="true" />
           Reviewed by a licensed agent before issue
         </p>
-        <button
+        <Button
           type="submit"
-          disabled={state.kind === 'submitting'}
-          aria-busy={state.kind === 'submitting'}
-          aria-disabled={state.kind === 'submitting'}
-          className="focus-ring group inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-6 py-4 text-[0.95rem] font-semibold text-white shadow-sm transition-all hover:bg-brand-deep active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 sm:order-1 sm:w-auto sm:min-w-[280px] sm:text-sm"
+          size="lg"
+          loading={submitting}
+          disabled={submitDisabled}
+          trailingIcon={!submitting ? <ArrowRight className="h-4 w-4" aria-hidden="true" /> : null}
+          className="min-w-[280px]"
         >
-          {state.kind === 'submitting' ? (
-            <>
-              <PulseDots />
-              <span>Submitting for review…</span>
-            </>
-          ) : (
-            <>
-              <span>Submit for Brook's review</span>
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </>
-          )}
-        </button>
-      </section>
+          {submitting ? 'Submitting for review…' : "Submit for Brook's review"}
+        </Button>
+      </div>
+
+      <ActionBar
+        mobileOnly
+        context={
+          <span className="caps inline-flex items-center gap-1.5 text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
+            <ShieldCheck className="h-3 w-3 text-seal" aria-hidden="true" />
+            Reviewed by a licensed agent &middot; {selected.size} coverage
+            {selected.size === 1 ? '' : 's'}
+          </span>
+        }
+      >
+        <Button
+          type="submit"
+          size="lg"
+          fullWidth
+          loading={submitting}
+          disabled={submitDisabled}
+          trailingIcon={!submitting ? <ArrowRight className="h-4 w-4" aria-hidden="true" /> : null}
+          aria-disabled={!ready || submitDisabled}
+        >
+          {submitting ? 'Submitting…' : "Submit for Brook's review"}
+        </Button>
+      </ActionBar>
     </form>
   );
 }
@@ -466,8 +476,8 @@ function CoverageRow({
   return (
     <li>
       <label
-        className={`group relative flex cursor-pointer items-start gap-4 py-5 pl-3 pr-2 transition-colors sm:gap-5 sm:pl-4 ${
-          isSelected ? 'bg-paper-deep/50' : 'hover:bg-paper-deep/30'
+        className={`group relative flex cursor-pointer items-start gap-4 px-5 py-5 transition-colors sm:gap-5 sm:px-6 ${
+          isSelected ? 'bg-paper-deep/40' : 'hover:bg-paper-deep/25'
         }`}
       >
         <span
@@ -477,7 +487,6 @@ function CoverageRow({
           }`}
         />
 
-        {/* 44×44 tap target wrapping the visible 22×22 checkbox */}
         <span className="tap-target relative -m-2 flex shrink-0 items-center justify-center p-2">
           <input
             type="checkbox"
@@ -517,7 +526,6 @@ function CoverageRow({
         </span>
 
         <div className="min-w-0 flex-1">
-          {/* Row 1 — coverage name + type chip */}
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <span className="font-display text-[1.05rem] font-semibold tracking-tight text-ink">
               {TYPE_LABEL[policy.type]}
@@ -527,10 +535,8 @@ function CoverageRow({
             </span>
           </div>
 
-          {/* Row 2 — insurer (own line on mobile) */}
           <p className="mt-2 text-[0.82rem] text-ink-muted">{policy.insurerName}</p>
 
-          {/* Row 3 — policy # + date range (own line, never bullet-wraps weird) */}
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.74rem]">
             <MonoTag size="sm" tone="subtle">
               {policy.policyNumber}
@@ -541,13 +547,12 @@ function CoverageRow({
             </span>
           </div>
 
-          {/* Row 4 — endorsement chips on their own line */}
           {(policy.addlInsuredBlanket || policy.subrogationWaived || policy.description) && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {policy.addlInsuredBlanket && (
                 <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
                   <span className="h-1 w-1 rounded-full bg-seal" aria-hidden="true" />
-                  Additional Insured · blanket
+                  Additional Insured &middot; blanket
                 </span>
               )}
               {policy.subrogationWaived && (
@@ -594,7 +599,7 @@ function UnderlinedField({
     <div>
       <label
         htmlFor={id}
-        className="caps flex items-baseline gap-1 text-[0.62rem] font-semibold text-ink-muted"
+        className="caps flex items-baseline gap-1 text-[0.62rem] font-semibold tracking-[0.18em] text-ink-muted"
       >
         <span>{label}</span>
         {required && (
@@ -613,7 +618,7 @@ function UnderlinedField({
         onFocus={onFocus}
         onBlur={onBlur}
         autoComplete={autoComplete ?? 'off'}
-        className="field-underline mt-1 block w-full text-ink"
+        className="field-underline mt-1.5 block w-full text-ink"
       />
     </div>
   );
@@ -622,7 +627,7 @@ function UnderlinedField({
 function SuccessState({ certNumber }: { certNumber: string }) {
   const reduce = useReducedMotion();
   return (
-    <div className="relative overflow-hidden border border-hairline bg-card px-8 py-14 sm:px-14 sm:py-16">
+    <div className="relative overflow-hidden rounded-[var(--r-lg)] border border-hairline bg-card px-6 py-12 shadow-lift sm:px-12 sm:py-16">
       <motion.div
         aria-hidden="true"
         initial={reduce ? false : { opacity: 0, scale: 0.8, rotate: -8 }}
@@ -642,8 +647,10 @@ function SuccessState({ certNumber }: { certNumber: string }) {
       </motion.div>
 
       <div className="relative">
-        <p className="caps text-[0.65rem] font-semibold text-seal-deep">Submitted for review</p>
-        <h2 className="font-display mt-4 text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[3rem]">
+        <p className="caps text-[0.65rem] font-semibold tracking-[0.22em] text-seal-deep">
+          Submitted for review
+        </p>
+        <h2 className="font-display mt-3 text-[2rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[2.75rem]">
           Request received.
         </h2>
 
@@ -653,68 +660,29 @@ function SuccessState({ certNumber }: { certNumber: string }) {
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
           className="mt-8"
         >
-          <p className="caps text-[0.6rem] font-medium text-ink-faint">Reference</p>
-          <p className="mt-2 font-mono text-[1.6rem] font-medium tabular-nums text-ink">
+          <p className="caps text-[0.6rem] font-medium tracking-[0.2em] text-ink-faint">Reference</p>
+          <p className="num-tabular mt-2 font-mono text-[1.5rem] font-medium text-ink sm:text-[1.75rem]">
             {certNumber}
           </p>
         </motion.div>
 
-        <p className="mt-8 max-w-md text-[0.95rem] leading-relaxed text-ink-muted">
+        <p className="mt-7 max-w-md text-[0.9375rem] leading-[1.6] text-ink-muted">
           Brook will review this request and email the finished certificate, signed and dated,
           usually within a few business hours.
         </p>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <a
+        <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
+          <ButtonLink
             href={`/result/${certNumber}`}
-            className="focus-ring inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-deep"
+            trailingIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
           >
-            Track this certificate →
-          </a>
-          <a
-            href="/certificates"
-            className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline-strong bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-paper-deep/40"
-          >
+            Track this certificate
+          </ButtonLink>
+          <ButtonLink href="/certificates" variant="secondary">
             All certificates
-          </a>
+          </ButtonLink>
         </div>
       </div>
     </div>
-  );
-}
-
-function PulseDots() {
-  return (
-    <span className="inline-flex items-center gap-1" aria-hidden="true">
-      {[0, 1, 2].map((i) => (
-        <motion.span
-          key={i}
-          className="h-1.5 w-1.5 rounded-full bg-white"
-          animate={{ opacity: [0.3, 1, 0.3] }}
-          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
-        />
-      ))}
-    </span>
-  );
-}
-
-function ArrowRight({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-    </svg>
-  );
-}
-
-function ShieldGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path d="M12 2l8 3v6c0 5-3.5 9.3-8 11-4.5-1.7-8-6-8-11V5l8-3z" />
-    </svg>
   );
 }

@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
+import { Banner, Card, PageHeader } from '@/app/components/ui';
 import {
   approveAccessRequest,
   rejectAccessRequest,
@@ -44,7 +46,8 @@ const FLASH_MESSAGES: Record<string, { tone: 'ok' | 'error'; text: string }> = {
   create_failed: { tone: 'error', text: "Couldn't create client record." },
   create_failed_rollback_needed: {
     tone: 'error',
-    text: "Request was marked approved but client record didn't save — check platform_log and fix manually.",
+    text:
+      "Request was marked approved but client record didn't save — check platform_log and fix manually.",
   },
   update_failed: { tone: 'error', text: "Couldn't update the request." },
   invalid_invite: { tone: 'error', text: 'Invite needs a valid email + business name.' },
@@ -85,65 +88,75 @@ export default async function AccessRequestsPage({
   const flash = flashKey ? FLASH_MESSAGES[flashKey] : null;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
+    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-8 sm:px-10 sm:pt-12 lg:px-16 lg:pt-14 xl:px-24">
       <Link
         href="/admin/queue"
-        className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
+        className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
       >
-        <ChevronLeft className="h-3 w-3" />
+        <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
         Back to queue
       </Link>
 
-      <header className="mt-6 mb-10">
-        <p className="caps text-[0.65rem] font-semibold text-seal-deep">Access</p>
-        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-6">
-          <h1 className="font-display text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink">
-            Access requests
-          </h1>
-          <span className="font-mono text-sm text-ink-muted">
-            {pending.length} pending
-          </span>
-        </div>
-        <p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-ink-muted">
-          New people who asked to be set up on the portal, and proactive invites you've sent.
-          Approving creates a client record and emails them a sign-in link.
-        </p>
-      </header>
+      <div className="mt-6">
+        <PageHeader
+          eyebrow={
+            <>
+              <span className="h-1 w-1 rounded-full bg-seal" aria-hidden="true" />
+              Access
+            </>
+          }
+          title="Access requests"
+          subtitle="New people who asked to be set up on the portal, and proactive invites you've sent. Approving creates a client record and emails them a sign-in link."
+          meta={
+            <span className="num-tabular font-mono text-[0.875rem] text-ink-muted">
+              {pending.length} pending
+            </span>
+          }
+        />
+      </div>
 
       {flash && (
-        <div
-          className={
-            flash.tone === 'ok'
-              ? 'mb-8 border border-seal/40 bg-seal-soft/50 px-5 py-3 text-sm text-seal-deep'
-              : 'mb-8 border border-danger/40 bg-danger-soft/50 px-5 py-3 text-sm text-danger'
-          }
-        >
-          {flash.text}
+        <div className="mt-6">
+          <Banner tone={flash.tone === 'ok' ? 'seal' : 'danger'}>{flash.text}</Banner>
         </div>
       )}
 
-      <section className="mb-16">
+      <section className="mt-12">
         <Hairline label="Invite a client" className="mb-3" />
-        <p className="mb-5 max-w-2xl text-sm leading-relaxed text-ink-muted">
-          Skip the waiting room — add a client directly. They'll get an email with a sign-in link.
+        <p className="mb-5 max-w-2xl text-[0.875rem] leading-[1.55] text-ink-muted">
+          Skip the waiting room — add a client directly. They&apos;ll get an email with a sign-in
+          link.
         </p>
-        <form action={inviteClient} className="grid gap-4 sm:grid-cols-2">
-          <InviteField name="email" label="Email" type="email" required placeholder="contact@business.com" />
-          <InviteField name="businessName" label="Business name" required placeholder="ACME Plumbing, LLC" />
-          <InviteField name="contactName" label="Contact name (optional)" />
-          <InviteField name="phone" label="Phone (optional)" type="tel" />
-          <div className="sm:col-span-2">
-            <AdminFormButton variant="primary">Send invite</AdminFormButton>
-          </div>
-        </form>
+        <Card padding="md">
+          <form action={inviteClient} className="grid gap-4 sm:grid-cols-2">
+            <InviteField
+              name="email"
+              label="Email"
+              type="email"
+              required
+              placeholder="contact@business.com"
+            />
+            <InviteField
+              name="businessName"
+              label="Business name"
+              required
+              placeholder="ACME Plumbing, LLC"
+            />
+            <InviteField name="contactName" label="Contact name (optional)" />
+            <InviteField name="phone" label="Phone (optional)" type="tel" />
+            <div className="sm:col-span-2">
+              <AdminFormButton variant="primary">Send invite</AdminFormButton>
+            </div>
+          </form>
+        </Card>
       </section>
 
-      <section className="mb-16">
+      <section className="mt-12">
         <Hairline label={`Pending (${pending.length})`} className="mb-3" />
         {pending.length === 0 ? (
-          <p className="border border-hairline bg-card px-5 py-8 text-sm text-ink-muted">
-            No pending requests.
-          </p>
+          <Card padding="md">
+            <p className="text-[0.875rem] text-ink-muted">No pending requests.</p>
+          </Card>
         ) : (
           <ul className="space-y-4">
             {pending.map((r) => (
@@ -153,17 +166,17 @@ export default async function AccessRequestsPage({
         )}
       </section>
 
-      <section>
+      <section className="mt-12">
         <Hairline label={`Recently decided (${decided.length})`} className="mb-3" />
         {decided.length === 0 ? (
-          <p className="border border-hairline bg-card px-5 py-8 text-sm text-ink-muted">
-            No decisions yet.
-          </p>
+          <Card padding="md">
+            <p className="text-[0.875rem] text-ink-muted">No decisions yet.</p>
+          </Card>
         ) : (
-          <div className="border-y border-hairline">
+          <Card padding="none" className="overflow-hidden">
             <table className="min-w-full">
               <thead>
-                <tr className="border-b border-hairline">
+                <tr className="border-b border-hairline bg-paper-deep/40">
                   <Th>Business</Th>
                   <Th>Email</Th>
                   <Th align="right">Source</Th>
@@ -175,7 +188,9 @@ export default async function AccessRequestsPage({
                 {decided.map((r) => (
                   <tr key={r.id} className="border-b border-hairline last:border-b-0">
                     <Td>
-                      <span className="font-medium text-[0.92rem] text-ink">{r.business_name}</span>
+                      <span className="text-[0.9375rem] font-medium text-ink">
+                        {r.business_name}
+                      </span>
                     </Td>
                     <Td>
                       <span className="font-mono text-[0.78rem] text-ink-muted">{r.email}</span>
@@ -193,7 +208,7 @@ export default async function AccessRequestsPage({
                       />
                     </Td>
                     <Td align="right">
-                      <span className="font-mono text-[0.78rem] text-ink-muted">
+                      <span className="num-tabular font-mono text-[0.78rem] text-ink-muted">
                         {r.decided_at ? formatTimestamp(r.decided_at) : '—'}
                       </span>
                     </Td>
@@ -201,7 +216,7 @@ export default async function AccessRequestsPage({
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
         )}
       </section>
     </main>
@@ -210,58 +225,65 @@ export default async function AccessRequestsPage({
 
 function PendingCard({ row }: { row: RequestRow }) {
   return (
-    <li className="border border-hairline bg-card px-5 py-5 sm:px-6 sm:py-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h3 className="font-display text-lg font-medium text-ink">{row.business_name}</h3>
-        <span className="font-mono text-[0.72rem] text-ink-muted">
-          {formatTimestamp(row.requested_at)}
-        </span>
-      </div>
-      <dl className="mt-3 grid gap-1.5 text-sm sm:grid-cols-2">
-        <Row label="Email" value={row.email} mono />
-        <Row label="Name" value={row.contact_name ?? '—'} />
-        <Row label="Phone" value={row.phone ?? '—'} mono />
-        <Row label="Source" value={row.source === 'admin_invite' ? 'Admin invite' : 'Self-signup'} />
-      </dl>
-      {row.message && (
-        <div className="mt-4 border-l-2 border-seal/40 bg-seal-soft/30 px-3 py-2 text-sm leading-relaxed text-ink-muted">
-          {row.message}
+    <li>
+      <Card padding="md">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h3 className="font-display text-[1.125rem] font-medium leading-[1.2] text-ink">
+            {row.business_name}
+          </h3>
+          <span className="num-tabular font-mono text-[0.72rem] text-ink-muted">
+            {formatTimestamp(row.requested_at)}
+          </span>
         </div>
-      )}
-
-      <div className="mt-5 grid gap-4 border-t border-hairline pt-5 sm:grid-cols-2">
-        <form action={approveAccessRequest} className="space-y-3">
-          <input type="hidden" name="id" value={row.id} />
-          <label className="caps block text-[0.6rem] font-semibold text-ink-muted">
-            Business name (creates the client record)
-          </label>
-          <input
-            name="businessName"
-            defaultValue={row.business_name}
-            required
-            className="field-underline block w-full text-sm text-ink"
+        <dl className="mt-3 grid gap-1.5 text-[0.875rem] sm:grid-cols-2">
+          <Row label="Email" value={row.email} mono />
+          <Row label="Name" value={row.contact_name ?? '—'} />
+          <Row label="Phone" value={row.phone ?? '—'} mono />
+          <Row
+            label="Source"
+            value={row.source === 'admin_invite' ? 'Admin invite' : 'Self-signup'}
           />
-          <AdminFormButton variant="primary" size="sm">
-            Approve &amp; create
-          </AdminFormButton>
-        </form>
+        </dl>
+        {row.message && (
+          <Banner tone="seal" icon={false} className="mt-4">
+            {row.message}
+          </Banner>
+        )}
 
-        <form action={rejectAccessRequest} className="space-y-3">
-          <input type="hidden" name="id" value={row.id} />
-          <label className="caps block text-[0.6rem] font-semibold text-ink-muted">
-            Reject — reason (sent to requester)
-          </label>
-          <textarea
-            name="reason"
-            rows={2}
-            placeholder="e.g. We don't currently write policies in your state."
-            className="field-underline block w-full resize-y text-sm text-ink"
-          />
-          <AdminFormButton variant="danger" size="sm">
-            Reject
-          </AdminFormButton>
-        </form>
-      </div>
+        <div className="mt-5 grid gap-5 border-t border-hairline pt-5 sm:grid-cols-2">
+          <form action={approveAccessRequest} className="space-y-3">
+            <input type="hidden" name="id" value={row.id} />
+            <label className="caps block text-[0.62rem] font-semibold tracking-[0.18em] text-ink-muted">
+              Business name (creates the client record)
+            </label>
+            <input
+              name="businessName"
+              defaultValue={row.business_name}
+              required
+              className="field-underline block w-full text-[0.9375rem] text-ink"
+            />
+            <AdminFormButton variant="primary" size="sm">
+              Approve &amp; create
+            </AdminFormButton>
+          </form>
+
+          <form action={rejectAccessRequest} className="space-y-3">
+            <input type="hidden" name="id" value={row.id} />
+            <label className="caps block text-[0.62rem] font-semibold tracking-[0.18em] text-ink-muted">
+              Reject — reason (sent to requester)
+            </label>
+            <textarea
+              name="reason"
+              rows={2}
+              placeholder="e.g. We don't currently write policies in your state."
+              className="field-underline block w-full resize-y text-[0.9375rem] text-ink"
+            />
+            <AdminFormButton variant="danger" size="sm">
+              Reject
+            </AdminFormButton>
+          </form>
+        </div>
+      </Card>
     </li>
   );
 }
@@ -269,7 +291,7 @@ function PendingCard({ row }: { row: RequestRow }) {
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex flex-wrap items-baseline gap-2">
-      <dt className="caps text-[0.6rem] font-semibold text-ink-faint">{label}</dt>
+      <dt className="caps text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint">{label}</dt>
       <dd className={mono ? 'font-mono text-[0.82rem] text-ink' : 'text-[0.9rem] text-ink'}>
         {value}
       </dd>
@@ -292,7 +314,10 @@ function InviteField({
 }) {
   return (
     <div>
-      <label htmlFor={`invite-${name}`} className="caps block text-[0.6rem] font-semibold text-ink-muted">
+      <label
+        htmlFor={`invite-${name}`}
+        className="caps block text-[0.62rem] font-semibold tracking-[0.18em] text-ink-muted"
+      >
         {label}
       </label>
       <input
@@ -301,7 +326,7 @@ function InviteField({
         type={type}
         required={required}
         placeholder={placeholder}
-        className="field-underline mt-2 block w-full text-sm text-ink"
+        className="field-underline mt-2 block w-full text-[0.9375rem] text-ink"
       />
     </div>
   );
@@ -310,10 +335,10 @@ function InviteField({
 function Badge({ tone, label }: { tone: 'good' | 'bad' | 'neutral'; label: string }) {
   const cls =
     tone === 'good'
-      ? 'caps inline-flex items-center rounded-full border border-seal/40 bg-seal-soft px-2 py-0.5 text-[0.55rem] font-semibold text-seal-deep'
+      ? 'caps inline-flex items-center rounded-full border border-seal/40 bg-seal-soft px-2 py-0.5 text-[0.55rem] font-semibold tracking-[0.16em] text-seal-deep'
       : tone === 'bad'
-        ? 'caps inline-flex items-center rounded-full border border-danger/40 bg-danger-soft/40 px-2 py-0.5 text-[0.55rem] font-semibold text-danger'
-        : 'caps inline-flex items-center rounded-full border border-hairline-strong bg-white px-2 py-0.5 text-[0.55rem] font-semibold text-ink-faint';
+        ? 'caps inline-flex items-center rounded-full border border-danger/40 bg-danger-soft/40 px-2 py-0.5 text-[0.55rem] font-semibold tracking-[0.16em] text-danger'
+        : 'caps inline-flex items-center rounded-full border border-hairline-strong bg-card px-2 py-0.5 text-[0.55rem] font-semibold tracking-[0.16em] text-ink-faint';
   return <span className={cls}>{label}</span>;
 }
 
@@ -337,7 +362,7 @@ function Th({
   return (
     <th
       scope="col"
-      className={`caps px-3 py-3 text-[0.6rem] font-semibold text-ink-faint ${
+      className={`caps px-3 py-3 text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint ${
         align === 'right' ? 'text-right' : 'text-left'
       }`}
     >
@@ -357,20 +382,5 @@ function Td({
     <td className={`px-3 py-3 align-middle ${align === 'right' ? 'text-right' : ''}`}>
       {children}
     </td>
-  );
-}
-
-function ChevronLeft({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-    </svg>
   );
 }

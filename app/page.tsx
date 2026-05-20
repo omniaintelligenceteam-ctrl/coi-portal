@@ -1,10 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { AlertTriangle, ArrowRight, Mail, Phone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { selectableCoverages, type DbPolicy } from '@/lib/getClientPolicies';
 import { CoverageForm, type PolicyForForm, type SavedHolder } from './CoverageForm';
 import { Header } from './components/Header';
 import { Logo } from './components/Logo';
+import { MasterCertButton } from './MasterCertButton';
+import { Banner, ButtonLink, Card, EmptyState } from './components/ui';
 
 type ClientRow = {
   id: string;
@@ -54,6 +57,7 @@ export default async function HomePage() {
     .from('policies')
     .select(
       `id, type, policy_number, eff_date, exp_date, active,
+       status, cancelled_at, cancelled_reason,
        addl_insured_blanket, subrogation_waived, description,
        insurer:insurers ( name, naic )`,
     )
@@ -65,7 +69,6 @@ export default async function HomePage() {
   const eligible = selectableCoverages(policiesRaw ?? [], today);
   const renewalAlerts = computeRenewalAlerts(policiesRaw ?? [], today);
 
-  // Fetch saved holders for autocomplete (sorted by most recently used)
   const { data: holdersRaw } = await supabase
     .from('cert_holders')
     .select('name, address1, address2')
@@ -92,12 +95,12 @@ export default async function HomePage() {
     <>
       <Header email={user.email} showMyCerts />
 
-      <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
-        {/* Insured identity — bordered editorial card with corner seal mark */}
-        <section className="relative mb-10 overflow-hidden border border-hairline bg-card px-5 py-6 sm:mb-14 sm:px-8 sm:py-8">
+      <main className="mx-auto w-full max-w-5xl px-6 pb-16 pt-8 sm:px-10 sm:pb-24 sm:pt-12 lg:px-16 lg:pt-14 xl:px-24">
+        {/* Insured identity — editorial card with corner seal mark */}
+        <section className="relative mb-8 overflow-hidden rounded-[var(--r-lg)] border border-hairline bg-card px-5 py-6 shadow-card sm:mb-12 sm:px-8 sm:py-8">
           <span
             aria-hidden="true"
-            className="caps absolute right-3 top-3 hidden text-[0.5rem] font-semibold tracking-[0.35em] text-seal/60 sm:right-4 sm:top-4 sm:block"
+            className="caps absolute right-3 top-3 hidden text-[0.55rem] font-semibold tracking-[0.35em] text-seal/60 sm:right-4 sm:top-4 sm:block"
           >
             · POLICY PLACE ·
           </span>
@@ -105,13 +108,19 @@ export default async function HomePage() {
             aria-hidden="true"
             className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full border-[3px] border-seal/15 sm:-right-12 sm:-top-12 sm:h-44 sm:w-44 sm:border-[4px]"
           />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-3 -top-3 h-20 w-20 rounded-full border border-seal/20 sm:-right-5 sm:-top-5 sm:h-24 sm:w-24"
+          />
 
-          <p className="caps text-[0.62rem] font-semibold text-seal-deep">Insured</p>
-          <h1 className="font-display mt-3 text-[2rem] font-medium leading-[1.05] tracking-display text-ink sm:mt-4 sm:text-[3rem]">
+          <p className="caps relative text-[0.62rem] font-semibold tracking-[0.2em] text-seal-deep">
+            Insured
+          </p>
+          <h1 className="font-display relative mt-2 text-[1.75rem] font-medium leading-[1.05] tracking-display text-ink sm:mt-3 sm:text-[2.625rem]">
             {client.business_name}
           </h1>
           {client.business_address1 && (
-            <p className="mt-3 font-mono text-[0.78rem] leading-relaxed text-ink-muted sm:mt-4 sm:text-sm">
+            <p className="relative mt-3 font-mono text-[0.78rem] leading-relaxed text-ink-muted sm:mt-3 sm:text-[0.875rem]">
               <span className="block sm:inline">{client.business_address1}</span>
               {client.business_address2 && (
                 <>
@@ -123,30 +132,48 @@ export default async function HomePage() {
           )}
         </section>
 
-        {renewalAlerts.length > 0 && <RenewalBanner alerts={renewalAlerts} />}
+        {renewalAlerts.length > 0 && (
+          <div className="mb-8 sm:mb-10">
+            <RenewalBanner alerts={renewalAlerts} />
+          </div>
+        )}
 
         {policiesForForm.length === 0 ? (
           <NoActivePolicies />
         ) : (
-          <CoverageForm clientId={client.id} policies={policiesForForm} savedHolders={savedHolders} />
+          <>
+            <CoverageForm
+              clientId={client.id}
+              policies={policiesForForm}
+              savedHolders={savedHolders}
+            />
+            <MasterCertButton
+              policyIds={policiesForForm.map((p) => p.id)}
+              businessName={client.business_name}
+              businessAddress1={client.business_address1 ?? ''}
+              businessAddress2={client.business_address2 ?? ''}
+            />
+          </>
         )}
 
-        {/* Info callout */}
-        <aside className="mt-14 border-l-2 border-seal/40 bg-seal-soft/30 py-4 pl-5 pr-4 sm:mt-16 sm:bg-transparent sm:py-0 sm:pr-0">
-          <p className="caps text-[0.6rem] font-semibold text-seal-deep">A note from Brook</p>
-          <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+        {/* Note from Brook */}
+        <aside className="mt-12 rounded-[var(--r-md)] border-l-2 border-seal/50 bg-seal-soft/30 px-5 py-4 sm:mt-16 sm:border-l-2 sm:bg-transparent sm:px-0 sm:py-0">
+          <p className="caps text-[0.6rem] font-semibold tracking-[0.2em] text-seal-deep">
+            A note from Brook
+          </p>
+          <p className="mt-2 text-[0.875rem] leading-[1.6] text-ink-muted">
             If your contract requires Additional Insured status, Waiver of Subrogation, or custom
             language, those must be set up on your policy before they can appear on a certificate.
-            Reach out and we'll get you sorted —{' '}
+            Reach out and we&apos;ll get you sorted —{' '}
             <a
-              className="font-medium text-brand underline-offset-4 hover:underline"
+              className="font-medium text-brand-deep underline-offset-4 hover:text-brand-near hover:underline"
               href="mailto:brook@yourpolicyplace.com"
             >
               brook@yourpolicyplace.com
             </a>{' '}
             or{' '}
             <a
-              className="font-medium text-brand underline-offset-4 hover:underline"
+              className="font-medium text-brand-deep underline-offset-4 hover:text-brand-near hover:underline"
               href="tel:+12704102015"
             >
               (270) 410-2015
@@ -161,54 +188,59 @@ export default async function HomePage() {
 
 function NoClientFound({ email }: { email: string }) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <div className="mx-auto w-full max-w-5xl px-6 pt-10 sm:px-10">
+    <div className="flex min-h-[100dvh] flex-col">
+      <div className="mx-auto w-full max-w-5xl px-6 pt-safe sm:px-10">
         <Link
           href="/"
           aria-label="The Policy Place — home"
-          className="focus-ring -m-1 inline-flex rounded p-1"
+          className="focus-ring -m-1 mt-6 inline-flex rounded p-1 sm:mt-8"
         >
           <Logo tone="dark" />
         </Link>
       </div>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 pb-16 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
         <div className="mx-auto max-w-2xl">
-
-        <p className="caps text-[0.65rem] font-semibold text-warning">Access pending</p>
-        <h1 className="font-display mt-4 text-[2.25rem] font-medium leading-[1.05] tracking-display text-ink">
-          We can't place this email yet.
-        </h1>
-        <p className="mt-5 text-base leading-relaxed text-ink-muted">
-          No Policy Place account is linked to{' '}
-          <span className="font-mono text-ink">{email}</span> yet. If you've already requested
-          access, Brook or Wes is reviewing. As soon as it's approved, you can sign in instantly
-          with this email.
-        </p>
-        <div className="mt-7 flex flex-wrap gap-3">
-          <Link
-            href="/signup"
-            className="focus-ring inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-deep"
-          >
-            Request access →
-          </Link>
-          <a
-            href="mailto:brook@yourpolicyplace.com"
-            className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline-strong bg-white px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-paper-deep/40"
-          >
-            Email Brook
-          </a>
-        </div>
-        <p className="mt-4 text-sm leading-relaxed text-ink-muted">
-          Or call{' '}
-          <a
-            className="font-medium text-brand underline-offset-4 hover:underline"
-            href="tel:+12704102015"
-          >
-            (270) 410-2015
-          </a>
-          .
-        </p>
+          <Card padding="lg" raised>
+            <p className="caps text-[0.65rem] font-semibold text-warning">Access pending</p>
+            <h1 className="font-display mt-3 text-[2rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[2.5rem]">
+              We can&apos;t place this email yet.
+            </h1>
+            <p className="mt-4 text-[0.9375rem] leading-[1.6] text-ink-muted">
+              No Policy Place account is linked to{' '}
+              <span className="font-mono text-ink">{email}</span> yet. If you&apos;ve already
+              requested access, Brook or Wes is reviewing. As soon as it&apos;s approved, you can
+              sign in instantly with this email.
+            </p>
+            <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
+              <ButtonLink
+                href="/signup"
+                size="lg"
+                trailingIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+              >
+                Request access
+              </ButtonLink>
+              <ButtonLink
+                href="mailto:brook@yourpolicyplace.com"
+                external
+                variant="secondary"
+                size="lg"
+                leadingIcon={<Mail className="h-4 w-4" aria-hidden="true" />}
+              >
+                Email Brook
+              </ButtonLink>
+            </div>
+            <p className="mt-5 flex items-center gap-2 text-[0.875rem] text-ink-muted">
+              <Phone className="h-3.5 w-3.5 text-ink-faint" aria-hidden="true" />
+              Or call{' '}
+              <a
+                className="font-medium text-brand-deep underline-offset-4 hover:underline"
+                href="tel:+12704102015"
+              >
+                (270) 410-2015
+              </a>
+            </p>
+          </Card>
         </div>
       </main>
     </div>
@@ -217,13 +249,22 @@ function NoClientFound({ email }: { email: string }) {
 
 function NoActivePolicies() {
   return (
-    <div className="border border-warning/30 bg-warning-soft/50 px-6 py-5">
-      <p className="caps text-[0.62rem] font-semibold text-warning">No active policies</p>
-      <p className="mt-2 text-sm leading-relaxed text-ink">
-        We don't see any in-force policies for your account right now. Please reach out to Brook to
-        confirm your coverage status before requesting a certificate.
-      </p>
-    </div>
+    <EmptyState
+      tone="seal"
+      icon={<AlertTriangle className="h-6 w-6" aria-hidden="true" />}
+      eyebrow="No active policies"
+      title="We don't see any in-force policies on your account."
+      description="Reach out to Brook to confirm your coverage status — once your policy is on file, certificates can be requested here in seconds."
+      actions={
+        <ButtonLink
+          href="mailto:brook@yourpolicyplace.com"
+          external
+          leadingIcon={<Mail className="h-4 w-4" aria-hidden="true" />}
+        >
+          Email Brook
+        </ButtonLink>
+      }
+    />
   );
 }
 
@@ -242,7 +283,7 @@ type RenewalAlert = {
   policyId: string;
   label: string;
   expDate: string;
-  daysOut: number; // negative if expired
+  daysOut: number;
 };
 
 function computeRenewalAlerts(policies: PolicyRow[], today: Date): RenewalAlert[] {
@@ -275,29 +316,16 @@ function RenewalBanner({ alerts }: { alerts: RenewalAlert[] }) {
   const hasExpired = expired.length > 0;
 
   return (
-    <div
-      className={
-        hasExpired
-          ? 'mb-10 border border-danger/40 bg-danger-soft/40 px-5 py-4 sm:px-6 sm:py-5'
-          : 'mb-10 border border-warning/40 bg-warning-soft/40 px-5 py-4 sm:px-6 sm:py-5'
-      }
+    <Banner
+      tone={hasExpired ? 'danger' : 'warning'}
+      title={hasExpired ? 'Action needed — coverage expired' : 'Renewal coming up'}
     >
-      <p
-        className={
-          hasExpired
-            ? 'caps text-[0.62rem] font-semibold text-danger'
-            : 'caps text-[0.62rem] font-semibold text-warning'
-        }
-      >
-        {hasExpired ? 'Action needed — coverage expired' : 'Renewal coming up'}
-      </p>
-
-      <ul className="mt-2 space-y-1 text-sm leading-relaxed text-ink">
+      <ul className="space-y-1 text-[0.875rem] leading-[1.5] text-ink">
         {expired.map((a) => (
           <li key={a.policyId}>
             Your <span className="font-semibold">{a.label}</span> policy expired{' '}
-            <span className="font-semibold">{formatExpDate(a.expDate)}</span>. It can't appear on
-            new certificates until it's renewed.
+            <span className="font-semibold">{formatExpDate(a.expDate)}</span>. It can&apos;t appear
+            on new certificates until it&apos;s renewed.
           </li>
         ))}
         {soon.map((a) => (
@@ -313,24 +341,23 @@ function RenewalBanner({ alerts }: { alerts: RenewalAlert[] }) {
           </li>
         ))}
       </ul>
-
-      <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+      <p className="mt-3 text-[0.8125rem] leading-[1.5] text-ink-muted">
         Reach out to Brook to start the renewal —{' '}
         <a
-          className="font-medium text-brand underline-offset-4 hover:underline"
+          className="font-medium text-brand-deep underline-offset-4 hover:underline"
           href="mailto:brook@yourpolicyplace.com"
         >
           brook@yourpolicyplace.com
         </a>{' '}
         or{' '}
         <a
-          className="font-medium text-brand underline-offset-4 hover:underline"
+          className="font-medium text-brand-deep underline-offset-4 hover:underline"
           href="tel:+12704102015"
         >
           (270) 410-2015
         </a>
         .
       </p>
-    </div>
+    </Banner>
   );
 }

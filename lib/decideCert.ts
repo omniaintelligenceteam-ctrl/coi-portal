@@ -19,6 +19,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendApprovedCert } from './sendApprovedCert';
 import { sendRejectionEmail } from './email';
 import type { CertStatus } from '@/app/components/StatusPill';
+import type { CertOverrides } from './types';
+import { hasOverrides } from './certOverridesSchema';
 
 export type HolderEdit = { name: string; address1: string; address2: string };
 
@@ -31,7 +33,14 @@ export type OverrideInput = {
 
 export type DecisionInput =
   | { decision: 'approve'; requestId: string; override?: OverrideInput }
-  | { decision: 'edit'; requestId: string; holder: HolderEdit; override?: OverrideInput }
+  | {
+      decision: 'edit';
+      requestId: string;
+      holder: HolderEdit;
+      /** Cert-level edits beyond the holder block (insured, producer, coverages, etc.). */
+      certOverrides?: CertOverrides;
+      override?: OverrideInput;
+    }
   | { decision: 'reject'; requestId: string; decisionNote?: string }
   | { decision: 'retry'; requestId: string };
 
@@ -134,17 +143,34 @@ export async function decideCertRequest(
     return { ok: true, status: 'rejected' };
   }
 
-  // ── edit: mutate holder fields, compute diff, flip to 'edited' ────────────
+  // ── edit: mutate holder fields + cert_overrides, compute diff, flip to 'edited' ──
   if (input.decision === 'edit') {
     const { data: existing, error: readErr } = await admin
       .from('cert_requests')
-      .select('holder_name, holder_address1, holder_address2')
+      .select('holder_name, holder_address1, holder_address2, cert_overrides')
       .eq('id', input.requestId)
-      .maybeSingle();
+      .maybeSingle<{
+        holder_name: string | null;
+        holder_address1: string | null;
+        holder_address2: string | null;
+        cert_overrides: CertOverrides | null;
+      }>();
     if (readErr) return { ok: false, code: 'db_error', error: readErr.message };
     if (!existing) return { ok: false, code: 'not_found', error: 'request not found' };
 
-    const diff = computeHolderDiff(existing, input.holder);
+    const diff = computeEditDiff({
+      beforeHolder: {
+        holder_name: existing.holder_name,
+        holder_address1: existing.holder_address1,
+        holder_address2: existing.holder_address2,
+      },
+      afterHolder: input.holder,
+      beforeOverrides: existing.cert_overrides ?? {},
+      afterOverrides: input.certOverrides ?? {},
+    });
+    // Only persist a non-empty overrides object — keeps the column tidy and
+    // skips an unnecessary re-render path inside sendApprovedCert.
+    const overridesToPersist = hasOverrides(input.certOverrides) ? input.certOverrides : {};
     const { data: guarded, error: updateErr } = await admin
       .from('cert_requests')
       .update({
@@ -152,6 +178,7 @@ export async function decideCertRequest(
         holder_name: input.holder.name,
         holder_address1: input.holder.address1,
         holder_address2: input.holder.address2 || null,
+        cert_overrides: overridesToPersist,
         edited_diff: diff,
         decided_by_email: decidedBy,
         decided_at: now,
@@ -216,23 +243,50 @@ async function runSend(admin: SupabaseClient, requestId: string): Promise<Decisi
   }
 }
 
-function computeHolderDiff(
-  before: {
+type EditDiff = {
+  holder?: Record<string, { from: string | null; to: string }>;
+  certOverrides?: { before: CertOverrides; after: CertOverrides };
+};
+
+function computeEditDiff(args: {
+  beforeHolder: {
     holder_name: string | null;
     holder_address1: string | null;
     holder_address2: string | null;
-  },
-  after: { name: string; address1: string; address2: string },
-): Record<string, { from: string | null; to: string }> {
-  const diff: Record<string, { from: string | null; to: string }> = {};
-  if (before.holder_name !== after.name) {
-    diff.name = { from: before.holder_name, to: after.name };
+  };
+  afterHolder: { name: string; address1: string; address2: string };
+  beforeOverrides: CertOverrides;
+  afterOverrides: CertOverrides;
+}): EditDiff {
+  const diff: EditDiff = {};
+  const holderDiff: Record<string, { from: string | null; to: string }> = {};
+  if (args.beforeHolder.holder_name !== args.afterHolder.name) {
+    holderDiff.name = { from: args.beforeHolder.holder_name, to: args.afterHolder.name };
   }
-  if (before.holder_address1 !== after.address1) {
-    diff.address1 = { from: before.holder_address1, to: after.address1 };
+  if (args.beforeHolder.holder_address1 !== args.afterHolder.address1) {
+    holderDiff.address1 = {
+      from: args.beforeHolder.holder_address1,
+      to: args.afterHolder.address1,
+    };
   }
-  if ((before.holder_address2 ?? '') !== after.address2) {
-    diff.address2 = { from: before.holder_address2, to: after.address2 };
+  if ((args.beforeHolder.holder_address2 ?? '') !== args.afterHolder.address2) {
+    holderDiff.address2 = {
+      from: args.beforeHolder.holder_address2,
+      to: args.afterHolder.address2,
+    };
+  }
+  if (Object.keys(holderDiff).length > 0) diff.holder = holderDiff;
+
+  // Cert-level overrides snapshot — keep both sides so the audit row shows
+  // exactly what Brook started from and what she ended at, even for fields
+  // that were already overridden once.
+  const beforeJson = JSON.stringify(args.beforeOverrides ?? {});
+  const afterJson = JSON.stringify(args.afterOverrides ?? {});
+  if (beforeJson !== afterJson) {
+    diff.certOverrides = {
+      before: args.beforeOverrides ?? {},
+      after: args.afterOverrides ?? {},
+    };
   }
   return diff;
 }

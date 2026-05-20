@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { FieldShake } from '../components/motion';
 import { Logo } from '../components/Logo';
 import { Hairline } from '../components/Hairline';
+import { Banner, Button, Card } from '../components/ui';
 
 export default function SignupPage() {
   const [form, setForm] = useState({
@@ -17,8 +19,6 @@ export default function SignupPage() {
   });
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  // Bump on every server-side error so the email input shakes — even if
-  // the same error returns twice (Tier 1 #3).
   const [errorTick, setErrorTick] = useState(0);
   useEffect(() => {
     if (status === 'error') setErrorTick((t) => t + 1);
@@ -47,18 +47,18 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col">
-      <div className="mx-auto w-full max-w-5xl px-6 pt-10 sm:px-10">
+    <div className="relative flex min-h-[100dvh] flex-col">
+      <div className="mx-auto w-full max-w-5xl px-6 pt-safe sm:px-10">
         <Link
           href="/"
           aria-label="The Policy Place — home"
-          className="focus-ring -m-1 inline-flex rounded p-1"
+          className="focus-ring -m-1 mt-6 inline-flex rounded p-1 sm:mt-8"
         >
           <Logo tone="dark" />
         </Link>
       </div>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-5 pb-24 pt-10 sm:px-8 sm:pt-12 lg:px-12 lg:pt-16">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-6 pb-16 pt-8 sm:px-10 sm:pt-12 lg:pt-16">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -84,16 +84,18 @@ export default function SignupPage() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <p className="caps text-[0.65rem] font-semibold text-seal-deep">Request access</p>
-                <h1 className="font-display mt-3 text-[2.1rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[3.25rem]">
-                  Get on the <em className="not-italic text-brand">Policy Place</em>.
+                <p className="caps text-[0.65rem] font-semibold tracking-[0.22em] text-seal-deep">
+                  Request access
+                </p>
+                <h1 className="font-display mt-3 text-[1.875rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[2.75rem]">
+                  Get on the <em className="not-italic text-brand-deep">Policy Place</em>.
                 </h1>
-                <p className="mt-4 max-w-md text-[0.95rem] leading-relaxed text-ink-muted">
+                <p className="mt-4 max-w-md text-[0.9375rem] leading-[1.6] text-ink-muted">
                   Tell us who you are. Brook or Wes will review and have you set up — usually
                   within one business day.
                 </p>
 
-                <form onSubmit={handleSubmit} className="mt-10 space-y-6">
+                <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
                   <FieldShake errorKey={errorTick}>
                     <Field
                       id="email"
@@ -134,7 +136,10 @@ export default function SignupPage() {
                   />
 
                   <div>
-                    <label htmlFor="message" className="caps block text-[0.62rem] font-semibold text-ink-muted">
+                    <label
+                      htmlFor="message"
+                      className="caps block text-[0.62rem] font-semibold tracking-[0.18em] text-ink-muted"
+                    >
                       Anything we should know? (optional)
                     </label>
                     <textarea
@@ -147,22 +152,28 @@ export default function SignupPage() {
                     />
                   </div>
 
-                  {status === 'error' && (
-                    <p className="text-sm leading-relaxed text-danger">{errorMsg}</p>
-                  )}
+                  {status === 'error' && <Banner tone="danger">{errorMsg}</Banner>}
 
-                  <div>
-                    <button
+                  <div className="mt-2">
+                    <Button
                       type="submit"
-                      disabled={status === 'sending'}
-                      className="focus-ring group inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-6 py-3.5 text-sm font-semibold text-white transition-all hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-60"
+                      size="lg"
+                      fullWidth
+                      loading={status === 'sending'}
+                      trailingIcon={
+                        status !== 'sending' ? (
+                          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                        ) : null
+                      }
                     >
-                      <span>{status === 'sending' ? 'Sending…' : 'Request access'}</span>
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                    </button>
-                    <p className="caps mt-4 text-[0.6rem] font-medium text-ink-faint">
+                      {status === 'sending' ? 'Sending…' : 'Request access'}
+                    </Button>
+                    <p className="caps mt-4 text-[0.62rem] font-medium tracking-[0.18em] text-ink-faint">
                       Already approved?{' '}
-                      <Link href="/login" className="text-brand underline-offset-4 hover:underline">
+                      <Link
+                        href="/login"
+                        className="text-brand-deep underline-offset-4 hover:underline"
+                      >
                         Sign in →
                       </Link>
                     </p>
@@ -174,22 +185,22 @@ export default function SignupPage() {
         </motion.div>
       </main>
 
-      <footer className="mx-auto w-full max-w-5xl px-6 pb-10 sm:px-10">
+      <footer className="mx-auto w-full max-w-5xl px-6 pb-8 pb-safe sm:px-10">
         <Hairline />
-        <div className="mt-5 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="caps text-[0.65rem] font-medium text-ink-faint">
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="caps text-[0.65rem] font-medium tracking-[0.18em] text-ink-faint">
             The Policy Place · 908 Poplar St · Benton KY 42025
           </p>
-          <p className="caps text-[0.65rem] font-medium text-ink-faint">
-            <a href="tel:+12704102015" className="hover:text-ink">
+          <p className="caps flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-faint">
+            <a href="tel:+12704102015" className="text-ink-muted hover:text-ink">
               (270) 410-2015
             </a>
-            <span className="mx-2 text-ink-faint/60">·</span>
+            <span aria-hidden="true" className="text-ink-faint/60">·</span>
             <a
               href="https://www.yourpolicyplace.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-ink"
+              className="text-ink-muted hover:text-ink"
             >
               yourpolicyplace.com
             </a>
@@ -221,7 +232,10 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="caps block text-[0.62rem] font-semibold text-ink-muted">
+      <label
+        htmlFor={id}
+        className="caps block text-[0.62rem] font-semibold tracking-[0.18em] text-ink-muted"
+      >
         {label}
       </label>
       <input
@@ -240,41 +254,38 @@ function Field({
 
 function SentState({ email }: { email: string }) {
   return (
-    <div>
-      <div className="inline-flex items-center gap-2 rounded-full border border-seal/30 bg-seal-soft px-3 py-1">
-        <span className="h-1.5 w-1.5 rounded-full bg-seal" aria-hidden="true" />
-        <span className="caps text-[0.62rem] font-semibold text-seal-deep">Request received</span>
+    <Card padding="lg" raised tone="seal">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-seal/35 bg-card">
+        <CheckCircle2 className="h-6 w-6 text-seal-deep" aria-hidden="true" />
       </div>
-      <h2 className="font-display mt-5 text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink">
-        Thanks — we'll be in touch.
+      <p className="caps text-[0.62rem] font-semibold tracking-[0.22em] text-seal-deep">
+        Request received
+      </p>
+      <h2 className="font-display mt-3 text-[2rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[2.5rem]">
+        Thanks — we&apos;ll be in touch.
       </h2>
-      <p className="mt-5 text-[0.95rem] leading-relaxed text-ink-muted">
+      <p className="mt-4 text-[0.9375rem] leading-[1.6] text-ink-muted">
         Brook or Wes will review your request and reach out at{' '}
         <span className="font-mono text-ink">{email}</span>, usually within one business day.
       </p>
-      <p className="mt-3 text-[0.95rem] leading-relaxed text-ink-muted">
+      <p className="mt-3 text-[0.9375rem] leading-[1.6] text-ink-muted">
         Need it sooner?{' '}
-        <a className="font-medium text-brand underline-offset-4 hover:underline" href="tel:+12704102015">
+        <a
+          className="font-medium text-brand-deep underline-offset-4 hover:underline"
+          href="tel:+12704102015"
+        >
           (270) 410-2015
         </a>
         .
       </p>
-      <div className="mt-10">
+      <div className="mt-8">
         <Link
           href="/"
-          className="focus-ring caps text-[0.62rem] font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline"
+          className="focus-ring caps text-[0.62rem] font-semibold tracking-[0.18em] text-ink-muted underline-offset-4 hover:text-ink hover:underline"
         >
           ← Back home
         </Link>
       </div>
-    </div>
-  );
-}
-
-function ArrowRight({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-    </svg>
+    </Card>
   );
 }

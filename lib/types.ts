@@ -69,6 +69,9 @@ export type CoverageBase = {
   expDate: string;          // MM/DD/YYYY
   addlInsuredBlanket?: boolean;
   subrogationWaived?: boolean;
+  /** Source policy_id — internal-only; used by applyCertOverrides to match
+   *  per-coverage overrides. Not rendered by fillAcord25. */
+  policyId?: string;
 };
 
 export type GLCoverage = CoverageBase & {
@@ -129,4 +132,56 @@ export type CoiInput = {
   revisionNumber?: string;
   signaturePngPath: string;    // path to signature image
   templatePngPath: string;     // path to ACORD 25 rasterized template
+  /** True when this render should be stamped with a VOIDED watermark. */
+  voided?: boolean;
+};
+
+// =============================================================================
+// CertOverrides — Brook-edited cert field snapshots, persisted on cert_requests.
+// =============================================================================
+// Stored as jsonb on cert_requests.cert_overrides. Merged over the DB-derived
+// CoiInput by applyCertOverrides() in coiInputBuilder.ts.
+//
+// Critical invariants:
+//   - certDate is NEVER overridable. Stamped fresh on every render.
+//   - certNumber, signaturePngPath, templatePngPath are NEVER overridable.
+//   - holder lives on the cert_requests row (holder_name/holder_address1/
+//     holder_address2), not in cert_overrides. Existing edit path stays put.
+//   - Insurer overrides are keyed by NAIC so they match whichever letter the
+//     letterMap() assigns at render time.
+//   - Coverage overrides are keyed by policy_id so they survive insurer-letter
+//     re-shuffling.
+// =============================================================================
+
+export type AgencyOverride = Partial<Agency>;
+export type InsuredOverride = Partial<Insured>;
+
+export type InsurerOverride = {
+  /** Override the insurer's printed name. */
+  name?: string;
+  /** Override the printed NAIC code. */
+  naic?: string;
+};
+
+export type CoverageOverride = {
+  policyNumber?: string;
+  effDate?: string;            // MM/DD/YYYY
+  expDate?: string;            // MM/DD/YYYY
+  /** Type-specific limits. Shape mirrors the matching *Limits type. */
+  limits?: Record<string, number | undefined>;
+  addlInsuredBlanket?: boolean;
+  subrogationWaived?: boolean;
+  /** EQUIPMENT / OTHER per-coverage description override. */
+  description?: string;
+};
+
+export type CertOverrides = {
+  agency?: AgencyOverride;
+  insured?: InsuredOverride;
+  /** Free-form DESCRIPTION OF OPERATIONS text override. */
+  description?: string;
+  /** Keyed by current NAIC code. */
+  insurers?: Record<string, InsurerOverride>;
+  /** Keyed by policy_id (uuid). */
+  coverages?: Record<string, CoverageOverride>;
 };

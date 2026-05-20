@@ -76,6 +76,18 @@ Golden crops are ~5KB each × 68 fields ≈ 340KB committed. Run `npm run crop-d
 
 `row` is the escape hatch for the body of coverage rows (INSR LTR, POLICY NUMBER, EFF/EXP dates). `inside` is the escape hatch for fields with no nearby text label at all.
 
+## Checkbox geometry: not all "left of label" checkboxes share dimensions
+
+ACORD 25 has two distinct checkbox geometries that both anchor `side: 'left'` of a text label but require **different** dx/dy offsets:
+
+1. **Small inner-box checkboxes** — a small drawn square sits immediately left of the label (e.g. GL_CHK_TYPE next to "COMMERCIAL GENERAL LIABILITY", GL_CHK_OCCUR next to "OCCUR", GL_CHK_AGG_POLICY next to "POLICY"). The cell IS the small box. `dx ≈ -12, dy = 0` centers in this geometry (verified 2026-05-20 at 400dpi).
+
+2. **Wide+tall empty-cell checkboxes** — no small inner box drawn; the entire wider table cell IS the checkbox region, often spanning the height of a multi-line label (e.g. WC_CHK_PER_STATUTE next to two-line "PER / STATUTE"). `dx ≈ -18, dy ≈ -4` centers in this geometry.
+
+**Failure mode this prevents:** Bumping all checkbox dx values by the same amount (e.g. all -9 → -12) centered the three small-box GL checks but pushed WC_CHK_PER_STATUTE outside its cell entirely. Round 3 of PP-20260519-0002 burned three iterations diagnosing this.
+
+**Rule:** When adjusting any checkbox dx, render at ≥400dpi and inspect EACH checkbox individually against the raw template (`out/template-hires.png` or `out/template-only.png`). Don't assume `side: 'left'` checkboxes share a single tuning curve. If a checkbox is near multi-line label text, expect both dx AND dy to need adjustment.
+
 ## Duplicate anchor disambiguation
 
 Some label texts appear multiple times on the page:

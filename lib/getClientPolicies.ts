@@ -1,13 +1,18 @@
 /**
- * E&O-critical expiry gate.
+ * E&O-critical expiry + lifecycle gate.
  *
  * Filters a list of policies to only those still in force today. Called on the
  * server BOTH before rendering the form AND in the generate-coi endpoint before
- * producing the PDF. Never trust client-side filtering — an expired policy must
- * never reach the cert.
+ * producing the PDF. Never trust client-side filtering — an expired or
+ * cancelled policy must never reach the cert.
  *
- * Eligibility: active = true AND exp_date >= today (inclusive — same-day expiry
- * is still valid for the cert).
+ * Eligibility: active = true AND status = 'active' AND exp_date >= today
+ * (inclusive — same-day expiry is still valid for the cert).
+ *
+ * `active` and `status` are independent:
+ *   - active (boolean): admin soft-delete (hide from everywhere)
+ *   - status ('active' | 'cancelled' | 'expired'): public coverage lifecycle
+ * A policy must pass BOTH gates to appear on a cert.
  */
 
 export type DbPolicy = {
@@ -16,6 +21,7 @@ export type DbPolicy = {
   eff_date: string; // 'YYYY-MM-DD' from Postgres date type
   exp_date: string;
   active: boolean;
+  status?: 'active' | 'cancelled' | 'expired';
 };
 
 /**
@@ -33,8 +39,13 @@ function toIsoDate(today: Date): string {
 
 /**
  * Returns only policies that are eligible to appear on a cert generated TODAY.
+ *
+ * A policy without a `status` field is treated as `active` (backward compat
+ * for any code path that hasn't selected the new column yet).
  */
 export function selectableCoverages<T extends DbPolicy>(policies: T[], today: Date): T[] {
   const todayIso = toIsoDate(today);
-  return policies.filter((p) => p.active && p.exp_date >= todayIso);
+  return policies.filter(
+    (p) => p.active && (p.status ?? 'active') === 'active' && p.exp_date >= todayIso,
+  );
 }

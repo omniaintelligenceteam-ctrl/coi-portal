@@ -1,38 +1,36 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { ArrowRight, ChevronLeft, FileText, RotateCcw, XCircle } from 'lucide-react';
 import { Header } from '@/app/components/Header';
 import { Hairline } from '@/app/components/Hairline';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { CountUp } from '@/app/components/motion';
+import { Banner, ButtonLink, EmptyState, PageHeader } from '@/app/components/ui';
 import { createClient } from '@/lib/supabase/server';
 import { DeleteCertButton } from './DeleteCertButton';
 
-// Client can retract their own request only while it's still in flight or
-// declined. Sent/approved/edited are records-of-action — admin owns those.
 const CLIENT_DELETABLE: ReadonlySet<CertStatus> = new Set<CertStatus>([
   'pending',
   'reviewed',
   'rejected',
 ]);
 
-// Stagger first N rows on initial paint. Beyond this they snap in to keep
-// large lists feeling fast. 50ms gap is just barely perceptible — enough
-// for the eye to scan, never enough to feel slow.
 const STAGGER_CAP = 8;
 const STAGGER_MS = 50;
 const rowReveal = (i: number) => ({
   className: 'row-reveal',
-  style: { animationDelay: `${Math.min(i, STAGGER_CAP - 1) * STAGGER_MS}ms` } as React.CSSProperties,
+  style: {
+    animationDelay: `${Math.min(i, STAGGER_CAP - 1) * STAGGER_MS}ms`,
+  } as React.CSSProperties,
 });
 
 export const dynamic = 'force-dynamic';
 
-// Flash codes mirror deleteOwnCertRequest redirects in ./actions.
 const FLASH_MESSAGES: Record<string, { tone: 'ok' | 'error'; text: string }> = {
   not_found: { tone: 'error', text: "Couldn't find that request." },
   not_deletable: {
     tone: 'error',
-    text: "That certificate has already been sent or approved — only Brook can remove it.",
+    text: 'That certificate has already been sent or approved — only Brook can remove it.',
   },
   delete_failed: { tone: 'error', text: "Couldn't delete the request — try again." },
 };
@@ -46,6 +44,7 @@ type Row = {
   status: CertStatus;
   requested_at: string;
   sent_at: string | null;
+  is_master: boolean;
 };
 
 function formatDateTime(iso: string): string {
@@ -84,258 +83,239 @@ export default async function CertificatesPage({
   } = await supabase.auth.getUser();
   if (!user?.email) redirect('/login');
 
-  // RLS restricts cert_requests to the authenticated client's own rows.
   const { data: rows, error: fetchError } = await supabase
     .from('cert_requests')
-    .select('id, cert_number, holder_name, holder_address1, holder_address2, status, requested_at, sent_at')
+    .select(
+      'id, cert_number, holder_name, holder_address1, holder_address2, status, requested_at, sent_at, is_master',
+    )
     .order('requested_at', { ascending: false })
     .returns<Row[]>();
 
   const list = rows ?? [];
-  // Distinguish "no certs yet" from "fetch broke" — the empty state lies if
-  // there's a real DB/RLS error and rows came back null.
   const hasFetchError = Boolean(fetchError);
 
   return (
     <>
       <Header email={user.email} />
-      <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
+      <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-8 sm:px-10 sm:pt-12 lg:px-16 lg:pt-14 xl:px-24">
         <Link
           href="/"
-          className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
+          className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
         >
-          <ChevronLeft className="h-3 w-3" />
+          <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
           New request
         </Link>
 
         {flash && (
-          <div
-            className={
-              flash.tone === 'ok'
-                ? 'mt-6 border border-seal/40 bg-seal-soft/50 px-5 py-3 text-sm text-seal-deep'
-                : 'mt-6 border border-danger/40 bg-danger-soft/50 px-5 py-3 text-sm text-danger'
-            }
-          >
-            {flash.text}
+          <div className="mt-5">
+            <Banner tone={flash.tone === 'ok' ? 'seal' : 'danger'}>{flash.text}</Banner>
           </div>
         )}
 
-        <header className="mt-6 mb-10">
-          <p className="caps text-[0.65rem] font-semibold text-seal-deep">My certificates</p>
-          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-6">
-            <h1 className="font-display text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[3rem]">
-              Every certificate, all in one place.
-            </h1>
-            <span className="font-mono text-sm text-ink-muted">
-              {list.length === 0 ? '0 on file' : <><CountUp value={list.length} /> on file</>}
-            </span>
-          </div>
-        </header>
+        <div className="mt-6">
+          <PageHeader
+            eyebrow={
+              <>
+                <span className="h-1 w-1 rounded-full bg-seal" aria-hidden="true" />
+                My certificates
+              </>
+            }
+            title="Every certificate, all in one place."
+            subtitle="Status, preview, and download — sorted newest first."
+            meta={
+              <span className="num-tabular inline-flex items-center gap-2 font-mono text-[0.875rem] text-ink-muted">
+                {list.length === 0 ? '0' : <CountUp value={list.length} />} on file
+              </span>
+            }
+          />
+        </div>
 
-        {hasFetchError && list.length === 0 ? (
-          <FetchErrorState />
-        ) : list.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <>
-            {/* Mobile card stack — under sm */}
-            <ul className="space-y-3 sm:hidden">
-              {list.map((r, i) => (
-                <li key={r.id} className={`mobile-card ${rowReveal(i).className}`} style={rowReveal(i).style}>
-                  <div className="flex items-start justify-between gap-3">
-                    <Link
-                      href={`/result/${r.cert_number}`}
-                      className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.85rem] font-semibold text-ink"
-                    >
-                      {r.cert_number}
-                    </Link>
-                    <StatusPill status={r.status} />
-                  </div>
-                  <p className="mt-2 text-[0.95rem] font-medium text-ink">{r.holder_name}</p>
-                  <dl className="mt-3">
-                    <div className="mobile-card-row">
-                      <dt>Requested</dt>
-                      <dd className="font-mono text-[0.78rem] text-ink-muted">
-                        {formatDateTime(r.requested_at)}
-                      </dd>
-                    </div>
-                    <div className="mobile-card-row">
-                      <dt>Sent</dt>
-                      <dd className="font-mono text-[0.78rem] text-ink-faint">
-                        {r.sent_at ? formatDateTime(r.sent_at) : '—'}
-                      </dd>
-                    </div>
-                  </dl>
-                  <div className="mt-4 flex flex-col gap-2">
-                    {r.status === 'sent' && (
-                      <Link
-                        href={`/?reissue=${encodeURIComponent(r.cert_number)}`}
-                        aria-label={`Reissue certificate ${r.cert_number}`}
-                        className="focus-ring caps tap-target inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-seal/40 bg-seal-soft px-4 py-3 text-[0.7rem] font-semibold text-seal-deep transition-colors hover:border-seal hover:bg-seal/15"
-                      >
-                        <ReissueIcon className="h-3.5 w-3.5" />
-                        Reissue
-                      </Link>
-                    )}
-                    <Link
-                      href={`/result/${r.cert_number}`}
-                      className="focus-ring tap-target inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
-                    >
-                      Open certificate
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                    {CLIENT_DELETABLE.has(r.status) && (
-                      <DeleteCertButton
-                        requestId={r.id}
-                        certNumber={r.cert_number}
-                        size="md"
-                      />
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            {/* Desktop table — sm and up */}
-            <div className="hidden border-y border-hairline sm:block">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-hairline">
-                    <Th>Certificate</Th>
-                    <Th>Holder</Th>
-                    <Th>Status</Th>
-                    <Th align="right">Requested</Th>
-                    <Th align="right">Sent</Th>
-                    <Th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.map((r, i) => (
-                    <tr
-                      key={r.id}
-                      className={`group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/50 ${rowReveal(i).className}`}
-                      style={rowReveal(i).style}
-                    >
-                      <Td>
+        <div className="mt-8 sm:mt-10">
+          {hasFetchError && list.length === 0 ? (
+            <EmptyState
+              tone="default"
+              icon={<XCircle className="h-6 w-6 text-danger" aria-hidden="true" />}
+              eyebrow="Couldn't load"
+              title="Your certificates aren't loading right now."
+              description="This usually clears in a minute. Refresh the page, and if it still won't load, email brook@yourpolicyplace.com."
+              className="border-danger/30 bg-danger-soft/30"
+            />
+          ) : list.length === 0 ? (
+            <EmptyState
+              tone="seal"
+              icon={<FileText className="h-6 w-6" aria-hidden="true" />}
+              eyebrow={
+                <>
+                  <span className="h-1.5 w-1.5 rounded-full bg-seal" aria-hidden="true" />
+                  Nothing yet
+                </>
+              }
+              title="No certificates on file."
+              description="Once you submit a request, it'll show up here with its status, preview, and download link."
+              actions={
+                <ButtonLink
+                  href="/"
+                  trailingIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                >
+                  Request a certificate
+                </ButtonLink>
+              }
+            />
+          ) : (
+            <>
+              {/* Mobile card stack */}
+              <ul className="space-y-3 sm:hidden">
+                {list.map((r, i) => (
+                  <li
+                    key={r.id}
+                    className={`relative rounded-[var(--r-md)] border border-hairline bg-card p-4 shadow-card ${rowReveal(i).className}`}
+                    style={rowReveal(i).style}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
                         <Link
                           href={`/result/${r.cert_number}`}
-                          className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.78rem] font-medium text-ink"
+                          className="focus-ring num-tabular -m-1 inline-flex items-center gap-2 rounded p-1 font-mono text-[0.8rem] font-semibold text-ink"
                         >
                           {r.cert_number}
+                          {r.is_master && (
+                            <span className="caps inline-flex items-center rounded-[3px] border border-seal/30 bg-seal-soft px-1.5 py-0.5 text-[0.55rem] font-semibold tracking-[0.16em] text-seal-deep">
+                              Master
+                            </span>
+                          )}
                         </Link>
-                      </Td>
-                      <Td>
-                        <span className="text-[0.9rem] text-ink">{r.holder_name}</span>
-                      </Td>
-                      <Td>
-                        <StatusPill status={r.status} />
-                      </Td>
-                      <Td align="right">
-                        <span className="font-mono text-[0.75rem] text-ink-muted">
+                        <p className="font-display mt-1.5 truncate text-[1.05rem] font-medium leading-[1.2] text-ink">
+                          {r.holder_name}
+                        </p>
+                        <p className="num-tabular mt-1 font-mono text-[0.72rem] text-ink-faint">
                           {formatDateTime(r.requested_at)}
-                        </span>
-                      </Td>
-                      <Td align="right">
-                        <span className="font-mono text-[0.75rem] text-ink-faint">
-                          {r.sent_at ? formatDateTime(r.sent_at) : '—'}
-                        </span>
-                      </Td>
-                      <td className="py-4 pl-3 pr-2 text-right align-middle">
-                        <div className="flex items-center justify-end gap-3">
-                          {CLIENT_DELETABLE.has(r.status) && (
-                            <DeleteCertButton
-                              requestId={r.id}
-                              certNumber={r.cert_number}
-                            />
-                          )}
-                          {r.status === 'sent' && (
-                            <Link
-                              href={`/?reissue=${encodeURIComponent(r.cert_number)}`}
-                              aria-label={`Reissue certificate ${r.cert_number}`}
-                              className="focus-ring caps inline-flex items-center gap-1.5 rounded-md border border-seal/40 bg-seal-soft px-2.5 py-1.5 text-[0.62rem] font-semibold text-seal-deep transition-colors hover:border-seal hover:bg-seal/15"
-                            >
-                              <ReissueIcon className="h-3 w-3" />
-                              Reissue
-                            </Link>
-                          )}
+                        </p>
+                      </div>
+                      <StatusPill status={r.status} />
+                    </div>
+
+                    <div className="mt-4 flex flex-col gap-2">
+                      {r.status === 'sent' && (
+                        <Link
+                          href={`/?reissue=${encodeURIComponent(r.cert_number)}`}
+                          aria-label={`Reissue certificate ${r.cert_number}`}
+                          className="focus-ring caps tap-target inline-flex w-full items-center justify-center gap-2 rounded-md border border-seal/40 bg-seal-soft px-4 py-3 text-[0.7rem] font-semibold tracking-[0.16em] text-seal-deep transition-colors hover:border-seal hover:bg-seal/15"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                          Reissue
+                        </Link>
+                      )}
+                      <ButtonLink
+                        href={`/result/${r.cert_number}`}
+                        size="md"
+                        fullWidth
+                        trailingIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                      >
+                        Open certificate
+                      </ButtonLink>
+                      {CLIENT_DELETABLE.has(r.status) && (
+                        <DeleteCertButton
+                          requestId={r.id}
+                          certNumber={r.cert_number}
+                          size="md"
+                        />
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Desktop table */}
+              <div className="hidden overflow-hidden rounded-[var(--r-md)] border border-hairline bg-card shadow-card sm:block">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-hairline bg-paper-deep/40">
+                      <Th>Certificate</Th>
+                      <Th>Holder</Th>
+                      <Th>Status</Th>
+                      <Th align="right">Requested</Th>
+                      <Th align="right">Sent</Th>
+                      <Th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {list.map((r, i) => (
+                      <tr
+                        key={r.id}
+                        className={`group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/40 ${rowReveal(i).className}`}
+                        style={rowReveal(i).style}
+                      >
+                        <Td>
                           <Link
                             href={`/result/${r.cert_number}`}
-                            className="focus-ring inline-flex items-center gap-1 rounded text-[0.78rem] font-semibold text-brand opacity-0 transition-opacity group-hover:opacity-100"
+                            className="focus-ring num-tabular -m-1 inline-flex items-center gap-2 rounded p-1 font-mono text-[0.78rem] font-medium text-ink"
                           >
-                            Open
-                            <ArrowRight className="h-3.5 w-3.5" />
+                            {r.cert_number}
+                            {r.is_master && (
+                              <span className="caps inline-flex items-center rounded-[3px] border border-seal/30 bg-seal-soft px-1.5 py-0.5 text-[0.55rem] font-semibold tracking-[0.16em] text-seal-deep">
+                                Master
+                              </span>
+                            )}
                           </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+                        </Td>
+                        <Td>
+                          <span className="text-[0.9375rem] text-ink">{r.holder_name}</span>
+                        </Td>
+                        <Td>
+                          <StatusPill status={r.status} />
+                        </Td>
+                        <Td align="right">
+                          <span className="num-tabular font-mono text-[0.75rem] text-ink-muted">
+                            {formatDateTime(r.requested_at)}
+                          </span>
+                        </Td>
+                        <Td align="right">
+                          <span className="num-tabular font-mono text-[0.75rem] text-ink-faint">
+                            {r.sent_at ? formatDateTime(r.sent_at) : '—'}
+                          </span>
+                        </Td>
+                        <td className="py-4 pl-3 pr-3 text-right align-middle">
+                          <div className="flex items-center justify-end gap-2.5">
+                            {CLIENT_DELETABLE.has(r.status) && (
+                              <DeleteCertButton
+                                requestId={r.id}
+                                certNumber={r.cert_number}
+                              />
+                            )}
+                            {r.status === 'sent' && (
+                              <Link
+                                href={`/?reissue=${encodeURIComponent(r.cert_number)}`}
+                                aria-label={`Reissue certificate ${r.cert_number}`}
+                                className="focus-ring caps inline-flex items-center gap-1.5 rounded-md border border-seal/40 bg-seal-soft px-2.5 py-1.5 text-[0.62rem] font-semibold tracking-[0.16em] text-seal-deep transition-colors hover:border-seal hover:bg-seal/15"
+                              >
+                                <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                                Reissue
+                              </Link>
+                            )}
+                            <Link
+                              href={`/result/${r.cert_number}`}
+                              className="focus-ring inline-flex items-center gap-1 rounded text-[0.78rem] font-semibold text-brand-deep opacity-0 transition-opacity group-hover:opacity-100"
+                            >
+                              Open
+                              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
 
         <Hairline className="mt-16" />
-        <p className="caps mt-5 text-[0.6rem] font-medium text-ink-faint">
+        <p className="caps mt-5 text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
           Sorted newest first · Click any row to view status, preview, or download
         </p>
       </main>
     </>
-  );
-}
-
-function FetchErrorState() {
-  return (
-    <div className="relative overflow-hidden border border-danger/30 bg-danger/5 px-8 py-16 text-center sm:py-20">
-      <div className="caps inline-flex items-center gap-2 rounded-full border border-danger/40 bg-white px-3 py-1 text-[0.62rem] font-semibold text-danger">
-        <span className="h-1.5 w-1.5 rounded-full bg-danger" />
-        Couldn't load
-      </div>
-      <h2 className="font-display mt-6 text-[2rem] font-medium leading-[1.1] tracking-display text-ink">
-        Your certificates aren't loading right now.
-      </h2>
-      <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-        This usually clears in a minute. Refresh the page, and if it still
-        won't load, email{' '}
-        <a
-          href="mailto:brook@thepolicyplace.com"
-          className="font-medium text-brand underline-offset-2 hover:underline"
-        >
-          brook@thepolicyplace.com
-        </a>
-        .
-      </p>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="relative overflow-hidden border border-hairline bg-card px-8 py-20 text-center sm:py-24">
-      <div
-        aria-hidden="true"
-        className="absolute -right-20 -top-20 h-72 w-72 rounded-full border-[6px] border-seal/15"
-      />
-      <div className="relative">
-        <div className="caps inline-flex items-center gap-2 rounded-full border border-seal/30 bg-seal-soft px-3 py-1 text-[0.62rem] font-semibold text-seal-deep">
-          <span className="h-1.5 w-1.5 rounded-full bg-seal" />
-          Nothing yet
-        </div>
-        <h2 className="font-display mt-6 text-[2.25rem] font-medium leading-[1.05] tracking-display text-ink">
-          No certificates on file.
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-          Once you submit a request, it'll show up here with its status, preview, and download.
-        </p>
-        <Link
-          href="/"
-          className="focus-ring mt-8 inline-flex items-center gap-2 rounded-md bg-brand px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-brand-deep"
-        >
-          Request a certificate
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
-    </div>
   );
 }
 
@@ -349,7 +329,7 @@ function Th({
   return (
     <th
       scope="col"
-      className={`caps px-3 py-3 text-[0.6rem] font-semibold text-ink-faint ${
+      className={`caps px-3 py-3 text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint ${
         align === 'right' ? 'text-right' : 'text-left'
       }`}
     >
@@ -369,54 +349,5 @@ function Td({
     <td className={`px-3 py-4 align-middle ${align === 'right' ? 'text-right' : 'text-left'}`}>
       {children}
     </td>
-  );
-}
-
-function ChevronLeft({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-    </svg>
-  );
-}
-
-function ArrowRight({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-    </svg>
-  );
-}
-
-function ReissueIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M4 4v6h6M20 20v-6h-6M20 9a8 8 0 00-14.93-2M4 15a8 8 0 0014.93 2"
-      />
-    </svg>
   );
 }

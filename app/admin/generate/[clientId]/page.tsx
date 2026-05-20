@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { selectableCoverages, type DbPolicy } from '@/lib/getClientPolicies';
 import { CoverageForm, type PolicyForForm, type SavedHolder } from '@/app/CoverageForm';
 import { Hairline } from '@/app/components/Hairline';
+import { Banner } from '@/app/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +61,7 @@ export default async function GenerateForClientPage({
     .from('policies')
     .select(
       `id, type, policy_number, eff_date, exp_date, active,
+       status, cancelled_at, cancelled_reason,
        addl_insured_blanket, subrogation_waived, description,
        insurer:insurers ( name, naic )`,
     )
@@ -91,85 +94,67 @@ export default async function GenerateForClientPage({
   }));
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-10 sm:px-10 sm:pt-12 lg:px-16 lg:pt-16 xl:px-24">
+    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-8 sm:px-10 sm:pt-12 lg:px-16 lg:pt-14 xl:px-24">
       <div className="mx-auto max-w-2xl">
-      <Link
-        href="/admin/generate"
-        className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
-      >
-        <ChevronLeft className="h-3 w-3" />
-        Back to clients
-      </Link>
-
-      <section className="relative mt-6 mb-10 overflow-hidden border border-hairline bg-card px-5 py-6 sm:mb-14 sm:px-8 sm:py-8">
-        <span
-          aria-hidden="true"
-          className="caps absolute right-3 top-3 hidden text-[0.5rem] font-semibold tracking-[0.35em] text-seal/60 sm:right-4 sm:top-4 sm:block"
+        <Link
+          href="/admin/generate"
+          className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
         >
-          · POLICY PLACE ·
-        </span>
-        <p className="caps text-[0.62rem] font-semibold text-seal-deep">Insured</p>
-        <h1 className="font-display mt-3 text-[2rem] font-medium leading-[1.05] tracking-display text-ink sm:mt-4 sm:text-[3rem]">
-          {client.business_name}
-        </h1>
-        {client.business_address1 && (
-          <p className="mt-3 font-mono text-[0.78rem] leading-relaxed text-ink-muted sm:mt-4 sm:text-sm">
-            <span className="block sm:inline">{client.business_address1}</span>
-            {client.business_address2 && (
-              <>
-                <span className="hidden text-ink-faint sm:inline">{'  ·  '}</span>
-                <span className="block sm:inline">{client.business_address2}</span>
-              </>
-            )}
-          </p>
-        )}
-        {client.contact_email && (
-          <p className="mt-2 font-mono text-[0.72rem] text-ink-faint">
-            {client.contact_email}
-          </p>
-        )}
-      </section>
+          <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+          Back to clients
+        </Link>
 
-      {policiesForForm.length === 0 ? (
-        <NoActivePolicies />
-      ) : (
-        <CoverageForm
-          clientId={client.id}
-          policies={policiesForForm}
-          savedHolders={savedHolders}
-          mode="admin"
-          onBehalfOf={client.business_name}
-        />
-      )}
+        <section className="relative mb-10 mt-6 overflow-hidden rounded-[var(--r-lg)] border border-hairline bg-card px-5 py-6 shadow-card sm:mb-12 sm:px-8 sm:py-8">
+          <span
+            aria-hidden="true"
+            className="caps absolute right-3 top-3 hidden text-[0.55rem] font-semibold tracking-[0.35em] text-seal/60 sm:right-4 sm:top-4 sm:block"
+          >
+            · POLICY PLACE ·
+          </span>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full border-[3px] border-seal/15 sm:-right-12 sm:-top-12 sm:h-40 sm:w-40"
+          />
+          <p className="caps relative text-[0.62rem] font-semibold tracking-[0.22em] text-seal-deep">
+            Insured
+          </p>
+          <h1 className="font-display relative mt-2 text-[1.75rem] font-medium leading-[1.05] tracking-display text-ink sm:mt-3 sm:text-[2.5rem]">
+            {client.business_name}
+          </h1>
+          {client.business_address1 && (
+            <p className="relative mt-3 font-mono text-[0.78rem] leading-[1.55] text-ink-muted">
+              <span className="block sm:inline">{client.business_address1}</span>
+              {client.business_address2 && (
+                <>
+                  <span className="hidden text-ink-faint sm:inline">{'  ·  '}</span>
+                  <span className="block sm:inline">{client.business_address2}</span>
+                </>
+              )}
+            </p>
+          )}
+          {client.contact_email && (
+            <p className="relative mt-2 font-mono text-[0.72rem] text-ink-faint">
+              {client.contact_email}
+            </p>
+          )}
+        </section>
 
-      <Hairline className="mt-16" />
+        {policiesForForm.length === 0 ? (
+          <Banner tone="warning" title="No active policies">
+            This client has no in-force policies on file. Import one before issuing a certificate.
+          </Banner>
+        ) : (
+          <CoverageForm
+            clientId={client.id}
+            policies={policiesForForm}
+            savedHolders={savedHolders}
+            mode="admin"
+            onBehalfOf={client.business_name}
+          />
+        )}
+
+        <Hairline className="mt-14" />
       </div>
     </main>
-  );
-}
-
-function NoActivePolicies() {
-  return (
-    <div className="border border-warning/30 bg-warning-soft/50 px-6 py-5">
-      <p className="caps text-[0.62rem] font-semibold text-warning">No active policies</p>
-      <p className="mt-2 text-sm leading-relaxed text-ink">
-        This client has no in-force policies on file. Import one before issuing a certificate.
-      </p>
-    </div>
-  );
-}
-
-function ChevronLeft({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-    </svg>
   );
 }

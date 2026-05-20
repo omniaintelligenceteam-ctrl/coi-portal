@@ -8,11 +8,17 @@ export const runtime = 'nodejs';
 
 const BodySchema = z.object({
   selectedPolicyIds: z.array(z.string().uuid()).min(1),
-  holder: z.object({
-    name: z.string().min(1).max(200),
-    address1: z.string().min(1).max(200),
-    address2: z.string().max(200).optional().default(''),
-  }),
+  // Holder is optional when isMaster=true — the server pre-fills it from the
+  // client's own business info. For normal certs it's required.
+  holder: z
+    .object({
+      name: z.string().min(1).max(200),
+      address1: z.string().min(1).max(200),
+      address2: z.string().max(200).optional().default(''),
+    })
+    .optional(),
+  /** Master certificate flag — holder = insured, server-enforced. */
+  isMaster: z.boolean().optional().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -46,14 +52,30 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient();
   const requestedIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
 
+  if (!body.isMaster && !body.holder) {
+    return NextResponse.json(
+      { error: 'holder is required for non-master certificates' },
+      { status: 400 },
+    );
+  }
+  // For master certs the server forces holder = insured inside issueCert. We
+  // still pass through any incoming holder so validateHolderInput has a value
+  // to work with on the non-master path.
+  const holderInput = body.holder ?? {
+    name: client.business_name,
+    address1: client.business_address1 ?? '',
+    address2: client.business_address2 ?? '',
+  };
+
   const result = await issueCert({
     reader: supabase,
     admin,
     client,
     selectedPolicyIds: body.selectedPolicyIds,
-    holder: body.holder,
+    holder: holderInput,
     requestedByEmail: user.email,
     requestedIp,
+    isMaster: body.isMaster,
   });
 
   if (!result.ok) {

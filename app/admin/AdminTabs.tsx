@@ -2,41 +2,57 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Inbox, FilePlus, Users, UserPlus, Settings } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-type TabVariant = 'tab' | 'pill-outline' | 'pill-filled';
-
-const TABS: {
+/**
+ * Admin section tabs — refined top nav with icon + label, active state shown
+ * via gold seal underline. Hidden on mobile in favor of the Header drawer
+ * (see Header.tsx); on mobile this nav becomes a horizontal-scroll strip so
+ * the user always sees their current tab.
+ *
+ * Keep the route list in sync with the drawer in Header.tsx.
+ */
+type Tab = {
   label: string;
   href: string;
   match: (path: string) => boolean;
-  variant: TabVariant;
-}[] = [
+  icon: LucideIcon;
+};
+
+const TABS: Tab[] = [
   {
-    label: 'Admin',
+    label: 'Queue',
     href: '/admin/queue',
     match: (p) =>
       p.startsWith('/admin/queue') ||
       p.startsWith('/admin/import-policy') ||
       p.startsWith('/admin/export'),
-    variant: 'pill-outline',
+    icon: Inbox,
   },
   {
     label: 'Generate',
     href: '/admin/generate',
     match: (p) => p.startsWith('/admin/generate'),
-    variant: 'pill-filled',
+    icon: FilePlus,
+  },
+  {
+    label: 'Clients',
+    href: '/admin/clients',
+    match: (p) => p.startsWith('/admin/clients'),
+    icon: Users,
   },
   {
     label: 'Access',
     href: '/admin/access-requests',
     match: (p) => p.startsWith('/admin/access-requests'),
-    variant: 'pill-outline',
+    icon: UserPlus,
   },
   {
     label: 'Settings',
     href: '/admin/settings',
     match: (p) => p.startsWith('/admin/settings'),
-    variant: 'pill-outline',
+    icon: Settings,
   },
 ];
 
@@ -45,73 +61,38 @@ export function AdminTabs() {
   return (
     <nav
       aria-label="Admin sections"
-      className="border-b border-hairline bg-paper/70 backdrop-blur-sm"
+      className="sticky top-[3.5rem] z-20 border-b border-hairline bg-paper/85 backdrop-blur-md sm:top-[3.75rem]"
     >
-      <div className="mx-auto flex w-full max-w-5xl items-center gap-2 overflow-x-auto px-6 sm:px-10 lg:px-16 xl:px-24">
+      <div className="mx-auto flex w-full max-w-5xl items-center gap-0 overflow-x-auto px-4 sm:gap-1 sm:px-10 lg:px-16 xl:px-24">
         {TABS.map((t) => {
           const active = t.match(pathname);
-
-          if (t.variant === 'tab') {
-            return (
-              <Link
-                key={t.href}
-                href={t.href}
-                aria-current={active ? 'page' : undefined}
-                className={[
-                  'focus-ring caps tap-target relative -mb-px inline-flex shrink-0 items-center px-3 py-4 text-[0.7rem] font-semibold tracking-[0.18em] transition-colors sm:py-3 sm:text-[0.62rem]',
-                  active ? 'text-ink' : 'text-ink-faint hover:text-ink-muted',
-                ].join(' ')}
-              >
-                {t.label}
-                <span
-                  aria-hidden="true"
-                  className={[
-                    'pointer-events-none absolute inset-x-2 -bottom-px h-0.5 transition-colors',
-                    active ? 'bg-seal' : 'bg-transparent',
-                  ].join(' ')}
-                />
-              </Link>
-            );
-          }
-
-          if (t.variant === 'pill-outline') {
-            return (
-              <Link
-                key={t.href}
-                href={t.href}
-                aria-current={active ? 'page' : undefined}
-                className={[
-                  'focus-ring caps tap-target inline-flex shrink-0 items-center rounded-full border px-4 py-2 text-[0.7rem] font-semibold tracking-[0.18em] transition-colors sm:text-[0.62rem]',
-                  active
-                    ? 'border-brand bg-brand-soft text-brand-deep'
-                    : 'border-brand/40 bg-transparent text-brand-deep hover:border-brand hover:bg-brand-soft',
-                ].join(' ')}
-              >
-                {t.label}
-              </Link>
-            );
-          }
-
-          // pill-filled — primary CTA with soft glow halo (mirrors the sign-in nav's Signup button).
+          const Icon = t.icon;
           return (
-            <div key={t.href} className="relative group shrink-0">
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -m-2 hidden rounded-full bg-brand opacity-40 blur-lg transition-all duration-300 ease-out group-hover:-m-3 group-hover:opacity-60 group-hover:blur-xl sm:block"
-              />
-              <Link
-                href={t.href}
-                aria-current={active ? 'page' : undefined}
+            <Link
+              key={t.href}
+              href={t.href}
+              aria-current={active ? 'page' : undefined}
+              className={[
+                'focus-ring relative inline-flex shrink-0 items-center gap-2 px-3 py-3 text-[0.8125rem] font-medium transition-colors sm:px-3.5 sm:py-3',
+                active ? 'text-ink' : 'text-ink-muted hover:text-ink',
+              ].join(' ')}
+            >
+              <Icon
                 className={[
-                  'focus-ring caps tap-target relative z-10 inline-flex items-center rounded-full px-4 py-2 text-[0.7rem] font-semibold tracking-[0.18em] text-white transition-all duration-200 sm:text-[0.62rem]',
-                  active
-                    ? 'bg-linear-to-br from-brand-deep to-brand-near hover:from-brand-near hover:to-brand-deep'
-                    : 'bg-linear-to-br from-brand to-brand-deep hover:from-brand-deep hover:to-brand-near',
+                  'h-4 w-4 transition-colors',
+                  active ? 'text-seal-deep' : 'text-ink-faint',
                 ].join(' ')}
-              >
-                {t.label}
-              </Link>
-            </div>
+                aria-hidden="true"
+              />
+              <span>{t.label}</span>
+              <span
+                aria-hidden="true"
+                className={[
+                  'pointer-events-none absolute inset-x-2 -bottom-px h-[2px] transition-opacity duration-200',
+                  active ? 'bg-seal opacity-100' : 'opacity-0',
+                ].join(' ')}
+              />
+            </Link>
           );
         })}
       </div>

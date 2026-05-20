@@ -705,6 +705,77 @@ brook@yourpolicyplace.com · 270-410-2015
   });
 }
 
+// ─── Voided cert notification ────────────────────────────────────────────────
+
+export type VoidedCertEmailInput = {
+  to: string;
+  cc?: string[];
+  certNumber: string;
+  insuredBusinessName: string;
+  holderName: string;
+  reason: string;
+  voidedAtISO: string;
+};
+
+function formatVoidedDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function buildVoidedHtml(input: VoidedCertEmailInput): string {
+  const insured = escapeHtml(input.insuredBusinessName);
+  const holder = escapeHtml(input.holderName);
+  const certNum = escapeHtml(input.certNumber);
+  const reasonHtml = input.reason
+    ? `<p style="margin:18px 0;padding:14px 16px;border-left:3px solid #c97a4a;background:#fbf6f0;color:#1f2937;">${escapeHtml(input.reason)}</p>`
+    : '';
+  return `<!doctype html>
+<html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;color:#1f2937;">
+<p>Hi,</p>
+<p>Certificate of Insurance <strong>${certNum}</strong>, issued on behalf of
+${insured} to <strong>${holder}</strong>, has been
+<strong style="color:#9c1d1d;">voided as of ${escapeHtml(formatVoidedDate(input.voidedAtISO))}</strong>
+and is no longer in force.</p>
+${reasonHtml}
+<p><strong>Please forward this notice to ${holder}</strong> so they're aware the
+certificate they have on file is no longer valid. If they need a current
+certificate, reach out and we'll issue a replacement.</p>
+<p>An updated copy of the certificate is attached, stamped VOIDED on its face.</p>
+<p style="margin-top:24px;">— The Policy Place<br/>
+908 Poplar St, Benton, KY 42025<br/>
+<a href="mailto:brook@yourpolicyplace.com">brook@yourpolicyplace.com</a> · 270-410-2015
+</p>
+</body></html>`;
+}
+
+function buildVoidedText(input: VoidedCertEmailInput): string {
+  return `Hi,
+
+Certificate of Insurance ${input.certNumber}, issued on behalf of ${input.insuredBusinessName} to ${input.holderName}, has been VOIDED as of ${formatVoidedDate(input.voidedAtISO)} and is no longer in force.
+${input.reason ? `\nReason: ${input.reason}\n` : ''}
+Please forward this notice to ${input.holderName} so they're aware the certificate they have on file is no longer valid. If they need a current certificate, reach out and we'll issue a replacement.
+
+— The Policy Place
+908 Poplar St, Benton, KY 42025
+brook@yourpolicyplace.com · 270-410-2015
+`;
+}
+
+export async function sendVoidedCertEmail(input: VoidedCertEmailInput): Promise<CoiEmailResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey) throw new Error('RESEND_API_KEY not set.');
+  if (!fromEmail) throw new Error('RESEND_FROM_EMAIL not set.');
+
+  return resendPost(apiKey, fromEmail, {
+    to: [input.to],
+    cc: input.cc?.length ? input.cc : undefined,
+    subject: `VOIDED: Certificate ${input.certNumber} — ${input.insuredBusinessName}`,
+    html: buildVoidedHtml(input),
+    text: buildVoidedText(input),
+  });
+}
+
 export async function sendCoiEmail(input: CoiEmailInput): Promise<CoiEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
