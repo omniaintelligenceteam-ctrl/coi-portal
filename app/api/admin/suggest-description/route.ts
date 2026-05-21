@@ -90,9 +90,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'client not found' }, { status: 404 });
   }
 
+  // Type the query result richly so selectableCoverages's generic preserves
+  // limits_jsonb + policy_number on the way through. Cast through unknown to
+  // bridge Supabase's nested-select Json typing.
+  type RichPolicy = {
+    id: string;
+    type: 'GL' | 'WC' | 'AUTO' | 'UMBRELLA' | 'EQUIPMENT' | 'OTHER';
+    policy_number: string;
+    eff_date: string;
+    exp_date: string;
+    active: boolean;
+    status?: 'active' | 'cancelled' | 'expired';
+    limits_jsonb: Record<string, number> | null;
+  };
   const today = new Date();
   const active = selectableCoverages(
-    (policiesRaw ?? []) as Parameters<typeof selectableCoverages>[0],
+    (policiesRaw ?? []) as unknown as RichPolicy[],
     today,
   );
 
