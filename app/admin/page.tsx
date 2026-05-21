@@ -25,6 +25,8 @@ import { StatNumber } from './_dashboard/StatNumber';
 import { QueuePreview, type QueuePreviewRow } from './_dashboard/QueuePreview';
 import { RenewalsPreview, type RenewalRow } from './_dashboard/RenewalsPreview';
 import { ActivitySpark } from './_dashboard/ActivitySpark';
+import { IncompleteFiles, type IncompleteFileRow } from './_dashboard/IncompleteFiles';
+import { scoreMasterFile } from '@/lib/masterFileCompleteness';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +73,29 @@ type PolicyRow = {
 
 type AgencyRow = { contact_name: string | null };
 
+type ClientForScoring = {
+  id: string;
+  business_name: string;
+  business_address1: string | null;
+  contact_email: string;
+  contact_name: string | null;
+  phone: string | null;
+  default_description: string | null;
+};
+
+type PolicyForScoring = {
+  id: string;
+  client_id: string;
+  type: 'GL' | 'WC' | 'AUTO' | 'UMBRELLA' | 'EQUIPMENT' | 'OTHER';
+  policy_number: string | null;
+  eff_date: string | null;
+  exp_date: string | null;
+  status: 'active' | 'cancelled' | 'expired';
+  active: boolean;
+  limits_jsonb: Record<string, number> | null;
+  insurer: { name: string; naic: string } | null;
+};
+
 export default async function AdminHomePage() {
   // Defensive auth check — the layout already gates by email, but server
   // components can be cached so we re-verify cheaply here.
@@ -95,6 +120,7 @@ export default async function AdminHomePage() {
     { data: renewalRows },
     { data: activityRows },
     { data: agencyRow },
+    incompleteFiles,
   ] = await Promise.all([
     admin
       .from('cert_requests')
@@ -140,6 +166,10 @@ export default async function AdminHomePage() {
           .eq('id', process.env.BRAND_AGENCY_ID)
           .maybeSingle<AgencyRow>()
       : Promise.resolve({ data: null as AgencyRow | null }),
+    // Master file completeness scan — defensive: if the new columns aren't
+    // there yet (migration pending), gracefully return zero rows so the
+    // dashboard bento just renders empty rather than 500-ing.
+    loadIncompleteFiles(admin),
   ]);
 
   // Transform to view-model shapes the preview components want.
@@ -247,12 +277,122 @@ export default async function AdminHomePage() {
             <ActivitySpark daily={daily} />
           </div>
         </BentoCard>
+
+        {/* Files needing attention — full-width row below the bento */}
+        <BentoCard
+          label="Files needing attention"
+          delta={
+            (incompleteFiles?.length ?? 0) > 0
+              ? { value: `${incompleteFiles.length} incomplete`, tone: 'neutral' }
+              : { value: 'all complete', tone: 'success' }
+          }
+          full
+        >
+          <IncompleteFiles rows={incompleteFiles ?? []} />
+        </BentoCard>
       </div>
     </PageShell>
   );
 }
 
 /* ---------- helpers ---------- */
+
+/**
+ * Pull every active client + their policies in two queries, score each
+ * master file, return the most-incomplete N for the dashboard bento.
+ *
+ * Defensive: if the new default_description column isn't there yet, falls
+ * back to selecting without it. The completeness scorer treats it as
+ * missing, so the score will be a bit lower until the migration lands —
+ * but the page still renders.
+ */
+async function loadIncompleteFiles(
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<IncompleteFileRow[]> {
+  // Try the full select first.
+  const fullClients = await admin
+    .from('coi_clients')
+    .select(
+      'id, business_name, business_address1, contact_email, contact_name, phone, default_description',
+    )
+    .eq('active', true)
+    .is('archived_at', null)
+    .limit(80)
+    .returns<ClientForScoring[]>();
+
+  let clients: ClientForScoring[] = fullClients.data ?? [];
+
+  if (fullClients.error) {
+    const legacy = await admin
+      .from('coi_clients')
+      .select(
+        'id, business_name, business_address1, contact_email, contact_name, phone',
+      )
+      .eq('active', true)
+      .is('archived_at', null)
+      .limit(80);
+    clients = (legacy.data ?? []).map((c) => ({
+      ...(c as Omit<ClientForScoring, 'default_description'>),
+      default_description: null,
+    }));
+  }
+
+  if (clients.length === 0) return [];
+
+  const ids = clients.map((c) => c.id);
+  const { data: policies } = await admin
+    .from('policies')
+    .select(
+      `id, client_id, type, policy_number, eff_date, exp_date,
+       status, active, limits_jsonb,
+       insurer:insurers ( name, naic )`,
+    )
+    .in('client_id', ids)
+    .returns<PolicyForScoring[]>();
+
+  const byClient = new Map<string, PolicyForScoring[]>();
+  for (const p of policies ?? []) {
+    const arr = byClient.get(p.client_id) ?? [];
+    arr.push(p);
+    byClient.set(p.client_id, arr);
+  }
+
+  const rows: IncompleteFileRow[] = clients
+    .map((c) => {
+      const ps = byClient.get(c.id) ?? [];
+      const { score, missing } = scoreMasterFile(
+        {
+          business_name: c.business_name,
+          business_address1: c.business_address1,
+          contact_email: c.contact_email,
+          contact_name: c.contact_name,
+          phone: c.phone,
+          default_description: c.default_description,
+        },
+        ps.map((p) => ({
+          id: p.id,
+          type: p.type,
+          policy_number: p.policy_number,
+          eff_date: p.eff_date,
+          exp_date: p.exp_date,
+          status: p.status,
+          active: p.active,
+          limits_jsonb: p.limits_jsonb,
+          insurer: p.insurer,
+        })),
+      );
+      return {
+        clientId: c.id,
+        businessName: c.business_name ?? '—',
+        score,
+        missingCount: missing.length,
+      };
+    })
+    .filter((r) => r.score < 100)
+    .sort((a, b) => a.score - b.score);
+
+  return rows;
+}
 
 function formatToday(): string {
   return new Date().toLocaleDateString('en-US', {

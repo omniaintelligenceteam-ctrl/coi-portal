@@ -18,10 +18,11 @@ import { UncancelCoverageButton } from './UncancelCoverageButton';
 import { ProfileForm, type AgencyOption, type ProfileFormInitial } from './ProfileForm';
 import { VoidCertButton } from './VoidCertButton';
 import { AuditLogPanel, type AuditLogEntry } from './AuditLogPanel';
+import { MasterFileTab } from './MasterFileTab';
 
 export const dynamic = 'force-dynamic';
 
-type TabKey = 'certificates' | 'policies' | 'profile' | 'audit';
+type TabKey = 'master' | 'certificates' | 'policies' | 'profile' | 'audit';
 
 function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? '')
@@ -43,6 +44,9 @@ type Client = {
   auto_approve_enabled: boolean;
   archived_at: string | null;
   archived_reason: string | null;
+  default_description: string | null;
+  auto_approve_threshold_low: number | null;
+  auto_approve_threshold_high: number | null;
 };
 
 type CertRow = {
@@ -86,15 +90,42 @@ export default async function ClientHubPage({
 
   const admin = createAdminClient();
 
-  const { data: client } = await admin
+  // Try the full select including Phase-A trust ladder columns + Master File
+  // default_description. Fall back to legacy column set if the new migrations
+  // haven't been applied yet — keeps the client hub usable in either state.
+  const fullSelect = await admin
     .from('coi_clients')
     .select(
       `id, agency_id, business_name, business_address1, business_address2,
        contact_name, contact_email, phone, active, auto_approve_enabled,
-       archived_at, archived_reason`,
+       archived_at, archived_reason,
+       default_description, auto_approve_threshold_low, auto_approve_threshold_high`,
     )
     .eq('id', clientId)
     .maybeSingle<Client>();
+
+  let client: Client | null = fullSelect.data ?? null;
+
+  if (fullSelect.error) {
+    const legacy = await admin
+      .from('coi_clients')
+      .select(
+        `id, agency_id, business_name, business_address1, business_address2,
+         contact_name, contact_email, phone, active, auto_approve_enabled,
+         archived_at, archived_reason`,
+      )
+      .eq('id', clientId)
+      .maybeSingle();
+    if (legacy.data) {
+      client = {
+        ...(legacy.data as Omit<Client, 'default_description' | 'auto_approve_threshold_low' | 'auto_approve_threshold_high'>),
+        default_description: null,
+        auto_approve_threshold_low: null,
+        auto_approve_threshold_high: null,
+      };
+    }
+  }
+
   if (!client) notFound();
 
   const [{ data: certs }, policies, { data: agencies }, { data: auditEntries }] =
@@ -173,6 +204,7 @@ export default async function ClientHubPage({
       <div className="mb-8 flex flex-wrap gap-1 border-b border-hairline-strong">
         {(
           [
+            ['master', 'Master file'],
             ['certificates', `Certificates (${certs?.length ?? 0})`],
             ['policies', `Policies (${policies.length})`],
             ['profile', 'Profile'],
@@ -196,6 +228,27 @@ export default async function ClientHubPage({
         })}
       </div>
 
+      {tab === 'master' && (
+        <MasterFileTab
+          clientId={clientId}
+          client={{
+            business_name: client.business_name,
+            business_address1: client.business_address1,
+            contact_email: client.contact_email,
+            contact_name: client.contact_name,
+            phone: client.phone,
+            default_description: client.default_description,
+            contact_email_display: client.contact_email,
+            address_display: [client.business_address1, client.business_address2]
+              .filter(Boolean)
+              .join(', ') || '—',
+          }}
+          policies={policies}
+          autoApproveEnabled={client.auto_approve_enabled}
+          thresholdLow={client.auto_approve_threshold_low ?? 70}
+          thresholdHigh={client.auto_approve_threshold_high ?? 90}
+        />
+      )}
       {tab === 'certificates' && <CertsTab certs={certs ?? []} />}
       {tab === 'policies' && (
         <PoliciesTab clientId={clientId} policies={policies} />

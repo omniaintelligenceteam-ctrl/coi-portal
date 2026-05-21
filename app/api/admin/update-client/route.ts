@@ -74,6 +74,11 @@ const BodySchema = z.object({
   phone: nullableString(50),
   agencyId: z.string().uuid().optional(),
   active: z.boolean().optional(),
+  // Master File defaults (added 20260521)
+  defaultDescription: nullableString(2000),
+  // Per-client trust ladder thresholds (added 20260521_0001)
+  autoApproveThresholdLow: z.number().int().min(0).max(100).optional(),
+  autoApproveThresholdHigh: z.number().int().min(0).max(100).optional(),
 });
 
 type UpdatePayload = z.infer<typeof BodySchema>;
@@ -88,6 +93,9 @@ const FIELD_MAP: Record<keyof Omit<UpdatePayload, 'clientId'>, string> = {
   phone: 'phone',
   agencyId: 'agency_id',
   active: 'active',
+  defaultDescription: 'default_description',
+  autoApproveThresholdLow: 'auto_approve_threshold_low',
+  autoApproveThresholdHigh: 'auto_approve_threshold_high',
 };
 
 export async function POST(req: NextRequest) {
@@ -111,7 +119,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Build the column-level update map. Skips clientId, skips undefined fields.
-  const update: Record<string, string | boolean | null> = {};
+  const update: Record<string, string | boolean | number | null> = {};
   for (const [reqKey, dbCol] of Object.entries(FIELD_MAP) as Array<
     [keyof typeof FIELD_MAP, string]
   >) {
@@ -119,6 +127,24 @@ export async function POST(req: NextRequest) {
     if (value !== undefined) {
       update[dbCol] = value;
     }
+  }
+
+  // Threshold sanity — guard against threshold_low > threshold_high crossing
+  // the DB CHECK constraint (the API will return a less useful error otherwise).
+  if (
+    update.auto_approve_threshold_low !== undefined &&
+    update.auto_approve_threshold_high !== undefined &&
+    typeof update.auto_approve_threshold_low === 'number' &&
+    typeof update.auto_approve_threshold_high === 'number' &&
+    update.auto_approve_threshold_low > update.auto_approve_threshold_high
+  ) {
+    return NextResponse.json(
+      {
+        error: 'invalid thresholds',
+        detail: 'Low threshold must be <= high threshold.',
+      },
+      { status: 400 },
+    );
   }
 
   if (Object.keys(update).length === 0) {
@@ -167,7 +193,7 @@ export async function POST(req: NextRequest) {
   const beforeShape: Record<string, unknown> = {};
   const afterShape: Record<string, unknown> = {};
   for (const dbCol of Object.keys(update)) {
-    beforeShape[dbCol] = (before as unknown as Record<string, unknown>)[dbCol];
+    beforeShape[dbCol] = (before as Record<string, unknown>)[dbCol];
     afterShape[dbCol] = update[dbCol];
   }
   const diff = diffClient(beforeShape, afterShape);
