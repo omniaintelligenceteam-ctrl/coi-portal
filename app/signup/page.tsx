@@ -6,8 +6,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { FieldShake } from '../components/motion';
 import { Logo } from '../components/Logo';
-import { Hairline } from '../components/Hairline';
-import { Banner, Button, Card } from '../components/ui';
+import { AuthFooter } from '../components/AuthFooter';
+import { Banner, Button, Card, PageShell } from '../components/ui';
 
 export default function SignupPage() {
   const [form, setForm] = useState({
@@ -48,7 +48,7 @@ export default function SignupPage() {
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col">
-      <div className="mx-auto w-full max-w-5xl px-8 pt-safe sm:px-12">
+      <PageShell as="div" className="pt-safe">
         <Link
           href="/"
           aria-label="The Policy Place — home"
@@ -56,9 +56,13 @@ export default function SignupPage() {
         >
           <Logo tone="dark" />
         </Link>
-      </div>
+      </PageShell>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-8 pb-16 pt-8 sm:px-12 sm:pt-12 lg:pt-16">
+      <PageShell
+        as="main"
+        width="narrow"
+        className="flex flex-1 items-center justify-center page-pad-top page-pad-bot"
+      >
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -183,30 +187,9 @@ export default function SignupPage() {
             )}
           </AnimatePresence>
         </motion.div>
-      </main>
+      </PageShell>
 
-      <footer className="mx-auto w-full max-w-5xl px-8 pb-8 pb-safe sm:px-12">
-        <Hairline />
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="caps text-[0.65rem] font-medium tracking-[0.18em] text-ink-faint">
-            The Policy Place · 908 Poplar St · Benton KY 42025
-          </p>
-          <p className="caps flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-faint">
-            <a href="tel:+12704102015" className="text-ink-muted hover:text-ink">
-              (270) 410-2015
-            </a>
-            <span aria-hidden="true" className="text-ink-faint/60">·</span>
-            <a
-              href="https://www.yourpolicyplace.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-ink-muted hover:text-ink"
-            >
-              yourpolicyplace.com
-            </a>
-          </p>
-        </div>
-      </footer>
+      <AuthFooter />
     </div>
   );
 }

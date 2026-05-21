@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { ArrowRight, Send } from 'lucide-react';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { useRowPulse } from '@/app/components/motion';
-import { Button, ButtonLink, Banner } from '@/app/components/ui';
+import { Button, ButtonLink, Banner, Th, Td } from '@/app/components/ui';
 import { createClient } from '@/lib/supabase/browser';
 import { useQueueShortcuts } from '../useQueueShortcuts';
 import { ShortcutHelp } from '../ShortcutHelp';
@@ -747,36 +747,4 @@ function AiReviewIndicator({
   );
 }
 
-function Th({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <th
-      scope="col"
-      className={`caps px-3 py-3 text-[0.6rem] font-semibold text-ink-faint ${
-        align === 'right' ? 'text-right' : 'text-left'
-      }`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <td className={`px-3 py-4 align-middle ${align === 'right' ? 'text-right' : 'text-left'}`}>
-      {children}
-    </td>
-  );
-}
 

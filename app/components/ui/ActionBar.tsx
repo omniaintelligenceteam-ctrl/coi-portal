@@ -22,12 +22,12 @@ export function ActionBar({
   return (
     <div
       className={cn(
-        'action-bar -mx-8 sm:-mx-12 lg:-mx-20 xl:-mx-32',
+        'action-bar -mx-6 sm:-mx-10 lg:-mx-16 xl:-mx-24',
         mobileOnly && 'md:hidden',
         className
       )}
     >
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-8 sm:px-12 lg:px-20 xl:px-32">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 sm:px-10 lg:px-16 xl:px-24">
         {context && (
           <div className="text-[0.75rem] leading-[1.4] text-ink-muted">{context}</div>
         )}

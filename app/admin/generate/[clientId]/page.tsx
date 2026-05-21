@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { selectableCoverages, type DbPolicy } from '@/lib/getClientPolicies';
 import { CoverageForm, type PolicyForForm, type SavedHolder } from '@/app/CoverageForm';
 import { Hairline } from '@/app/components/Hairline';
-import { Banner } from '@/app/components/ui';
+import { Banner, PageShell } from '@/app/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,8 +94,7 @@ export default async function GenerateForClientPage({
   }));
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
-      <div className="mx-auto max-w-2xl">
+    <PageShell as="main" width="narrow" className="page-pad-top page-pad-bot">
         <Link
           href="/admin/generate"
           className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
@@ -153,8 +152,7 @@ export default async function GenerateForClientPage({
           />
         )}
 
-        <Hairline className="mt-14" />
-      </div>
-    </main>
+      <Hairline className="mt-14" />
+    </PageShell>
   );
 }

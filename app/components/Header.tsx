@@ -9,6 +9,7 @@ import { MobileSheet } from './ui/MobileSheet';
 import { Button } from './ui/Button';
 import { ButtonLink } from './ui/ButtonLink';
 import { IconButton } from './ui/IconButton';
+import { PageShell } from './ui/PageShell';
 import { createClient } from '@/lib/supabase/browser';
 
 /**
@@ -54,7 +55,7 @@ export function Header({
 
   return (
     <header className="pt-safe sticky top-0 z-30 border-b border-hairline bg-paper/85 backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-8 py-3.5 sm:gap-6 sm:px-12 sm:py-4 lg:px-20 xl:px-32">
+      <PageShell as="div" className="flex items-center justify-between gap-4 py-3.5 sm:gap-6 sm:py-4">
         <Link
           href={isAdmin ? '/admin/queue' : '/'}
           className="focus-ring -m-1 rounded-md p-1"
@@ -113,7 +114,7 @@ export function Header({
             </span>
           </IconButton>
         </div>
-      </div>
+      </PageShell>
 
       <MobileSheet
         open={open}

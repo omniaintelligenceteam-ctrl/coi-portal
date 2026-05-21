@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { PageShell } from '@/app/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,7 @@ export default async function SignaturePreview() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
-      <div className="mx-auto max-w-2xl">
+    <PageShell as="main" width="narrow" className="page-pad-top page-pad-bot">
         <p className="caps text-[0.65rem] font-semibold text-seal-deep">Asset preview</p>
         <h1 className="font-display mt-3 text-[2.25rem] font-medium leading-[1.05] tracking-display text-ink">
           Brook's signature
@@ -62,7 +62,6 @@ export default async function SignaturePreview() {
         <p className="caps mt-8 text-[0.6rem] font-medium text-ink-faint">
           Read-only preview · file is NOT served as a public URL · server-inlined as base64
         </p>
-      </div>
-    </main>
+    </PageShell>
   );
 }

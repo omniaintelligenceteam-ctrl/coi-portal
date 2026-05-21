@@ -3,7 +3,7 @@ import { AlertOctagon, ShieldX } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Logo } from '@/app/components/Logo';
 import { SealStamp } from '@/app/components/motion';
-import { Card } from '@/app/components/ui';
+import { Card, PageShell } from '@/app/components/ui';
 import { verifyChecksum } from '@/lib/issueCert';
 
 // Intentionally public — no auth. Only exposes non-sensitive cert metadata.
@@ -159,11 +159,11 @@ export default async function VerifyPage({ params }: PageProps) {
   });
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-20 pt-8 sm:px-12 sm:pb-24 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
+    <PageShell as="main" width="narrow" className="page-pad-top page-pad-bot">
       <div
-        className={`mx-auto max-w-2xl ${
+        className={
           isExpired ? 'opacity-90 [&_*:not(.expired-banner)]:grayscale' : ''
-        }`}
+        }
       >
         {/* Agency header */}
         <Card padding="md" className="mb-10 sm:mb-12">
@@ -334,7 +334,7 @@ export default async function VerifyPage({ params }: PageProps) {
           issuing agency directly.
         </p>
       </div>
-    </main>
+    </PageShell>
   );
 }
 

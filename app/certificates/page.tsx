@@ -5,7 +5,18 @@ import { Header } from '@/app/components/Header';
 import { Hairline } from '@/app/components/Hairline';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { CountUp } from '@/app/components/motion';
-import { Banner, ButtonLink, EmptyState, PageHeader } from '@/app/components/ui';
+import {
+  Banner,
+  ButtonLink,
+  EmptyState,
+  PageHeader,
+  PageShell,
+  DataTable,
+  Thead,
+  Tbody,
+  Th,
+  Td,
+} from '@/app/components/ui';
 import { createClient } from '@/lib/supabase/server';
 import { DeleteCertButton } from './DeleteCertButton';
 
@@ -97,7 +108,7 @@ export default async function CertificatesPage({
   return (
     <>
       <Header email={user.email} />
-      <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
+      <PageShell as="main" className="page-pad-top page-pad-bot">
         <Link
           href="/"
           className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
@@ -226,20 +237,17 @@ export default async function CertificatesPage({
               </ul>
 
               {/* Desktop table */}
-              <div className="hidden overflow-hidden rounded-[var(--r-md)] border border-hairline bg-card shadow-card sm:block">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-hairline bg-paper-deep/40">
-                      <Th>Certificate</Th>
-                      <Th>Holder</Th>
-                      <Th>Status</Th>
-                      <Th align="right">Requested</Th>
-                      <Th align="right">Sent</Th>
-                      <Th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.map((r, i) => (
+              <DataTable>
+                <Thead>
+                  <Th>Certificate</Th>
+                  <Th>Holder</Th>
+                  <Th>Status</Th>
+                  <Th align="right">Requested</Th>
+                  <Th align="right">Sent</Th>
+                  <Th />
+                </Thead>
+                <Tbody>
+                  {list.map((r, i) => (
                       <tr
                         key={r.id}
                         className={`group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/40 ${rowReveal(i).className}`}
@@ -303,9 +311,8 @@ export default async function CertificatesPage({
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                </Tbody>
+              </DataTable>
             </>
           )}
         </div>
@@ -314,40 +321,7 @@ export default async function CertificatesPage({
         <p className="caps mt-5 text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
           Sorted newest first · Click any row to view status, preview, or download
         </p>
-      </main>
+      </PageShell>
     </>
-  );
-}
-
-function Th({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <th
-      scope="col"
-      className={`caps px-3 py-3 text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint ${
-        align === 'right' ? 'text-right' : 'text-left'
-      }`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <td className={`px-3 py-4 align-middle ${align === 'right' ? 'text-right' : 'text-left'}`}>
-      {children}
-    </td>
   );
 }

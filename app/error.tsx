@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { AlertOctagon, RefreshCw } from 'lucide-react';
 import { Logo } from './components/Logo';
-import { Button, ButtonLink, Card } from './components/ui';
+import { Button, ButtonLink, Card, PageShell } from './components/ui';
 
 /**
  * Global app error boundary. Next.js wires this for unhandled exceptions
@@ -23,13 +23,17 @@ export default function GlobalError({
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      <div className="mx-auto w-full max-w-5xl px-8 pt-safe sm:px-12 lg:px-20 xl:px-32">
+      <PageShell as="div" className="pt-safe">
         <div className="mt-6 inline-flex sm:mt-8">
           <Logo tone="dark" />
         </div>
-      </div>
+      </PageShell>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-8 pb-16 pt-10 sm:px-12 sm:pt-12 lg:px-20 xl:px-32">
+      <PageShell
+        as="main"
+        width="narrow"
+        className="flex flex-1 items-center justify-center page-pad-top page-pad-bot"
+      >
         <Card padding="lg" raised tone="danger" className="w-full max-w-xl text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-danger/40 bg-danger-soft/60">
             <AlertOctagon className="h-6 w-6 text-danger" aria-hidden="true" />
@@ -61,7 +65,7 @@ export default function GlobalError({
             </ButtonLink>
           </div>
         </Card>
-      </main>
+      </PageShell>
     </div>
   );
 }

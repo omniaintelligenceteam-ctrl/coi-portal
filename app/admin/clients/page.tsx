@@ -1,8 +1,20 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
+import { CountUp } from '@/app/components/motion';
+import {
+  EmptyState,
+  PageHeader,
+  PageShell,
+  DataTable,
+  Thead,
+  Tbody,
+  Th,
+  Td,
+} from '@/app/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,118 +89,163 @@ export default async function ClientsHubPage() {
     lastCertAt: lastCertAt.get(c.id) ?? null,
   }));
 
+  const activeCount = rows.filter((r) => r.active).length;
+
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
-      <header className="mb-10">
-        <p className="caps text-[0.65rem] font-semibold text-seal-deep">Clients</p>
-        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-6">
-          <h1 className="font-display text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink">
-            Everything per insured.
-          </h1>
-          <span className="font-mono text-sm text-ink-muted">
-            {rows.length} total · {rows.filter((r) => r.active).length} active
+    <PageShell as="main" className="page-pad-top page-pad-bot">
+      <PageHeader
+        eyebrow={
+          <>
+            <span className="h-1 w-1 rounded-full bg-seal" aria-hidden="true" />
+            Clients
+          </>
+        }
+        title="Everything per insured."
+        subtitle="Pick a client to see every certificate they&apos;ve ever submitted, manage their policies, or edit their insured profile. Coverage cancellation lives here too."
+        meta={
+          <span className="num-tabular inline-flex items-center gap-2 font-mono text-[0.875rem] text-ink-muted">
+            {rows.length === 0 ? '0' : <CountUp value={rows.length} />} total · {activeCount} active
           </span>
-        </div>
-        <p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-ink-muted">
-          Pick a client to see every certificate they've ever submitted, manage their policies,
-          or edit their insured profile. Coverage cancellation lives here too.
-        </p>
-      </header>
+        }
+      />
 
-      <Hairline className="mb-6" />
+      <Hairline className="mt-10 mb-6" />
 
-      <div className="border-y border-hairline">
-        <table className="min-w-full">
-          <thead>
-            <tr className="border-b border-hairline">
-              <Th>Client</Th>
-              <Th align="right">Active policies</Th>
-              <Th align="right">Cancelled</Th>
-              <Th align="right">Certs on file</Th>
-              <Th align="right">Last cert</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-sm text-ink-muted">
-                  No clients yet.
-                </td>
-              </tr>
-            ) : (
-              rows.map((r) => (
-                <tr key={r.id} className="group border-b border-hairline last:border-b-0">
-                  <Td>
-                    <Link
-                      href={`/admin/clients/${r.id}`}
-                      className="focus-ring -m-1 inline-block rounded p-1 text-[0.95rem] font-medium text-ink hover:text-brand"
-                    >
-                      {r.name}
-                    </Link>
-                    {r.email && (
-                      <p className="mt-0.5 font-mono text-[0.72rem] text-ink-faint">{r.email}</p>
-                    )}
-                  </Td>
-                  <Td align="right">
-                    <span className="font-mono text-[0.78rem] text-ink">{r.activePolicies}</span>
-                  </Td>
-                  <Td align="right">
-                    <span className={`font-mono text-[0.78rem] ${r.cancelledPolicies > 0 ? 'text-danger' : 'text-ink-faint'}`}>
-                      {r.cancelledPolicies}
-                    </span>
-                  </Td>
-                  <Td align="right">
-                    <span className="font-mono text-[0.78rem] text-ink">{r.totalCerts}</span>
-                  </Td>
-                  <Td align="right">
-                    <span className="font-mono text-[0.72rem] text-ink-faint">
-                      {r.lastCertAt ? formatDate(r.lastCertAt) : '—'}
-                    </span>
-                  </Td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <div>
+        {rows.length === 0 ? (
+          <EmptyState
+            tone="default"
+            icon={<Users className="h-6 w-6" aria-hidden="true" />}
+            eyebrow="No clients"
+            title="No clients on file."
+            description="Approve an access request or send an invite to add the first client."
+          />
+        ) : (
+          <>
+            {/* Mobile card stack */}
+            <ul className="space-y-3 sm:hidden">
+              {rows.map((r) => (
+                <li
+                  key={r.id}
+                  className="rounded-[var(--r-md)] border border-hairline bg-card p-4 shadow-card"
+                >
+                  <Link
+                    href={`/admin/clients/${r.id}`}
+                    className="focus-ring -m-1 inline-block rounded p-1 font-display text-[1.05rem] font-medium leading-[1.2] text-ink hover:text-brand"
+                  >
+                    {r.name}
+                  </Link>
+                  {r.email && (
+                    <p className="mt-1 break-all font-mono text-[0.78rem] text-ink-faint">
+                      {r.email}
+                    </p>
+                  )}
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-hairline pt-3">
+                    <Stat label="Active policies" value={r.activePolicies} />
+                    <Stat
+                      label="Cancelled"
+                      value={r.cancelledPolicies}
+                      tone={r.cancelledPolicies > 0 ? 'danger' : undefined}
+                    />
+                    <Stat label="Certs on file" value={r.totalCerts} />
+                    <Stat
+                      label="Last cert"
+                      value={r.lastCertAt ? formatDate(r.lastCertAt) : '—'}
+                    />
+                  </dl>
+                </li>
+              ))}
+            </ul>
+
+            {/* Desktop table */}
+            <DataTable>
+              <Thead>
+                <Th>Client</Th>
+                <Th align="right">Active policies</Th>
+                <Th align="right">Cancelled</Th>
+                <Th align="right">Certs on file</Th>
+                <Th align="right">Last cert</Th>
+              </Thead>
+              <Tbody>
+                {rows.map((r) => (
+                  <tr
+                    key={r.id}
+                    className="group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/40"
+                  >
+                    <Td>
+                      <Link
+                        href={`/admin/clients/${r.id}`}
+                        className="focus-ring -m-1 inline-block rounded p-1 text-[0.95rem] font-medium text-ink group-hover:text-brand-deep"
+                      >
+                        {r.name}
+                      </Link>
+                      {r.email && (
+                        <p className="mt-0.5 font-mono text-[0.72rem] text-ink-faint">
+                          {r.email}
+                        </p>
+                      )}
+                    </Td>
+                    <Td align="right">
+                      <span className="num-tabular font-mono text-[0.78rem] text-ink">
+                        {r.activePolicies}
+                      </span>
+                    </Td>
+                    <Td align="right">
+                      <span
+                        className={`num-tabular font-mono text-[0.78rem] ${
+                          r.cancelledPolicies > 0 ? 'text-danger' : 'text-ink-faint'
+                        }`}
+                      >
+                        {r.cancelledPolicies}
+                      </span>
+                    </Td>
+                    <Td align="right">
+                      <span className="num-tabular font-mono text-[0.78rem] text-ink">
+                        {r.totalCerts}
+                      </span>
+                    </Td>
+                    <Td align="right">
+                      <span className="num-tabular font-mono text-[0.72rem] text-ink-faint">
+                        {r.lastCertAt ? formatDate(r.lastCertAt) : '—'}
+                      </span>
+                    </Td>
+                  </tr>
+                ))}
+              </Tbody>
+            </DataTable>
+          </>
+        )}
       </div>
-    </main>
+    </PageShell>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  tone?: 'danger';
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <dt className="caps text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint">
+        {label}
+      </dt>
+      <dd
+        className={`num-tabular font-mono text-[0.78rem] ${
+          tone === 'danger' ? 'text-danger' : 'text-ink'
+        }`}
+      >
+        {value}
+      </dd>
+    </div>
   );
 }
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function Th({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <th
-      scope="col"
-      className={`caps px-3 py-3 text-[0.6rem] font-semibold text-ink-faint ${
-        align === 'right' ? 'text-right' : 'text-left'
-      }`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <td className={`px-3 py-4 align-middle ${align === 'right' ? 'text-right' : 'text-left'}`}>
-      {children}
-    </td>
-  );
 }

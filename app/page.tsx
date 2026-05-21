@@ -7,7 +7,8 @@ import { CoverageForm, type PolicyForForm, type SavedHolder } from './CoverageFo
 import { Header } from './components/Header';
 import { Logo } from './components/Logo';
 import { MasterCertButton } from './MasterCertButton';
-import { Banner, ButtonLink, Card, EmptyState } from './components/ui';
+import { SealCorner } from './components/SealCorner';
+import { Banner, ButtonLink, Card, EmptyState, PageShell } from './components/ui';
 
 type ClientRow = {
   id: string;
@@ -95,7 +96,7 @@ export default async function HomePage() {
     <>
       <Header email={user.email} showMyCerts />
 
-      <main className="mx-auto w-full max-w-5xl px-8 pb-16 pt-8 sm:px-12 sm:pb-24 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
+      <PageShell as="main" className="page-pad-top page-pad-bot">
         {/* Insured identity — editorial card with corner seal mark */}
         <section className="relative mb-8 overflow-hidden rounded-[var(--r-lg)] border border-hairline bg-card px-5 py-6 shadow-card sm:mb-12 sm:px-8 sm:py-8">
           <span
@@ -104,14 +105,7 @@ export default async function HomePage() {
           >
             · POLICY PLACE ·
           </span>
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full border-[3px] border-seal/15 sm:-right-12 sm:-top-12 sm:h-44 sm:w-44 sm:border-[4px]"
-          />
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-3 -top-3 h-20 w-20 rounded-full border border-seal/20 sm:-right-5 sm:-top-5 sm:h-24 sm:w-24"
-          />
+          <SealCorner size="md" position="tr" />
 
           <p className="caps relative text-[0.62rem] font-semibold tracking-[0.2em] text-seal-deep">
             Insured
@@ -181,7 +175,7 @@ export default async function HomePage() {
             .
           </p>
         </aside>
-      </main>
+      </PageShell>
     </>
   );
 }
@@ -189,7 +183,7 @@ export default async function HomePage() {
 function NoClientFound({ email }: { email: string }) {
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      <div className="mx-auto w-full max-w-5xl px-8 pt-safe sm:px-12 lg:px-20 xl:px-32">
+      <PageShell as="div" className="pt-safe">
         <Link
           href="/"
           aria-label="The Policy Place — home"
@@ -197,10 +191,10 @@ function NoClientFound({ email }: { email: string }) {
         >
           <Logo tone="dark" />
         </Link>
-      </div>
+      </PageShell>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-8 pb-16 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
-        <div className="mx-auto max-w-2xl">
+      <PageShell as="main" width="narrow" className="flex-1 page-pad-top page-pad-bot">
+        <div>
           <Card padding="lg" raised>
             <p className="caps text-[0.65rem] font-semibold text-warning">Access pending</p>
             <h1 className="font-display mt-3 text-[2rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[2.5rem]">
@@ -242,7 +236,7 @@ function NoClientFound({ email }: { email: string }) {
             </p>
           </Card>
         </div>
-      </main>
+      </PageShell>
     </div>
   );
 }

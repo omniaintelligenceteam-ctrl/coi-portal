@@ -4,7 +4,14 @@ import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
-import { Banner, Card, PageHeader } from '@/app/components/ui';
+import {
+  Banner,
+  Card,
+  PageHeader,
+  PageShell,
+  Th,
+  Td,
+} from '@/app/components/ui';
 import {
   approveAccessRequest,
   rejectAccessRequest,
@@ -88,7 +95,7 @@ export default async function AccessRequestsPage({
   const flash = flashKey ? FLASH_MESSAGES[flashKey] : null;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
+    <PageShell as="main" className="page-pad-top page-pad-bot">
       <Link
         href="/admin/queue"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
@@ -219,7 +226,7 @@ export default async function AccessRequestsPage({
           </Card>
         )}
       </section>
-    </main>
+    </PageShell>
   );
 }
 
@@ -352,35 +359,3 @@ function formatTimestamp(iso: string): string {
   });
 }
 
-function Th({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <th
-      scope="col"
-      className={`caps px-3 py-3 text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint ${
-        align === 'right' ? 'text-right' : 'text-left'
-      }`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <td className={`px-3 py-3 align-middle ${align === 'right' ? 'text-right' : ''}`}>
-      {children}
-    </td>
-  );
-}

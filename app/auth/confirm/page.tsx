@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ArrowRight, Lock } from 'lucide-react';
 import { Logo } from '@/app/components/Logo';
-import { Banner, Button, Card } from '@/app/components/ui';
+import { Banner, Button, Card, PageShell } from '@/app/components/ui';
 
 type ParsedParams = {
   tokenHash: string;
@@ -66,7 +66,11 @@ export default function ConfirmSignInPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] w-full max-w-xl flex-col px-6 pb-12 pt-safe sm:px-8">
+    <PageShell
+      as="main"
+      width="narrow"
+      className="flex min-h-[100dvh] flex-col pt-safe page-pad-bot"
+    >
       <Link
         href="/"
         aria-label="The Policy Place home"
@@ -118,6 +122,6 @@ export default function ConfirmSignInPage() {
           {' '}and enter your email again.
         </p>
       </Card>
-    </main>
+    </PageShell>
   );
 }

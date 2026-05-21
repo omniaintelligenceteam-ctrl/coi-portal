@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
+import { PageShell } from '@/app/components/ui';
 import { AgencyForm } from './AgencyForm';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +49,7 @@ export default async function AgencySettingsPage() {
   if (!agency) notFound();
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
+    <PageShell as="main" width="narrow" className="page-pad-top page-pad-bot">
       <Link
         href="/admin/settings"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
@@ -82,6 +83,6 @@ export default async function AgencySettingsPage() {
           licenseNo: agency.license_no ?? '',
         }}
       />
-    </main>
+    </PageShell>
   );
 }

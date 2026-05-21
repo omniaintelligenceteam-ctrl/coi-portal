@@ -6,7 +6,7 @@ import { Hairline } from '@/app/components/Hairline';
 import { MonoTag } from '@/app/components/MonoTag';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
-import { Banner, Card } from '@/app/components/ui';
+import { Banner, Card, PageShell } from '@/app/components/ui';
 import { DecisionForm, type EditableCoverage } from './DecisionForm';
 import { PdfPreviewPanel } from './PdfPreviewPanel';
 import { RetrySend } from './RetrySend';
@@ -157,7 +157,7 @@ export default async function CertDetailPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-32 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
+    <PageShell as="main" className="page-pad-top pb-32">
       <Link
         href="/admin/queue"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
@@ -378,7 +378,7 @@ export default async function CertDetailPage({
           )}
         </aside>
       </div>
-    </main>
+    </PageShell>
   );
 }
 
