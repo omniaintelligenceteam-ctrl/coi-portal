@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
   const beforeShape: Record<string, unknown> = {};
   const afterShape: Record<string, unknown> = {};
   for (const dbCol of Object.keys(update)) {
-    beforeShape[dbCol] = (before as Record<string, unknown>)[dbCol];
+    beforeShape[dbCol] = (before as unknown as Record<string, unknown>)[dbCol];
     afterShape[dbCol] = update[dbCol];
   }
   const diff = diffClient(beforeShape, afterShape);
