@@ -174,7 +174,7 @@ export default async function CertDetailPage({
 
       {/* Document-style header */}
       <header className="mt-7">
-        <p className="caps text-[0.65rem] font-semibold tracking-[0.22em] text-seal-deep">
+        <p className="caps text-[0.65rem] font-semibold tracking-caps text-brand">
           Certificate of Insurance
         </p>
         <h1 className="num-tabular mt-3 font-mono text-[1.875rem] font-medium leading-[1] text-ink sm:text-[2.5rem]">
@@ -182,7 +182,7 @@ export default async function CertDetailPage({
         </h1>
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mt-5 sm:gap-x-4">
           <StatusPill status={req.status} size="md" />
-          <span className="caps text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
+          <span className="caps text-[0.6rem] font-medium tracking-caps text-ink-faint">
             Requested by
           </span>
           <span className="font-mono text-[0.78rem] text-ink">{req.requested_by_email}</span>

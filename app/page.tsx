@@ -9,6 +9,7 @@ import { Logo } from './components/Logo';
 import { MasterCertButton } from './MasterCertButton';
 import { SealCorner } from './components/SealCorner';
 import { Banner, ButtonLink, Card, EmptyState, PageShell } from './components/ui';
+import { RecentCertsSection, type RecentCert } from './_client/RecentCertsSection';
 
 type ClientRow = {
   id: string;
@@ -80,6 +81,22 @@ export default async function HomePage() {
 
   const savedHolders: SavedHolder[] = holdersRaw ?? [];
 
+  // Recent certificates — surfaced above the request form so re-sending the
+  // last cert to a new holder is one tap (the dominant client use case).
+  const { data: recentRows } = await supabase
+    .from('cert_requests')
+    .select('cert_number, holder_name, sent_at')
+    .eq('client_id', client.id)
+    .eq('status', 'sent')
+    .order('sent_at', { ascending: false })
+    .limit(3);
+
+  const recentCerts: RecentCert[] = (recentRows ?? []).map((r) => ({
+    certNumber: r.cert_number as string,
+    holderName: r.holder_name as string,
+    sentAt: (r.sent_at as string | null) ?? null,
+  }));
+
   const policiesForForm: PolicyForForm[] = eligible.map((p) => ({
     id: p.id,
     type: p.type,
@@ -131,6 +148,8 @@ export default async function HomePage() {
             <RenewalBanner alerts={renewalAlerts} />
           </div>
         )}
+
+        <RecentCertsSection certs={recentCerts} />
 
         {policiesForForm.length === 0 ? (
           <NoActivePolicies />
