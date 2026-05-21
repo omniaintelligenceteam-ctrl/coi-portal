@@ -36,6 +36,19 @@ export type ReviewOutput = {
   flags: ReviewFlag[];
   notes: string;
   model: string;
+  /**
+   * 0-100 confidence the reviewer is willing to put on this cert being ready
+   * to ship without Brook's eyes. Drives the graduated auto-approval lane
+   * decision in lib/laneDecision.ts. Null if the reviewer crashed / parsing
+   * failed — those rows safety-default to the manual lane.
+   */
+  confidenceScore: number | null;
+  /**
+   * One- to two-sentence explanation of the confidence score: what raised it,
+   * what lowered it. Surfaced in the admin queue card and the client status
+   * page so neither party is left guessing why a cert auto-approved or didn't.
+   */
+  confidenceReasoning: string | null;
 };
 
 const DEFAULT_MODEL = process.env.REVIEWER_MODEL || 'claude-sonnet-4-6';
@@ -54,17 +67,40 @@ Check for:
 
 Output strict JSON only, no preamble, no markdown fences:
 {
-  "pass": boolean,           // true ONLY if no flags at error severity
-  "flags": [                 // empty array if all clean
+  "pass": boolean,                  // true ONLY if no flags at error severity
+  "flags": [                        // empty array if all clean
     { "field": "string identifier", "severity": "error" | "warning" | "info", "message": "one sentence" }
   ],
-  "notes": "string"          // brief summary for Brook, 1-2 sentences max
+  "notes": "string",                // brief summary for Brook, 1-2 sentences max
+  "confidence_score": integer,      // 0-100, see scoring rubric below
+  "confidence_reasoning": "string"  // one or two sentences explaining the score
 }
 
 Severity rules:
 - "error": Brook MUST look at this (likely wrong, will get rejected by holder, or violates a prior correction)
 - "warning": worth a glance (unusual but possibly intentional)
-- "info": minor observation, no action needed`;
+- "info": minor observation, no action needed
+
+Confidence rubric (0-100, where 100 = "I would bet my own license on this"):
+
+Start at 50 and adjust:
+- +30 if every flag is at info severity (or there are no flags at all)
+- +15 if the holder name + address appear to match a previous successful cert for this client (look at prior corrections for hints)
+- +10 if the selected coverages include all on-file in-force policies (no unusual subset)
+- +10 if limits look standard for the holder type (GL 1M+, AUTO 1M+, etc.)
+- −20 for each warning flag
+- −40 for each error flag
+- −10 if any value contradicts a Brook override pattern for this client
+- −10 if the holder is brand-new to this client (no precedent) AND the request looks routine — uncertainty is still uncertainty
+- Clamp final to 0-100, round to integer
+
+Scoring guideposts:
+- 90-100: would auto-issue without hesitation, every signal positive
+- 70-89:  routine cert, no errors, minor unknowns — fine after a brief holdback window
+- 50-69:  some uncertainty worth Brook's eyes
+- 0-49:   genuine problem or unusual scenario — Brook decides
+
+Be honest. A confidence of 50 with a clear reasoning is more useful than a 95 that turns out wrong.`;
 
 export async function reviewCert(
   input: ReviewInput,
@@ -86,6 +122,8 @@ export async function reviewCert(
       flags: [{ field: 'reviewer', severity: 'error', message: 'Reviewer returned no text content.' }],
       notes: 'Brook should inspect manually — reviewer agent failed.',
       model: DEFAULT_MODEL,
+      confidenceScore: null,
+      confidenceReasoning: null,
     };
   }
 
@@ -139,6 +177,8 @@ export function parseReviewerOutput(text: string): {
   pass: boolean;
   flags: ReviewFlag[];
   notes: string;
+  confidenceScore: number | null;
+  confidenceReasoning: string | null;
 } {
   const cleaned = text
     .replace(/^```(?:json)?\s*/i, '')
@@ -147,12 +187,23 @@ export function parseReviewerOutput(text: string): {
 
   try {
     const parsed = JSON.parse(cleaned);
+    const rawScore = parsed.confidence_score;
+    const score =
+      typeof rawScore === 'number' && Number.isFinite(rawScore)
+        ? Math.max(0, Math.min(100, Math.round(rawScore)))
+        : null;
+    const reasoning =
+      typeof parsed.confidence_reasoning === 'string' && parsed.confidence_reasoning.trim().length > 0
+        ? parsed.confidence_reasoning.trim()
+        : null;
     return {
       pass: Boolean(parsed.pass),
       flags: Array.isArray(parsed.flags)
         ? parsed.flags.filter(isValidFlag)
         : [],
       notes: typeof parsed.notes === 'string' ? parsed.notes : '',
+      confidenceScore: score,
+      confidenceReasoning: reasoning,
     };
   } catch {
     return {
@@ -165,6 +216,8 @@ export function parseReviewerOutput(text: string): {
         },
       ],
       notes: 'Reviewer agent output could not be parsed.',
+      confidenceScore: null,
+      confidenceReasoning: null,
     };
   }
 }

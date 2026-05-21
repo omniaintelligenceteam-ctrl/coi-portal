@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/policy-renewals",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/holdback-release",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

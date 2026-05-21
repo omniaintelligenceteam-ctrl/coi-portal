@@ -8,6 +8,12 @@ import { selectableCoverages } from './getClientPolicies';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
 import { sendQueueNotification } from './email';
 import { sendApprovedCert } from './sendApprovedCert';
+import {
+  decideLane,
+  holdbackUntil,
+  DEFAULT_THRESHOLD_HIGH,
+  DEFAULT_THRESHOLD_LOW,
+} from './laneDecision';
 import { log } from './logger';
 import { stampVerifyQr } from './verifyQr';
 import { validateHolderInput } from './holderInput';
@@ -332,6 +338,25 @@ export async function issueCert(input: {
         clientOverrides: overridesRaw ?? [],
       });
 
+      // Pull the client's auto-approve config so we can pick a lane in the same
+      // write that records the reviewer output. Fetching here also lets us tag
+      // the cert row with the lane decision BEFORE we branch — keeps the audit
+      // trail tight (every row knows exactly which lane it landed in and why).
+      const { data: clientRow } = await admin
+        .from('coi_clients')
+        .select(
+          'auto_approve_enabled, auto_approve_threshold_low, auto_approve_threshold_high',
+        )
+        .eq('id', clientSnapshot.id)
+        .maybeSingle();
+
+      const lane = decideLane({
+        autoApproveEnabled: clientRow?.auto_approve_enabled ?? false,
+        thresholdLow: clientRow?.auto_approve_threshold_low ?? DEFAULT_THRESHOLD_LOW,
+        thresholdHigh: clientRow?.auto_approve_threshold_high ?? DEFAULT_THRESHOLD_HIGH,
+        confidenceScore: review.confidenceScore,
+      });
+
       // Guard on status='pending' so the reviewer can't clobber a row Brook
       // has already decided (approve/edit/reject) while the reviewer was running.
       const { data: reviewedRow } = await admin
@@ -342,6 +367,10 @@ export async function issueCert(input: {
           reviewer_notes: review.notes,
           reviewer_model: review.model,
           reviewed_at: new Date().toISOString(),
+          confidence_score: review.confidenceScore,
+          confidence_reasoning: review.confidenceReasoning,
+          auto_approve_lane: lane,
+          holdback_until: lane === 'holdback' ? holdbackUntil() : null,
           status: 'reviewed',
         })
         .eq('id', requestId)
@@ -363,22 +392,21 @@ export async function issueCert(input: {
         requestId,
         pass: review.pass,
         flagCount: review.flags.length,
+        confidenceScore: review.confidenceScore,
+        lane,
         durationMs: Date.now() - reviewT0,
       });
 
-      // Auto-approve branch: client opted-in => send now, regardless of
-      // reviewer pass/fail. Reviewer flags are still recorded on the row for
-      // audit, but they don't gate sending — per Wes's directive, whatever an
-      // auto-approve client generates ships straight to their inbox. Reviewer
-      // crashes (caught below) still fall through to the queue because the
-      // row never reaches status='reviewed'.
+      // Three lanes, picked above:
+      //   instant   → auto-approve + send now (today's auto_approve path)
+      //   holdback  → 1h delay; cron flips to approved unless Brook intercepts
+      //   manual    → notify Brook, sit at status=reviewed for her to decide
+      //
+      // Reviewer crashes (caught below) skip this branch entirely: the row
+      // never reaches status='reviewed' so it falls through to the catch
+      // block's queue notification.
       let autoApproved = false;
-      const { data: clientRow } = await admin
-        .from('coi_clients')
-        .select('auto_approve_enabled')
-        .eq('id', clientSnapshot.id)
-        .maybeSingle();
-      if (clientRow?.auto_approve_enabled) {
+      if (lane === 'instant') {
         try {
           const { data: autoRow } = await admin
             .from('cert_requests')
@@ -406,6 +434,8 @@ export async function issueCert(input: {
             clientId: clientSnapshot.id,
             reviewerPass: review.pass,
             flagCount: review.flags.length,
+            confidenceScore: review.confidenceScore,
+            lane: 'instant',
           });
         } catch (err) {
           log.error('cert.auto_approve_failed', {
@@ -416,6 +446,10 @@ export async function issueCert(input: {
         }
       }
 
+      // Notify Brook for both the manual and holdback lanes. Holdback notifies
+      // with a "this will auto-approve in 1h unless you intercept" framing
+      // (the queue UI surfaces the countdown; the email links straight to the
+      // intercept action).
       if (!autoApproved) {
         await sendQueueNotification(admin, {
           certNumber,
