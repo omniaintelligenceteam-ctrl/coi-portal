@@ -179,6 +179,16 @@ export type QueueNotificationInput = {
   holderName: string;
   reviewerPass: boolean | null;
   flagCount: number;
+  /** Optional 0-100 reviewer confidence — surfaced in the email if present. */
+  confidenceScore?: number | null;
+  /**
+   * Trust-ladder lane. When 'holdback', the email frames the request as
+   * auto-issuing on its own and gives Brook a one-tap "intercept" link to
+   * stop the cron from releasing it.
+   */
+  lane?: 'manual' | 'holdback' | 'instant' | null;
+  /** ISO timestamp the cron will release a holdback cert. Required for the holdback framing. */
+  holdbackUntil?: string | null;
 };
 
 function buildQueueText(args: {
@@ -188,15 +198,23 @@ function buildQueueText(args: {
   reviewerLine: string;
   approveUrl: string;
   dashboardUrl: string;
+  holdbackLine?: string;
+  isHoldback?: boolean;
 }): string {
-  return `New cert request ready for review.
+  const header = args.isHoldback
+    ? `Holdback — cert auto-issues in 1 hour.\n\n${args.holdbackLine}\n\nIntercept it via the dashboard if you want to review manually.`
+    : 'New cert request ready for review.';
+  return `${header}
 
 Cert: ${args.certNumber}
 Client: ${args.clientName}
 Holder: ${args.holderName}
 ${args.reviewerLine}
 
-One-tap approve (mobile-friendly, no login):
+${args.isHoldback ? `Intercept (review manually before it ships):
+${args.dashboardUrl}
+
+Or` : 'One-tap approve (mobile-friendly, no login):'}
 ${args.approveUrl}
 
 Or open the full dashboard:
@@ -212,6 +230,8 @@ function buildQueueHtml(args: {
   reviewerLine: string;
   approveUrl: string;
   dashboardUrl: string;
+  holdbackLine?: string;
+  isHoldback?: boolean;
 }): string {
   const cert = escapeHtml(args.certNumber);
   const client = escapeHtml(args.clientName);
@@ -219,6 +239,13 @@ function buildQueueHtml(args: {
   const reviewer = escapeHtml(args.reviewerLine);
   const approve = escapeHtml(args.approveUrl);
   const dashboard = escapeHtml(args.dashboardUrl);
+  const holdbackBanner = args.isHoldback
+    ? `<div style="background:#f4eede;border-left:4px solid #b8923a;padding:14px 18px;margin-bottom:24px;border-radius:4px;">
+        <strong style="color:#8c6d27;font-size:13px;letter-spacing:0.05em;text-transform:uppercase;">Holdback</strong>
+        <p style="margin:6px 0 0 0;color:#1f2937;font-size:14px;">${escapeHtml(args.holdbackLine ?? '')}</p>
+        <p style="margin:8px 0 0 0;color:#4a4a47;font-size:13px;">Use the dashboard link below to intercept and review manually.</p>
+      </div>`
+    : '';
   return `<!doctype html>
 <html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;color:#1f2937;margin:0;padding:0;">
 <div style="max-width:560px;margin:0 auto;padding:24px 20px;">
@@ -227,6 +254,7 @@ function buildQueueHtml(args: {
 
 <table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0 24px 0;font-size:14px;">
   <tr><td style="padding:6px 0;color:#6b7280;width:90px;">Cert</td><td style="padding:6px 0;color:#1f2937;font-family:ui-monospace,Menlo,Consolas,monospace;">${cert}</td></tr>
+  </table>${holdbackBanner}<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:8px;">
   <tr><td style="padding:6px 0;color:#6b7280;">Client</td><td style="padding:6px 0;color:#1f2937;">${client}</td></tr>
   <tr><td style="padding:6px 0;color:#6b7280;">Holder</td><td style="padding:6px 0;color:#1f2937;">${holder}</td></tr>
   <tr><td style="padding:6px 0;color:#6b7280;">Review</td><td style="padding:6px 0;color:#1f2937;">${reviewer}</td></tr>
@@ -273,15 +301,30 @@ export async function sendQueueNotification(
   const recipients = adminNotifyList();
   if (recipients.length === 0) return;
 
+  const confidenceFragment =
+    typeof input.confidenceScore === 'number'
+      ? ` Confidence ${input.confidenceScore}/100.`
+      : '';
   const reviewerLine =
-    input.reviewerPass === null
+    (input.reviewerPass === null
       ? 'Reviewer still running.'
       : input.reviewerPass && input.flagCount === 0
         ? 'AI reviewer: clean.'
-        : `AI reviewer: ${input.flagCount} flag(s) — review carefully.`;
+        : `AI reviewer: ${input.flagCount} flag(s) — review carefully.`) + confidenceFragment;
 
   const dashboardUrl = `${portalBase()}/admin/queue/${input.requestId}`;
-  const subject = `[Action needed] Cert request ${input.certNumber} — ${input.clientName}`;
+  const isHoldback = input.lane === 'holdback' && Boolean(input.holdbackUntil);
+  const subject = isHoldback
+    ? `[Holding 1h] ${input.certNumber} auto-issues — ${input.clientName}`
+    : `[Action needed] Cert request ${input.certNumber} — ${input.clientName}`;
+  const holdbackLine = isHoldback
+    ? `Auto-issuing at ${new Date(input.holdbackUntil as string).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })} unless you intercept.`
+    : '';
 
   await Promise.all(
     recipients.map(async (adminEmail) => {
@@ -306,6 +349,8 @@ export async function sendQueueNotification(
         reviewerLine,
         approveUrl,
         dashboardUrl,
+        holdbackLine,
+        isHoldback,
       };
       try {
         await fetch(RESEND_ENDPOINT, {

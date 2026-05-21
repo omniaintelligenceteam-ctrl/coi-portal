@@ -238,6 +238,27 @@ export async function POST(req: NextRequest) {
     newTurns.push(toolResultsTurn);
   }
 
+  // Persist the full conversation to chat_threads for cross-session restore.
+  // Best-effort: if the migration hasn't been applied or the upsert fails,
+  // log and keep going — the response to the user shouldn't depend on it.
+  try {
+    await admin
+      .from('chat_threads')
+      .upsert(
+        {
+          client_id: client.id,
+          messages: conversation as unknown as Record<string, unknown>[],
+          last_message_at: new Date().toISOString(),
+        },
+        { onConflict: 'client_id' },
+      );
+  } catch (err) {
+    log.warn('chat.thread_persist_failed', {
+      clientId: client.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     text: finalText,

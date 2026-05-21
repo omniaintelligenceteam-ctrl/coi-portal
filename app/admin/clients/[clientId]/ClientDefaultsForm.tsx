@@ -18,6 +18,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { Sparkles } from 'lucide-react';
 import { Hairline } from '@/app/components/Hairline';
 import { Banner, Button, Input, Textarea } from '@/app/components/ui';
 
@@ -40,6 +41,7 @@ export function ClientDefaultsForm({
   const [low, setLow] = useState(initial.autoApproveThresholdLow);
   const [high, setHigh] = useState(initial.autoApproveThresholdHigh);
   const [submitting, setSubmitting] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const dirty =
@@ -89,6 +91,38 @@ export function ClientDefaultsForm({
     }
   }
 
+  async function handleSuggest() {
+    if (suggesting) return;
+    setSuggesting(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/suggest-description', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ clientId }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        suggestion?: string;
+        error?: string;
+        detail?: string;
+      };
+      if (!res.ok || !payload.suggestion) {
+        const message = payload.detail || payload.error || `Suggest failed (${res.status}).`;
+        toast.error(message);
+        setError(message);
+        return;
+      }
+      setDefaultDescription(payload.suggestion);
+      toast.success('Suggested. Edit, then Save to keep it.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error.';
+      toast.error(message);
+      setError(message);
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -108,6 +142,18 @@ export function ClientDefaultsForm({
             hint="Plain text. Will be wrapped automatically on the cert."
             maxLength={2000}
           />
+          <div className="mt-2 flex items-center justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleSuggest}
+              loading={suggesting}
+              leadingIcon={<Sparkles className="h-3.5 w-3.5" aria-hidden="true" />}
+            >
+              {suggesting ? 'Drafting…' : 'Suggest a description'}
+            </Button>
+          </div>
         </div>
       </div>
 

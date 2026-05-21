@@ -448,9 +448,11 @@ export async function issueCert(input: {
 
       // Notify Brook for both the manual and holdback lanes. Holdback notifies
       // with a "this will auto-approve in 1h unless you intercept" framing
-      // (the queue UI surfaces the countdown; the email links straight to the
-      // intercept action).
+      // (the queue UI surfaces the countdown; the email body shows a holdback
+      // banner with the deadline + a dashboard link to intercept).
       if (!autoApproved) {
+        const holdbackUntilIso =
+          lane === 'holdback' ? new Date(Date.now() + 60 * 60 * 1000).toISOString() : null;
         await sendQueueNotification(admin, {
           certNumber,
           requestId,
@@ -458,6 +460,9 @@ export async function issueCert(input: {
           holderName: holder.name,
           reviewerPass: review.pass,
           flagCount: review.flags.length,
+          confidenceScore: review.confidenceScore,
+          lane,
+          holdbackUntil: holdbackUntilIso,
         });
       }
     } catch (err) {

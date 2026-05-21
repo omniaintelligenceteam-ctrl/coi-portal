@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Send, X, Loader2 } from 'lucide-react';
+import { MessageSquare, RotateCcw, Send, X, Loader2 } from 'lucide-react';
 
 type UserContent =
   | string
@@ -49,6 +49,7 @@ export function ChatWidget() {
   const [input, setInput] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to the latest turn whenever it changes.
@@ -56,6 +57,46 @@ export function ChatWidget() {
     if (!listRef.current) return;
     listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
   }, [turns, pending]);
+
+  // First time the widget opens, fetch existing thread messages so the
+  // conversation picks up where the user left off. Persistence migration:
+  // 20260521_0003_chat_threads.sql. Silent fallback to the initial greeting
+  // if the table doesn't exist yet or the fetch fails.
+  useEffect(() => {
+    if (!open || hydrated) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/chat/thread', { method: 'GET' });
+        if (!res.ok) {
+          setHydrated(true);
+          return;
+        }
+        const payload = (await res.json().catch(() => ({}))) as {
+          messages?: Turn[];
+        };
+        const existing = payload.messages ?? [];
+        if (existing.length > 0) {
+          setTurns(existing);
+        }
+      } catch {
+        /* keep initial greeting */
+      } finally {
+        setHydrated(true);
+      }
+    })();
+  }, [open, hydrated]);
+
+  async function startOver() {
+    if (pending) return;
+    try {
+      await fetch('/api/chat/thread', { method: 'DELETE' });
+    } catch {
+      /* non-fatal */
+    }
+    setTurns(INITIAL_TURNS);
+    setError(null);
+    setInput('');
+  }
 
   async function send() {
     const trimmed = input.trim();
@@ -147,14 +188,25 @@ export function ChatWidget() {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                aria-label="Close chat"
-                onClick={() => setOpen(false)}
-                className="focus-ring -m-1 rounded p-1 text-ink-faint transition-colors hover:text-ink"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="Start over"
+                  title="Clear conversation"
+                  onClick={startOver}
+                  className="focus-ring -m-1 rounded p-1 text-ink-faint transition-colors hover:text-ink"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Close chat"
+                  onClick={() => setOpen(false)}
+                  className="focus-ring -m-1 rounded p-1 text-ink-faint transition-colors hover:text-ink"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
