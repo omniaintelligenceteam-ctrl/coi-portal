@@ -123,7 +123,7 @@ export function LimitsEditor({ policy }: { policy: LimitsEditorPolicy }) {
     return false;
   }, [policy, addlInsured, wos, description, limits, fields]);
 
-  const requiredMissing = fields.filter((f) => f.required && !(limits[f.key] > 0));
+  const requiredMissing = fields.filter((f) => f.required && !((limits[f.key] ?? 0) > 0));
 
   async function handleSave() {
     setSubmitting(true);
