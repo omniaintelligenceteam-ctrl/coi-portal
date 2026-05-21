@@ -172,14 +172,17 @@ export default async function CertDetailPage({
         </div>
       )}
 
-      {/* Document-style header */}
+      {/* Document-style header — client name primary, cert# secondary */}
       <header className="mt-7">
         <p className="caps text-[0.65rem] font-semibold tracking-caps text-brand">
-          Certificate of Insurance
+          Certificate request
         </p>
-        <h1 className="num-tabular mt-3 font-mono text-[1.875rem] font-medium leading-[1] text-ink sm:text-[2.5rem]">
-          {req.cert_number}
+        <h1 className="font-display mt-3 text-[1.875rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[2.5rem]">
+          {client?.business_name ?? 'Unknown client'}
         </h1>
+        <p className="num-tabular mt-2 font-mono text-[0.9rem] text-ink-muted">
+          {req.cert_number}
+        </p>
         <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mt-5 sm:gap-x-4">
           <StatusPill status={req.status} size="md" />
           <span className="caps text-[0.6rem] font-medium tracking-caps text-ink-faint">
