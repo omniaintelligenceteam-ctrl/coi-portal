@@ -15,10 +15,13 @@ import {
 import { getClientPoliciesAll } from '@/lib/getClientPoliciesAll';
 import { CancelCoverageButton } from './CancelCoverageButton';
 import { UncancelCoverageButton } from './UncancelCoverageButton';
-import { ProfileForm } from './ProfileForm';
+import { ProfileForm, type AgencyOption, type ProfileFormInitial } from './ProfileForm';
 import { VoidCertButton } from './VoidCertButton';
+import { AuditLogPanel, type AuditLogEntry } from './AuditLogPanel';
 
 export const dynamic = 'force-dynamic';
+
+type TabKey = 'certificates' | 'policies' | 'profile' | 'audit';
 
 function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? '')
@@ -33,9 +36,13 @@ type Client = {
   business_name: string;
   business_address1: string | null;
   business_address2: string | null;
+  contact_name: string | null;
   contact_email: string;
+  phone: string | null;
   active: boolean;
   auto_approve_enabled: boolean;
+  archived_at: string | null;
+  archived_reason: string | null;
 };
 
 type CertRow = {
@@ -68,7 +75,7 @@ export default async function ClientHubPage({
 }) {
   const { clientId } = await params;
   const sp = await searchParams;
-  const tab = (sp.tab ?? 'certificates') as 'certificates' | 'policies' | 'profile';
+  const tab: TabKey = ((sp.tab as TabKey) ?? 'certificates') as TabKey;
 
   const supabase = await createClient();
   const {
@@ -83,24 +90,55 @@ export default async function ClientHubPage({
     .from('coi_clients')
     .select(
       `id, agency_id, business_name, business_address1, business_address2,
-       contact_email, active, auto_approve_enabled`,
+       contact_name, contact_email, phone, active, auto_approve_enabled,
+       archived_at, archived_reason`,
     )
     .eq('id', clientId)
     .maybeSingle<Client>();
   if (!client) notFound();
 
-  const [{ data: certs }, policies] = await Promise.all([
-    admin
-      .from('cert_requests')
-      .select(
-        `id, cert_number, status, holder_name, is_master, requested_at, sent_at,
-         voided_at, voided_reason`,
-      )
-      .eq('client_id', clientId)
-      .order('requested_at', { ascending: false })
-      .returns<CertRow[]>(),
-    getClientPoliciesAll(admin, clientId),
-  ]);
+  const [{ data: certs }, policies, { data: agencies }, { data: auditEntries }] =
+    await Promise.all([
+      admin
+        .from('cert_requests')
+        .select(
+          `id, cert_number, status, holder_name, is_master, requested_at, sent_at,
+           voided_at, voided_reason`,
+        )
+        .eq('client_id', clientId)
+        .order('requested_at', { ascending: false })
+        .returns<CertRow[]>(),
+      getClientPoliciesAll(admin, clientId),
+      admin.from('agencies').select('id, name').order('name'),
+      // Only fetch audit when the tab is visible — small win on the dominant
+      // 'certificates' load path and the table can grow over time.
+      tab === 'audit'
+        ? admin
+            .from('client_audit_log')
+            .select('id, action, actor_email, diff, note, created_at')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: false })
+            .limit(100)
+            .returns<AuditLogEntry[]>()
+        : Promise.resolve({ data: [] as AuditLogEntry[] }),
+    ]);
+
+  const agencyOptions: AgencyOption[] = (agencies ?? []) as AgencyOption[];
+  const isArchived = client.archived_at !== null;
+
+  const profileInitial: ProfileFormInitial = {
+    businessName: client.business_name,
+    businessAddress1: client.business_address1 ?? '',
+    businessAddress2: client.business_address2 ?? '',
+    contactName: client.contact_name ?? '',
+    contactEmail: client.contact_email,
+    phone: client.phone ?? '',
+    agencyId: client.agency_id,
+    active: client.active,
+    autoApproveEnabled: client.auto_approve_enabled,
+    archivedAt: client.archived_at,
+    archivedReason: client.archived_reason,
+  };
 
   return (
     <PageShell as="main" className="page-pad-top page-pad-bot">
@@ -112,7 +150,19 @@ export default async function ClientHubPage({
       </Link>
 
       <header className="mt-6 mb-8">
-        <p className="caps text-[0.65rem] font-semibold text-seal-deep">Insured</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="caps text-[0.65rem] font-semibold text-seal-deep">Insured</p>
+          {isArchived && (
+            <span className="caps rounded-[3px] border border-danger/40 bg-danger-soft/40 px-2 py-0.5 text-[0.55rem] font-semibold text-danger">
+              Archived
+            </span>
+          )}
+          {!client.active && !isArchived && (
+            <span className="caps rounded-[3px] border border-warning/40 bg-warning-soft/40 px-2 py-0.5 text-[0.55rem] font-semibold text-warning">
+              Inactive
+            </span>
+          )}
+        </div>
         <h1 className="mt-3 font-display text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink">
           {client.business_name}
         </h1>
@@ -126,6 +176,7 @@ export default async function ClientHubPage({
             ['certificates', `Certificates (${certs?.length ?? 0})`],
             ['policies', `Policies (${policies.length})`],
             ['profile', 'Profile'],
+            ['audit', 'Audit'],
           ] as const
         ).map(([id, label]) => {
           const active = tab === id;
@@ -152,13 +203,11 @@ export default async function ClientHubPage({
       {tab === 'profile' && (
         <ProfileForm
           clientId={client.id}
-          initial={{
-            businessName: client.business_name,
-            businessAddress1: client.business_address1 ?? '',
-            businessAddress2: client.business_address2 ?? '',
-          }}
+          initial={profileInitial}
+          agencies={agencyOptions}
         />
       )}
+      {tab === 'audit' && <AuditLogPanel entries={auditEntries ?? []} />}
     </PageShell>
   );
 }
@@ -336,4 +385,3 @@ function formatDateTime(iso: string): string {
     minute: '2-digit',
   });
 }
-
