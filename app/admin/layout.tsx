@@ -54,9 +54,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     admin
       .from('access_requests')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending')
-      .then((r) => (r.error ? { count: 0 } : r)) // table may not exist in older envs
-      .catch(() => ({ count: 0 })),
+      .eq('status', 'pending'),
     process.env.BRAND_AGENCY_ID
       ? admin
           .from('agencies')
