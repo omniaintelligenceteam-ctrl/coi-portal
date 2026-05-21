@@ -3,15 +3,16 @@ import { createServerClient } from '@supabase/ssr';
 import { canRequestPortalLogin } from '@/lib/authLogin';
 
 /**
- * Refreshes the Supabase auth session on every request and enforces live
- * approval status. Removing a row from coi_clients (or removing an email
- * from ADMIN_EMAILS) boots that user at the next request, modulo the 60s
- * approval cache below.
+ * Next.js 16 proxy (formerly known as middleware — see the file convention
+ * deprecation notice in Next.js 16). Refreshes the Supabase auth session on
+ * every request and enforces live approval status. Removing a row from
+ * coi_clients (or removing an email from ADMIN_EMAILS) boots that user at
+ * the next request, modulo the 60s approval cache below.
  *
  * Pattern: https://supabase.com/docs/guides/auth/server-side/nextjs
  */
 
-// Per-process approval cache. TTL keeps middleware cheap on hot paths;
+// Per-process approval cache. TTL keeps the proxy cheap on hot paths;
 // max size keeps memory bounded under burst traffic.
 const APPROVAL_TTL_MS = 60_000;
 const APPROVAL_CACHE_MAX = 200;
@@ -32,7 +33,7 @@ async function isApprovedCached(email: string): Promise<boolean> {
   return approved;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   // Honor an explicit "session-only" preference from older sessions. New

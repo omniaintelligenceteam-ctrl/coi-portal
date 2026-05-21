@@ -101,7 +101,8 @@ export async function POST(req: NextRequest) {
     .eq('client_id', client.id)
     .maybeSingle();
 
-  const priorMessages = (thread?.messages as Array<Anthropic.MessageParam>) ?? [];
+  const priorMessages =
+    (thread?.messages as unknown as Array<Anthropic.MessageParam> | undefined) ?? [];
   const conversation: Array<Anthropic.MessageParam> = [
     ...priorMessages,
     { role: 'user', content: body } as Anthropic.MessageParam,
