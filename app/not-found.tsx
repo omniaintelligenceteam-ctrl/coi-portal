@@ -1,31 +1,29 @@
 import { FileSearch, Home } from 'lucide-react';
 import { Logo } from './components/Logo';
-import { ButtonLink, Card } from './components/ui';
+import { SealCorner } from './components/SealCorner';
+import { ButtonLink, Card, PageShell } from './components/ui';
 
 export default function NotFound() {
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      <div className="mx-auto w-full max-w-5xl px-8 pt-safe sm:px-12 lg:px-20 xl:px-32">
+      <PageShell as="div" className="pt-safe">
         <div className="mt-6 inline-flex sm:mt-8">
           <Logo tone="dark" />
         </div>
-      </div>
+      </PageShell>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-8 pb-16 pt-10 sm:px-12 sm:pt-12 lg:px-20 xl:px-32">
-        <Card padding="lg" raised className="relative w-full max-w-xl overflow-hidden text-center">
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full border border-seal/15"
-          />
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-4 -top-4 h-24 w-24 rounded-full border border-seal/20 bg-seal-soft/30"
-          />
+      <PageShell
+        as="main"
+        width="narrow"
+        className="flex flex-1 items-center justify-center page-pad-top page-pad-bot"
+      >
+        <Card padding="lg" raised className="relative w-full overflow-hidden text-center">
+          <SealCorner size="lg" position="tr" />
 
           <div className="relative mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full border border-hairline-strong bg-paper">
             <FileSearch className="h-6 w-6 text-ink-muted" aria-hidden="true" />
           </div>
-          <p className="relative caps text-[0.65rem] font-semibold tracking-[0.22em] text-seal-deep">
+          <p className="caps relative text-[0.65rem] font-semibold tracking-[0.22em] text-seal-deep">
             404 · Not found
           </p>
           <h1 className="font-display relative mt-3 text-[1.75rem] font-medium leading-[1.1] tracking-display text-ink sm:text-[2.25rem]">
@@ -47,7 +45,7 @@ export default function NotFound() {
             </ButtonLink>
           </div>
         </Card>
-      </main>
+      </PageShell>
     </div>
   );
 }

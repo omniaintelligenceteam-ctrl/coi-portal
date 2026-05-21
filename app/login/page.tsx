@@ -6,8 +6,9 @@ import { motion } from 'motion/react';
 import { ArrowRight, Mail } from 'lucide-react';
 import { FieldShake } from '../components/motion';
 import { Logo } from '../components/Logo';
-import { Hairline } from '../components/Hairline';
-import { Button, ButtonLink } from '../components/ui';
+import { SealCorner } from '../components/SealCorner';
+import { AuthFooter } from '../components/AuthFooter';
+import { Button, ButtonLink, PageShell } from '../components/ui';
 
 const CALLBACK_ERROR_MESSAGES: Record<string, string> = {
   auth_failed: 'Your last sign-in attempt expired. Enter your email and try again.',
@@ -76,7 +77,7 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col">
-      <div className="mx-auto w-full max-w-5xl px-8 pt-safe sm:px-12 lg:px-20 xl:px-32">
+      <PageShell as="div" className="pt-safe">
         <Link
           href="/"
           aria-label="The Policy Place home"
@@ -84,24 +85,20 @@ export default function LoginPage() {
         >
           <Logo tone="dark" />
         </Link>
-      </div>
+      </PageShell>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-8 pb-12 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
+      <PageShell
+        as="main"
+        width="narrow"
+        className="flex flex-1 items-center justify-center page-pad-top page-pad-bot"
+      >
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
           className="relative w-full max-w-xl overflow-hidden rounded-[var(--r-lg)] border border-hairline bg-card px-6 py-8 shadow-lift sm:px-10 sm:py-10"
         >
-          {/* Decorative seal mark in the corner */}
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full border border-seal/15 bg-seal-soft/30"
-          />
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-4 -top-4 h-24 w-24 rounded-full border border-seal/20"
-          />
+          <SealCorner size="lg" position="tr" />
 
           <p className="caps relative text-[0.65rem] font-semibold tracking-[0.22em] text-seal-deep">
             Certificate Portal
@@ -183,32 +180,9 @@ export default function LoginPage() {
             </div>
           </form>
         </motion.section>
-      </main>
+      </PageShell>
 
-      <footer className="mx-auto w-full max-w-5xl px-8 pb-8 pb-safe sm:px-12 lg:px-20 xl:px-32">
-        <Hairline />
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="caps text-[0.65rem] font-medium text-ink-faint">
-            The Policy Place &middot; 908 Poplar St &middot; Benton KY 42025
-          </p>
-          <p className="caps flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.65rem] font-medium text-ink-faint">
-            <a href="tel:+12704102015" className="text-ink-muted hover:text-ink">
-              (270) 410-2015
-            </a>
-            <span aria-hidden="true" className="text-ink-faint/60">
-              &middot;
-            </span>
-            <a
-              href="https://www.yourpolicyplace.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-ink-muted hover:text-ink"
-            >
-              yourpolicyplace.com
-            </a>
-          </p>
-        </div>
-      </footer>
+      <AuthFooter />
     </div>
   );
 }

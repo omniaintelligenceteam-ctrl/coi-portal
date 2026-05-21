@@ -4,6 +4,14 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
+import {
+  PageShell,
+  DataTable,
+  Thead,
+  Tbody,
+  Th,
+  Td,
+} from '@/app/components/ui';
 import { getClientPoliciesAll } from '@/lib/getClientPoliciesAll';
 import { CancelCoverageButton } from './CancelCoverageButton';
 import { UncancelCoverageButton } from './UncancelCoverageButton';
@@ -95,7 +103,7 @@ export default async function ClientHubPage({
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
+    <PageShell as="main" className="page-pad-top page-pad-bot">
       <Link
         href="/admin/clients"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
@@ -151,15 +159,17 @@ export default async function ClientHubPage({
           }}
         />
       )}
-    </main>
+    </PageShell>
   );
 }
 
 function CertsTab({ certs }: { certs: CertRow[] }) {
   if (certs.length === 0) {
     return (
-      <div className="border border-hairline bg-card px-6 py-12 text-center">
-        <p className="caps text-[0.62rem] font-semibold text-ink-faint">No certificates</p>
+      <div className="rounded-[var(--r-md)] border border-hairline bg-card px-6 py-12 text-center shadow-card">
+        <p className="caps text-[0.62rem] font-semibold tracking-[0.18em] text-ink-faint">
+          No certificates
+        </p>
         <p className="mt-3 text-sm text-ink-muted">
           This client has not requested or been issued any certificates yet.
         </p>
@@ -167,19 +177,16 @@ function CertsTab({ certs }: { certs: CertRow[] }) {
     );
   }
   return (
-    <div className="border-y border-hairline">
-      <table className="min-w-full">
-        <thead>
-          <tr className="border-b border-hairline">
-            <Th>Cert #</Th>
-            <Th>Holder</Th>
-            <Th>Status</Th>
-            <Th align="right">Requested</Th>
-            <Th align="right">Sent</Th>
-            <Th />
-          </tr>
-        </thead>
-        <tbody>
+    <DataTable>
+      <Thead>
+        <Th>Cert #</Th>
+        <Th>Holder</Th>
+        <Th>Status</Th>
+        <Th align="right">Requested</Th>
+        <Th align="right">Sent</Th>
+        <Th />
+      </Thead>
+      <Tbody>
           {certs.map((c) => (
             <tr key={c.id} className="border-b border-hairline last:border-b-0">
               <Td>
@@ -223,9 +230,8 @@ function CertsTab({ certs }: { certs: CertRow[] }) {
               </Td>
             </tr>
           ))}
-        </tbody>
-      </table>
-    </div>
+      </Tbody>
+    </DataTable>
   );
 }
 
@@ -331,35 +337,3 @@ function formatDateTime(iso: string): string {
   });
 }
 
-function Th({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <th
-      scope="col"
-      className={`caps px-3 py-3 text-[0.6rem] font-semibold text-ink-faint ${
-        align === 'right' ? 'text-right' : 'text-left'
-      }`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <td className={`px-3 py-4 align-middle ${align === 'right' ? 'text-right' : 'text-left'}`}>
-      {children}
-    </td>
-  );
-}

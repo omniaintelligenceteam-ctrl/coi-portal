@@ -12,6 +12,8 @@ export type { TextareaProps } from './Textarea';
 export { Card, CardHeader } from './Card';
 export type { CardProps } from './Card';
 export { PageHeader } from './PageHeader';
+export { PageShell } from './PageShell';
+export { DataTable, Thead, Tbody, Tr, Th, Td } from './DataTable';
 export { EmptyState } from './EmptyState';
 export { MobileSheet } from './MobileSheet';
 export { ActionBar } from './ActionBar';

@@ -5,7 +5,7 @@ import { Header } from '@/app/components/Header';
 import { Hairline } from '@/app/components/Hairline';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { CopyButton } from '@/app/components/motion';
-import { Banner, ButtonLink, Card } from '@/app/components/ui';
+import { Banner, ButtonLink, Card, PageShell } from '@/app/components/ui';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
@@ -101,8 +101,8 @@ export default async function ResultPage({ params }: PageProps) {
       <Header email={user.email} showMyCerts />
       <AutoRefresh status={req.status} />
 
-      <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
-        <div className="mx-auto max-w-4xl">
+      <PageShell as="main" className="page-pad-top page-pad-bot">
+        <div>
           <Link
             href="/certificates"
             className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
@@ -301,7 +301,7 @@ export default async function ResultPage({ params }: PageProps) {
             </p>
           </aside>
         </div>
-      </main>
+      </PageShell>
     </>
   );
 }

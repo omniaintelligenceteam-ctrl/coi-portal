@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Hairline } from '@/app/components/Hairline';
+import { PageShell } from '@/app/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ export default async function ExportPage() {
   if (!email || !adminEmails().includes(email)) redirect('/');
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
+    <PageShell as="main" className="page-pad-top page-pad-bot">
       <Link
         href="/admin/queue"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
@@ -62,7 +63,7 @@ export default async function ExportPage() {
           </Link>
         </div>
       </div>
-    </main>
+    </PageShell>
   );
 }
 

@@ -2,7 +2,7 @@ import { CheckCircle2, Inbox, XCircle } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
 import { CountUp } from '@/app/components/motion';
-import { Banner, EmptyState, PageHeader } from '@/app/components/ui';
+import { Banner, EmptyState, PageHeader, PageShell } from '@/app/components/ui';
 import { QueueTable, type QueueRow } from './QueueTable';
 
 export default async function QueuePage({
@@ -29,7 +29,7 @@ export default async function QueuePage({
   const hasFetchError = Boolean(fetchError);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
+    <PageShell as="main" className="page-pad-top page-pad-bot">
       <PageHeader
         eyebrow={
           <>
@@ -87,6 +87,6 @@ export default async function QueuePage({
         <Inbox className="h-3 w-3" aria-hidden="true" />
         Showing pending and reviewed requests only · Sorted oldest first
       </p>
-    </main>
+    </PageShell>
   );
 }

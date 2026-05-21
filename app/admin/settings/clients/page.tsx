@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
+import { PageShell } from '@/app/components/ui';
 import { ClientRoster } from './ClientRoster';
 
 export const dynamic = 'force-dynamic';
@@ -84,7 +85,7 @@ export default async function ClientRosterPage() {
   }));
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
+    <PageShell as="main" className="page-pad-top page-pad-bot">
       <Link
         href="/admin/settings"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
@@ -112,7 +113,7 @@ export default async function ClientRosterPage() {
       <Hairline className="mb-6" />
 
       <ClientRoster rows={rows} />
-    </main>
+    </PageShell>
   );
 }
 

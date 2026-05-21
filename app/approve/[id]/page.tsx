@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { CheckCircle2, ExternalLink, ShieldAlert } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyApprovalToken } from '@/lib/approvalToken';
-import { Banner, ButtonLink, Card } from '@/app/components/ui';
+import { Banner, ButtonLink, Card, PageShell } from '@/app/components/ui';
 import { ApprovalCard, type ApprovalCardCert } from './_approval-card';
 import type { CertStatus } from '@/app/components/StatusPill';
 
@@ -196,7 +196,7 @@ export default async function ApproveLandingPage({ params, searchParams }: PageP
   };
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-safe pt-8 sm:max-w-lg sm:px-8 sm:pt-12">
+    <PageShell as="main" width="narrow" className="page-pad-top pb-safe">
       <header className="mb-6">
         <p className="caps text-[0.62rem] font-semibold tracking-[0.22em] text-seal-deep">
           Approval — The Policy Place
@@ -220,7 +220,7 @@ export default async function ApproveLandingPage({ params, searchParams }: PageP
           Open full dashboard
         </a>
       </p>
-    </main>
+    </PageShell>
   );
 }
 
@@ -234,7 +234,7 @@ function ErrorPage({
   requestId: string;
 }) {
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-safe pt-12 sm:max-w-lg sm:px-8 sm:pt-16">
+    <PageShell as="main" width="narrow" className="page-pad-top pb-safe">
       <Card tone="danger" padding="lg">
         <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-danger/40 bg-danger-soft/60">
           <ShieldAlert className="h-5 w-5 text-danger" aria-hidden="true" />
@@ -257,7 +257,7 @@ function ErrorPage({
           Open full dashboard
         </ButtonLink>
       </div>
-    </main>
+    </PageShell>
   );
 }
 
@@ -275,7 +275,7 @@ function ResultPage({
   const copy = doneCopyFor(kind);
   const isOk = copy.tone === 'ok';
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-safe pt-12 sm:max-w-lg sm:px-8 sm:pt-16">
+    <PageShell as="main" width="narrow" className="page-pad-top pb-safe">
       <Card tone={isOk ? 'success' : 'warning'} padding="lg">
         <div
           className={`mb-3 flex h-11 w-11 items-center justify-center rounded-full border ${
@@ -322,7 +322,7 @@ function ResultPage({
           View this request
         </ButtonLink>
       </div>
-    </main>
+    </PageShell>
   );
 }
 
@@ -338,7 +338,7 @@ function AlreadyDecidedPage({
   decidedAt: string | null;
 }) {
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-safe pt-12 sm:max-w-lg sm:px-8 sm:pt-16">
+    <PageShell as="main" width="narrow" className="page-pad-top pb-safe">
       <Card padding="lg">
         <p className="caps text-[0.62rem] font-semibold tracking-[0.22em] text-ink-muted">
           Already decided
@@ -361,6 +361,6 @@ function AlreadyDecidedPage({
           Open the queue
         </ButtonLink>
       </div>
-    </main>
+    </PageShell>
   );
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Inbox, FilePlus, Users, UserPlus, Settings } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { PageShell } from '@/app/components/ui';
 
 /**
  * Admin section tabs — refined top nav with icon + label, active state shown
@@ -61,9 +62,9 @@ export function AdminTabs() {
   return (
     <nav
       aria-label="Admin sections"
-      className="sticky top-[3.5rem] z-20 border-b border-hairline bg-paper/85 backdrop-blur-md sm:top-[3.75rem]"
+      className="sticky top-[var(--header-height)] z-20 border-b border-hairline bg-paper/85 backdrop-blur-md sm:top-[var(--header-height-sm)]"
     >
-      <div className="mx-auto flex w-full max-w-5xl items-center gap-0 overflow-x-auto px-6 sm:gap-1 sm:px-12 lg:px-20 xl:px-32">
+      <PageShell as="div" className="flex items-center gap-0 overflow-x-auto sm:gap-1">
         {TABS.map((t) => {
           const active = t.match(pathname);
           const Icon = t.icon;
@@ -95,7 +96,7 @@ export function AdminTabs() {
             </Link>
           );
         })}
-      </div>
+      </PageShell>
     </nav>
   );
 }

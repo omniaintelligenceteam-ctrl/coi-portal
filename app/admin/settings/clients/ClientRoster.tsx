@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { DataTable, Thead, Tbody, Th, Td } from '@/app/components/ui';
 import type { RosterRow } from './page';
 
 export function ClientRoster({ rows }: { rows: RosterRow[] }) {
@@ -35,25 +36,22 @@ export function ClientRoster({ rows }: { rows: RosterRow[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="border border-hairline bg-card px-5 py-8 text-sm text-ink-muted">
+        <p className="rounded-[var(--r-md)] border border-hairline bg-card px-5 py-8 text-sm text-ink-muted shadow-card">
           No matches.
         </p>
       ) : (
-        <div className="overflow-x-auto border-y border-hairline">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-hairline">
-                <Th>Business</Th>
-                <Th>Contact</Th>
-                <Th align="right">Active policies</Th>
-                <Th align="right">Last issued</Th>
-                <Th align="right">Mode</Th>
-                <Th align="right">{''}</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id} className="border-b border-hairline last:border-b-0">
+        <DataTable className="sm:block">
+          <Thead>
+            <Th>Business</Th>
+            <Th>Contact</Th>
+            <Th align="right">Active policies</Th>
+            <Th align="right">Last issued</Th>
+            <Th align="right">Mode</Th>
+            <Th align="right">{''}</Th>
+          </Thead>
+          <Tbody>
+            {filtered.map((r) => (
+                <tr key={r.id} className="border-b border-hairline last:border-b-0 hover:bg-paper-deep/40">
                   <Td>
                     <Link
                       href={`/admin/generate/${r.id}`}
@@ -101,12 +99,11 @@ export function ClientRoster({ rows }: { rows: RosterRow[] }) {
                   </Td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+          </Tbody>
+        </DataTable>
       )}
 
-      <p className="caps mt-5 text-[0.6rem] font-medium text-ink-faint">
+      <p className="caps mt-5 text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
         {filtered.length} of {rows.length} shown
       </p>
     </>
@@ -116,35 +113,4 @@ export function ClientRoster({ rows }: { rows: RosterRow[] }) {
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function Th({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <th
-      scope="col"
-      className={`caps px-3 py-3 text-[0.6rem] font-semibold text-ink-faint ${
-        align === 'right' ? 'text-right' : 'text-left'
-      }`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <td className={`px-3 py-4 align-middle ${align === 'right' ? 'text-right' : ''}`}>{children}</td>
-  );
 }

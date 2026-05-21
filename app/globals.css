@@ -81,6 +81,11 @@
   --row-default: 0.875rem;
   --row-loose: 1.125rem;
 
+  /* Sticky header height — referenced by AdminTabs so the tab strip's sticky
+     offset tracks Header automatically. Change Header padding → bump these. */
+  --header-height: 3.5rem;
+  --header-height-sm: 3.75rem;
+
   /* Motion — durations + easings (editorial, confident, fast).
      Every new animation should pick one of these. Keeps the product on tempo. */
   --m-fast: 150ms;     /* micro-state flips: focus, hover, checkmark stroke */
@@ -475,6 +480,51 @@ a {
 /* Tabular numbers for cert numbers, dates, dollar amounts. */
 .num-tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------
+ * Vertical rhythm — single source of truth for page top/bottom
+ * padding + section gaps. Every <main> uses page-pad-top / page-pad-bot
+ * so every route starts at the same y-offset and ends with the same
+ * tail breathing room.
+ * ------------------------------------------------------------------ */
+.page-pad-top {
+  padding-top: 2rem;
+}
+.page-pad-bot {
+  padding-bottom: 5rem;
+}
+.section-gap {
+  margin-top: 2.5rem;
+}
+@media (min-width: 640px) {
+  .page-pad-top { padding-top: 2.5rem; }
+  .page-pad-bot { padding-bottom: 6rem; }
+  .section-gap  { margin-top: 3rem; }
+}
+@media (min-width: 1024px) {
+  .page-pad-top { padding-top: 3rem; }
+}
+
+/* Sonner editorial toast — title + description type tokens. The Toaster
+   in app/layout.tsx passes these classNames; here we wire the actual
+   look. Fraunces title, Geist body, restrained leading. */
+.editorial-toast {
+  font-family: var(--font-sans);
+}
+.editorial-toast-title {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: var(--tracking-display);
+  color: var(--color-ink);
+}
+.editorial-toast-description {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-ink-muted);
 }
 
 /* Reduced motion */

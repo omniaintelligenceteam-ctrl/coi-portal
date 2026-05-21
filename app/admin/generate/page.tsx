@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { ChevronRight, Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { EmptyState, PageHeader } from '@/app/components/ui';
+import { EmptyState, PageHeader, PageShell } from '@/app/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +40,7 @@ export default async function GenerateLandingPage() {
   const rows = clients ?? [];
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
+    <PageShell as="main" className="page-pad-top page-pad-bot">
       <PageHeader
         eyebrow={
           <>
@@ -95,6 +95,6 @@ export default async function GenerateLandingPage() {
           {rows.length} active {rows.length === 1 ? 'client' : 'clients'}
         </p>
       </div>
-    </main>
+    </PageShell>
   );
 }

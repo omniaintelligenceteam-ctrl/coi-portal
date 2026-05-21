@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
+import { PageShell } from '@/app/components/ui';
 import { OverridesEditor, type OverrideRow } from './OverridesEditor';
 
 export const dynamic = 'force-dynamic';
@@ -47,8 +48,7 @@ export default async function ClientOverridesPage({
     .returns<OverrideRow[]>();
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
-      <div className="mx-auto max-w-2xl">
+    <PageShell as="main" width="narrow" className="page-pad-top page-pad-bot">
       <Link
         href="/admin/settings/clients"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
@@ -71,8 +71,7 @@ export default async function ClientOverridesPage({
       <Hairline className="mb-8" />
 
       <OverridesEditor clientId={client.id} initial={overrides ?? []} />
-      </div>
-    </main>
+    </PageShell>
   );
 }
 

@@ -1,7 +1,17 @@
 import { Building2, KeyRound, Users } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
-import { ButtonLink, Card, PageHeader } from '@/app/components/ui';
+import {
+  ButtonLink,
+  Card,
+  PageHeader,
+  PageShell,
+  DataTable,
+  Thead,
+  Tbody,
+  Th,
+  Td,
+} from '@/app/components/ui';
 import { ClientAutoApproveToggle } from './ClientAutoApproveToggle';
 
 type ClientRow = {
@@ -31,7 +41,7 @@ export default async function SettingsPage() {
   const dailyLimit = process.env.CERT_DAILY_LIMIT ?? '200';
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-8 sm:px-12 sm:pt-12 lg:px-20 lg:pt-14 xl:px-32">
+    <PageShell as="main" className="page-pad-top page-pad-bot">
       <PageHeader
         eyebrow={
           <>
@@ -128,42 +138,38 @@ export default async function SettingsPage() {
             </ul>
 
             {/* Desktop table */}
-            <div className="hidden overflow-hidden rounded-[var(--r-md)] border border-hairline bg-card shadow-card sm:block">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-hairline bg-paper-deep/40">
-                    <Th>Client</Th>
-                    <Th>Contact</Th>
-                    <Th align="right">Mode</Th>
+            <DataTable>
+              <Thead>
+                <Th>Client</Th>
+                <Th>Contact</Th>
+                <Th align="right">Mode</Th>
+              </Thead>
+              <Tbody>
+                {rows.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-b border-hairline last:border-b-0 hover:bg-paper-deep/40"
+                  >
+                    <Td>
+                      <span className="text-[0.9375rem] font-medium text-ink">
+                        {c.business_name}
+                      </span>
+                    </Td>
+                    <Td>
+                      <span className="font-mono text-[0.78rem] text-ink-muted">
+                        {c.contact_email ?? '—'}
+                      </span>
+                    </Td>
+                    <td className="px-3 py-3 align-middle">
+                      <ClientAutoApproveToggle
+                        clientId={c.id}
+                        initialEnabled={c.auto_approve_enabled}
+                      />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {rows.map((c) => (
-                    <tr
-                      key={c.id}
-                      className="border-b border-hairline last:border-b-0 hover:bg-paper-deep/40"
-                    >
-                      <Td>
-                        <span className="text-[0.9375rem] font-medium text-ink">
-                          {c.business_name}
-                        </span>
-                      </Td>
-                      <Td>
-                        <span className="font-mono text-[0.78rem] text-ink-muted">
-                          {c.contact_email ?? '—'}
-                        </span>
-                      </Td>
-                      <td className="px-3 py-3 align-middle">
-                        <ClientAutoApproveToggle
-                          clientId={c.id}
-                          initialEnabled={c.auto_approve_enabled}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </Tbody>
+            </DataTable>
           </>
         )}
       </section>
@@ -186,31 +192,8 @@ export default async function SettingsPage() {
           </dl>
         </Card>
       </section>
-    </main>
+    </PageShell>
   );
-}
-
-function Th({
-  children,
-  align = 'left',
-}: {
-  children?: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  return (
-    <th
-      scope="col"
-      className={`caps px-3 py-3 text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint ${
-        align === 'right' ? 'text-right' : 'text-left'
-      }`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({ children }: { children?: React.ReactNode }) {
-  return <td className="px-3 py-4 align-middle">{children}</td>;
 }
 
 function EnvRow({

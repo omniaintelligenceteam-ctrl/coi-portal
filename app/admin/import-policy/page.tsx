@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Hairline } from '@/app/components/Hairline';
+import { PageShell } from '@/app/components/ui';
 import { PolicyImportForm } from './PolicyImportForm';
 
 export const dynamic = 'force-dynamic';
@@ -34,14 +35,14 @@ export default async function ImportPolicyPage() {
 
   if (!clients?.length) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
+      <PageShell as="main" className="page-pad-top page-pad-bot">
         <p className="text-sm text-ink-muted">No active clients found. Add a client first.</p>
-      </main>
+      </PageShell>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-8 pb-24 pt-10 sm:px-12 sm:pt-12 lg:px-20 lg:pt-16 xl:px-32">
+    <PageShell as="main" className="page-pad-top page-pad-bot">
       <Link
         href="/admin/queue"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.62rem] font-medium text-ink-muted hover:text-ink"
@@ -64,7 +65,7 @@ export default async function ImportPolicyPage() {
       <Hairline className="mb-10" />
 
       <PolicyImportForm clients={clients} />
-    </main>
+    </PageShell>
   );
 }
 
