@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { RouteTransition } from './components/motion';
 import { ThemeProvider, themePrePaintScript } from './components/ThemeProvider';
+import { InstallPrompt } from './components/InstallPrompt';
 import './globals.css';
 
 /**
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="relative min-h-screen bg-paper font-sans text-ink antialiased selection:bg-brand selection:text-white">
         <ThemeProvider>
           <RouteTransition className="relative z-10">{children}</RouteTransition>
+          <InstallPrompt />
           <style>{`
             [data-sonner-toaster][data-theme] {
               --normal-bg: var(--color-card);

@@ -10,6 +10,7 @@ import { MasterCertButton } from './MasterCertButton';
 import { SealCorner } from './components/SealCorner';
 import { Banner, ButtonLink, Card, EmptyState, PageShell } from './components/ui';
 import { RecentCertsSection, type RecentCert } from './_client/RecentCertsSection';
+import { PendingRequestBanner, type PendingRequest } from './_client/PendingRequestBanner';
 
 type ClientRow = {
   id: string;
@@ -83,18 +84,35 @@ export default async function HomePage() {
 
   // Recent certificates — surfaced above the request form so re-sending the
   // last cert to a new holder is one tap (the dominant client use case).
-  const { data: recentRows } = await supabase
-    .from('cert_requests')
-    .select('cert_number, holder_name, sent_at')
-    .eq('client_id', client.id)
-    .eq('status', 'sent')
-    .order('sent_at', { ascending: false })
-    .limit(3);
+  const [{ data: recentRows }, { data: pendingRows }] = await Promise.all([
+    supabase
+      .from('cert_requests')
+      .select('cert_number, holder_name, sent_at')
+      .eq('client_id', client.id)
+      .eq('status', 'sent')
+      .order('sent_at', { ascending: false })
+      .limit(3),
+    supabase
+      .from('cert_requests')
+      .select('id, cert_number, holder_name, status, requested_at')
+      .eq('client_id', client.id)
+      .in('status', ['pending', 'reviewed'])
+      .order('requested_at', { ascending: true })
+      .limit(5),
+  ]);
 
   const recentCerts: RecentCert[] = (recentRows ?? []).map((r) => ({
     certNumber: r.cert_number as string,
     holderName: r.holder_name as string,
     sentAt: (r.sent_at as string | null) ?? null,
+  }));
+
+  const pendingRequests: PendingRequest[] = (pendingRows ?? []).map((r) => ({
+    id: r.id as string,
+    certNumber: r.cert_number as string,
+    holderName: r.holder_name as string,
+    status: r.status as 'pending' | 'reviewed',
+    requestedAt: r.requested_at as string,
   }));
 
   const policiesForForm: PolicyForForm[] = eligible.map((p) => ({
@@ -148,6 +166,8 @@ export default async function HomePage() {
             <RenewalBanner alerts={renewalAlerts} />
           </div>
         )}
+
+        <PendingRequestBanner requests={pendingRequests} />
 
         <RecentCertsSection certs={recentCerts} />
 
