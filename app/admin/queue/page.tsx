@@ -19,6 +19,7 @@ export default async function QueuePage({
     .select(
       `id, cert_number, holder_name, status, requested_at,
        reviewer_pass, reviewer_flags,
+       confidence_score, auto_approve_lane, holdback_until, intercepted_at,
        client:coi_clients ( business_name )`,
     )
     .in('status', ['pending', 'reviewed'])

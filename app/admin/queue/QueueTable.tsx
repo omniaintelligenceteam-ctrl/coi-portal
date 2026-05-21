@@ -12,6 +12,8 @@ import { Button, Banner } from '@/app/components/ui';
 import { createClient } from '@/lib/supabase/browser';
 import { useQueueShortcuts } from '../useQueueShortcuts';
 import { ShortcutHelp } from '../ShortcutHelp';
+import { InterceptButton } from './InterceptButton';
+import { HoldbackCountdown } from './HoldbackCountdown';
 
 /**
  * Queue list — Statement Phase 2b.
@@ -38,6 +40,14 @@ export type QueueRow = {
   requested_at: string;
   reviewer_pass: boolean | null;
   reviewer_flags: { severity: 'error' | 'warning' | 'info' }[];
+  /** 0-100 from the reviewer agent. Null until reviewer runs. */
+  confidence_score: number | null;
+  /** 'manual' | 'holdback' | 'instant' — null on legacy rows. */
+  auto_approve_lane: string | null;
+  /** When the holdback cron will auto-release this row. Null outside holdback lane. */
+  holdback_until: string | null;
+  /** When Brook (or another admin) pulled this back from the holdback lane. */
+  intercepted_at: string | null;
   client: { business_name: string } | null;
 };
 
@@ -215,6 +225,10 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
               requested_at: fresh.requested_at ?? new Date().toISOString(),
               reviewer_pass: fresh.reviewer_pass ?? null,
               reviewer_flags: fresh.reviewer_flags ?? [],
+              confidence_score: fresh.confidence_score ?? null,
+              auto_approve_lane: fresh.auto_approve_lane ?? null,
+              holdback_until: fresh.holdback_until ?? null,
+              intercepted_at: fresh.intercepted_at ?? null,
               client: null,
             };
             return [...prev, stub];
@@ -442,7 +456,7 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-hairline pt-3">
-                      <div className="flex items-center gap-3 text-[0.78rem] text-ink-faint">
+                      <div className="flex flex-wrap items-center gap-3 text-[0.78rem] text-ink-faint">
                         <Link
                           href={`/admin/queue/${r.id}`}
                           className="focus-ring num-tabular -m-1 rounded p-1 font-mono text-[0.78rem] font-medium text-ink hover:text-brand-deep"
@@ -451,15 +465,28 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
                           {r.cert_number}
                         </Link>
                         <span className="num-tabular font-mono">{relativeTime(r.requested_at)}</span>
+                        {typeof r.confidence_score === 'number' && (
+                          <ConfidenceBadge score={r.confidence_score} />
+                        )}
+                        {r.auto_approve_lane === 'holdback' &&
+                          !r.intercepted_at &&
+                          r.holdback_until && (
+                            <HoldbackCountdown until={r.holdback_until} />
+                          )}
                       </div>
-                      <Link
-                        href={`/admin/queue/${r.id}`}
-                        className="focus-ring caps inline-flex items-center gap-1.5 rounded text-[0.62rem] font-semibold tracking-[0.12em] text-brand transition-colors hover:text-brand-deep"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Open
-                        <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        {r.auto_approve_lane === 'holdback' && !r.intercepted_at && (
+                          <InterceptButton requestId={r.id} certNumber={r.cert_number} />
+                        )}
+                        <Link
+                          href={`/admin/queue/${r.id}`}
+                          className="focus-ring caps inline-flex items-center gap-1.5 rounded text-[0.62rem] font-semibold tracking-[0.12em] text-brand transition-colors hover:text-brand-deep"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Open
+                          <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -532,6 +559,31 @@ function PulseCard({
     >
       {children}
     </motion.li>
+  );
+}
+
+function ConfidenceBadge({ score }: { score: number }) {
+  const { label, tone } =
+    score >= 90
+      ? { label: 'High', tone: 'brand' as const }
+      : score >= 70
+        ? { label: 'Med', tone: 'warning' as const }
+        : { label: 'Low', tone: 'danger' as const };
+  const cls =
+    tone === 'brand'
+      ? 'border-brand/40 bg-brand-soft text-brand-deep'
+      : tone === 'warning'
+        ? 'border-warning/40 bg-warning-soft text-warning'
+        : 'border-danger/30 bg-danger-soft text-danger';
+  return (
+    <span
+      className={`caps inline-flex items-center gap-1 rounded border px-2 py-1 text-[0.6rem] font-semibold tracking-caps ${cls}`}
+      title={`Reviewer confidence: ${score}/100`}
+    >
+      <span className="num-tabular font-mono">{score}</span>
+      <span aria-hidden="true">·</span>
+      {label}
+    </span>
   );
 }
 
