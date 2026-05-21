@@ -38,6 +38,10 @@ export default async function QueuePage({
     // Likely the new columns don't exist yet (migration pending). Retry
     // with only the original columns; pad new-field shape with nulls so the
     // type stays compatible with QueueTable's QueueRow.
+    type LegacyRow = Omit<
+      QueueRow,
+      'confidence_score' | 'auto_approve_lane' | 'holdback_until' | 'intercepted_at'
+    >;
     const legacy = await supabase
       .from('cert_requests')
       .select(
@@ -46,12 +50,13 @@ export default async function QueuePage({
          client:coi_clients ( business_name )`,
       )
       .in('status', ['pending', 'reviewed'])
-      .order('requested_at', { ascending: true });
+      .order('requested_at', { ascending: true })
+      .returns<LegacyRow[]>();
     if (legacy.error) {
       hasFetchError = true;
     } else {
       rows = (legacy.data ?? []).map((r) => ({
-        ...(r as Omit<QueueRow, 'confidence_score' | 'auto_approve_lane' | 'holdback_until' | 'intercepted_at'>),
+        ...r,
         confidence_score: null,
         auto_approve_lane: null,
         holdback_until: null,
