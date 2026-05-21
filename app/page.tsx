@@ -11,6 +11,7 @@ import { SealCorner } from './components/SealCorner';
 import { Banner, ButtonLink, Card, EmptyState, PageShell } from './components/ui';
 import { RecentCertsSection, type RecentCert } from './_client/RecentCertsSection';
 import { PendingRequestBanner, type PendingRequest } from './_client/PendingRequestBanner';
+import { ChatWidget } from './_client/ChatWidget';
 
 type ClientRow = {
   id: string;
@@ -215,6 +216,10 @@ export default async function HomePage() {
           </p>
         </aside>
       </PageShell>
+
+      {/* Conversational COI assistant — floating widget. Mounts on every
+          client home render; gates on auth inside its own fetch. */}
+      <ChatWidget />
     </>
   );
 }
