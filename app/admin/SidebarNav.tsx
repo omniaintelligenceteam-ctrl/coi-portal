@@ -180,16 +180,16 @@ export function SidebarNav({
                       href={item.href}
                       aria-current={active ? 'page' : undefined}
                       className={[
-                        'focus-ring flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[0.875rem] font-medium transition-colors',
+                        'focus-ring relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[0.875rem] font-medium transition-colors',
                         active
-                          ? 'bg-ink text-paper'
+                          ? 'bg-brand text-white shadow-card'
                           : 'text-ink-muted hover:bg-card hover:text-ink',
                       ].join(' ')}
                     >
                       <Icon
                         className={[
                           'h-4 w-4',
-                          active ? 'text-paper' : 'text-ink-faint',
+                          active ? 'text-white' : 'text-ink-faint',
                         ].join(' ')}
                         aria-hidden="true"
                       />
@@ -199,7 +199,7 @@ export function SidebarNav({
                           className={[
                             'num-tabular ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold',
                             active
-                              ? 'bg-brand text-white'
+                              ? 'bg-white/20 text-white'
                               : 'border border-hairline-strong bg-card text-ink-muted',
                           ].join(' ')}
                         >

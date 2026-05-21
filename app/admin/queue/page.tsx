@@ -14,7 +14,12 @@ export default async function QueuePage({
   const deletedFlash = sp.deleted === '1';
 
   const supabase = createAdminClient();
-  const { data: requests, error: fetchError } = await supabase
+
+  // Try the full Phase-A column set first. If the migration hasn't been
+  // applied yet (columns don't exist), fall back to the legacy column set
+  // so the queue still renders — lane/confidence UI just stays hidden until
+  // the migration lands.
+  const fullSelect = await supabase
     .from('cert_requests')
     .select(
       `id, cert_number, holder_name, status, requested_at,
@@ -26,8 +31,36 @@ export default async function QueuePage({
     .order('requested_at', { ascending: true })
     .returns<QueueRow[]>();
 
-  const rows = requests ?? [];
-  const hasFetchError = Boolean(fetchError);
+  let rows: QueueRow[] = [];
+  let hasFetchError = false;
+
+  if (fullSelect.error) {
+    // Likely the new columns don't exist yet (migration pending). Retry
+    // with only the original columns; pad new-field shape with nulls so the
+    // type stays compatible with QueueTable's QueueRow.
+    const legacy = await supabase
+      .from('cert_requests')
+      .select(
+        `id, cert_number, holder_name, status, requested_at,
+         reviewer_pass, reviewer_flags,
+         client:coi_clients ( business_name )`,
+      )
+      .in('status', ['pending', 'reviewed'])
+      .order('requested_at', { ascending: true });
+    if (legacy.error) {
+      hasFetchError = true;
+    } else {
+      rows = (legacy.data ?? []).map((r) => ({
+        ...(r as Omit<QueueRow, 'confidence_score' | 'auto_approve_lane' | 'holdback_until' | 'intercepted_at'>),
+        confidence_score: null,
+        auto_approve_lane: null,
+        holdback_until: null,
+        intercepted_at: null,
+      }));
+    }
+  } else {
+    rows = fullSelect.data ?? [];
+  }
 
   return (
     <PageShell as="main" className="page-pad-top page-pad-bot">
