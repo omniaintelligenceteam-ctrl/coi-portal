@@ -8,10 +8,27 @@ import { toast } from 'sonner';
 import { ArrowRight, Send } from 'lucide-react';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { useRowPulse } from '@/app/components/motion';
-import { Button, ButtonLink, Banner, Th, Td } from '@/app/components/ui';
+import { Button, Banner } from '@/app/components/ui';
 import { createClient } from '@/lib/supabase/browser';
 import { useQueueShortcuts } from '../useQueueShortcuts';
 import { ShortcutHelp } from '../ShortcutHelp';
+
+/**
+ * Queue list — Statement Phase 2b.
+ *
+ * Replaces the prior dense desktop table with a rank-ordered card list.
+ * Each card surfaces the four things Brook needs at a glance: client name
+ * (display weight), holder, status pill, AI review state. Reviewer-passed
+ * items get a Sovereign Blue left-border to flag "ready for one-click
+ * approve". Card density is higher than the prior mobile card pattern so
+ * 10+ items fit on a desktop screen without scrolling.
+ *
+ * All interactive behavior preserved verbatim from the prior table view:
+ * bulk approve with 8s undo, realtime Supabase subscriptions for INSERT
+ * and UPDATE events, keyboard shortcuts (j/k navigation, a approve,
+ * shift+a bulk, ? help), focus state with brand-tone outline, row pulse
+ * on remote update, staggered first-paint mount.
+ */
 
 export type QueueRow = {
   id: string;
@@ -60,21 +77,13 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
   const [focusIdx, setFocusIdx] = useState<number>(-1);
   const [helpOpen, setHelpOpen] = useState(false);
   const [newRowIds, setNewRowIds] = useState<Set<string>>(new Set());
-  // Tracks updated_at-like signatures per row so realtime UPDATEs trigger
-  // a one-shot row-pulse glow (Tier 1 #8). Map<rowId, signature>.
   const [updateSig, setUpdateSig] = useState<Map<string, string>>(new Map());
-  // True only during the initial render window. Used to gate first-paint
-  // stagger so realtime inserts later don't waterfall (Tier 1 #1).
   const [isInitial, setIsInitial] = useState(true);
 
-  // Sync rows when server data changes (e.g., navigation refresh)
   useEffect(() => {
     setRows(initialRows);
   }, [initialRows]);
 
-  // Close the first-paint window after a single tick so any realtime
-  // inserts after this point use their own (isNew) entry animation
-  // instead of the staggered cascade.
   useEffect(() => {
     const t = setTimeout(() => setIsInitial(false), 600);
     return () => clearTimeout(t);
@@ -96,7 +105,6 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
         return next;
       });
     },
-    // eligibleIds derives from rows
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows],
   );
@@ -109,7 +117,6 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     }
   }
 
-  // Core bulk-approve fetch — extracted so it can be deferred behind an undo toast.
   const executeBulkApprove = useCallback(
     async (ids: string[]) => {
       if (ids.length === 0) return;
@@ -142,16 +149,10 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     [router],
   );
 
-  // Bulk-approve trigger now offers an 8s undo window via sonner, with
-  // a thin countdown bar that bleeds left-to-right so the admin can see
-  // exactly how long they have to undo (Tier 1 #2).
   function bulkApprove() {
     const ids = selectedEligible;
     if (ids.length === 0) return;
 
-    // Tier 2 #11: optimistic halo across all selected rows — the bulk
-    // approve action reads as one synchronized "ratified" wash even
-    // before the request is sent.
     pulseRowsOptimistically(ids);
 
     let cancelled = false;
@@ -162,7 +163,7 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     const count = ids.length;
     toast.custom(
       (id) => (
-        <div className="relative w-80 overflow-hidden rounded-md border border-hairline-strong bg-paper shadow-lift">
+        <div className="relative w-80 overflow-hidden rounded-md border border-hairline-strong bg-card shadow-lift">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <span className="text-[0.85rem] text-ink">
               Approved <span className="font-mono font-semibold">{count}</span> cert
@@ -191,7 +192,6 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     );
   }
 
-  // Realtime: subscribe to inserts/updates on cert_requests.
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -224,7 +224,6 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
             next.add(fresh.id);
             return next;
           });
-          // hydrate the rest (client name) from the server
           router.refresh();
         },
       )
@@ -234,7 +233,6 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
         (payload) => {
           const updated = payload.new as Partial<QueueRow> & { id: string; status?: CertStatus };
           setRows((prev) => {
-            // If row no longer fits the queue filter, drop it.
             if (updated.status && updated.status !== 'pending' && updated.status !== 'reviewed') {
               return prev.filter((r) => r.id !== updated.id);
             }
@@ -242,9 +240,6 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
               r.id === updated.id ? { ...r, ...(updated as Partial<QueueRow>) } : r,
             );
           });
-          // Tier 1 #8: pulse the row so the admin's eye catches the change.
-          // The signature is a per-event timestamp; useRowPulse re-fires
-          // whenever the value changes.
           setUpdateSig((prev) => {
             const next = new Map(prev);
             next.set(updated.id, `${Date.now()}`);
@@ -259,7 +254,6 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     };
   }, [router]);
 
-  // Keep focus index in range as rows change.
   useEffect(() => {
     if (rows.length === 0) {
       if (focusIdx !== -1) setFocusIdx(-1);
@@ -268,13 +262,8 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     if (focusIdx >= rows.length) setFocusIdx(rows.length - 1);
   }, [rows, focusIdx]);
 
-  // Single-row approve via API (used by keyboard `a`).
   async function approveOne(id: string) {
     if (!eligibleIds.has(id)) return;
-    // Tier 2 #11: optimistic row-pulse fires BEFORE the network round trip
-    // so the admin's `a` keystroke gets instant visual confirmation. The
-    // realtime UPDATE later will fire a second pulse (the two overlap and
-    // read as one continuous halo).
     pulseRowsOptimistically([id]);
     try {
       await fetch('/api/bulk-approve', {
@@ -284,12 +273,10 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
       });
       router.refresh();
     } catch {
-      // realtime will pick up the change anyway; surface nothing here.
+      // realtime picks up the change
     }
   }
 
-  // Helper: instantly retrigger row-pulse on the given ids by bumping
-  // their updateSig signatures. Pure UI feedback — does no network work.
   function pulseRowsOptimistically(ids: string[]) {
     if (ids.length === 0) return;
     setUpdateSig((prev) => {
@@ -300,7 +287,6 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
     });
   }
 
-  // Keyboard shortcut handlers
   const focused = focusIdx >= 0 && focusIdx < rows.length ? rows[focusIdx] : null;
 
   useQueueShortcuts({
@@ -378,7 +364,6 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
         </div>
       )}
 
-      {/* Failures detail */}
       {bulkState.kind === 'done' && bulkState.failed.length > 0 && (
         <div className="mb-5">
           <Banner tone="danger" title="Failed to send">
@@ -393,179 +378,103 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
         </div>
       )}
 
-      {/* Mobile card stack — under sm */}
-      <ul className="space-y-3 sm:hidden">
-        {rows.map((r, idx) => {
-          const counts = flagCounts(r.reviewer_flags ?? []);
-          const isEligible = eligibleIds.has(r.id);
-          const isSelected = selected.has(r.id);
-          const isFocused = idx === focusIdx;
-          const isNew = newRowIds.has(r.id);
-          return (
-            <PulseLi
-              key={r.id}
-              pulseKey={updateSig.get(r.id)}
-              isFirstPaint={isInitial && !isNew}
-              isNew={isNew}
-              idx={idx}
-              reduce={Boolean(reduce)}
-              className={`relative rounded-[var(--r-md)] border border-hairline bg-card p-4 shadow-card transition-colors ${
-                isSelected ? 'border-brand/40 bg-brand-soft/30' : ''
-              } ${isFocused ? 'ring-2 ring-brand/40 ring-offset-1 ring-offset-paper' : ''}`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/admin/queue/${r.id}`}
-                      className="focus-ring num-tabular -m-1 inline-block rounded p-1 font-mono text-[0.8rem] font-semibold text-ink"
-                    >
-                      {r.cert_number}
-                    </Link>
-                    <span className="num-tabular font-mono text-[0.72rem] text-ink-faint">
-                      &middot; {relativeTime(r.requested_at)}
-                    </span>
-                  </div>
-                  <p className="font-display mt-1.5 truncate text-[1.05rem] font-medium leading-[1.2] text-ink">
-                    {r.client?.business_name ?? '—'}
-                  </p>
-                  <p className="mt-0.5 truncate text-[0.8125rem] text-ink-muted">
-                    To {r.holder_name}
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  disabled={!isEligible}
-                  onChange={() => toggleRow(r.id)}
-                  className="tap-target mt-1 h-5 w-5 shrink-0 rounded-[3px] border-hairline-strong text-brand disabled:cursor-not-allowed disabled:opacity-30 focus:ring-brand/40"
-                  aria-label={`Select ${r.cert_number}`}
-                />
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-hairline pt-3">
-                <StatusPill status={r.status} />
-                <AiReviewIndicator
-                  pass={r.reviewer_pass}
-                  errors={counts.errors}
-                  warnings={counts.warnings}
-                />
-              </div>
-              <ButtonLink
-                href={`/admin/queue/${r.id}`}
-                size="md"
-                fullWidth
-                trailingIcon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
-                className="mt-4"
+      {/* Unified card list — works at every breakpoint */}
+      <ul className="space-y-3">
+        <AnimatePresence initial={false}>
+          {rows.map((r, idx) => {
+            const counts = flagCounts(r.reviewer_flags ?? []);
+            const isEligible = eligibleIds.has(r.id);
+            const isSelected = selected.has(r.id);
+            const isFocused = idx === focusIdx;
+            const isNew = newRowIds.has(r.id);
+            const reviewerClean = r.reviewer_pass === true && counts.errors === 0 && counts.warnings === 0;
+            return (
+              <PulseCard
+                key={r.id}
+                pulseKey={updateSig.get(r.id)}
+                isFirstPaint={isInitial && !isNew}
+                isNew={isNew}
+                idx={idx}
+                reduce={Boolean(reduce)}
+                onClick={() => setFocusIdx(idx)}
+                className={[
+                  'group relative rounded-[var(--r-md)] border bg-card transition-colors',
+                  isSelected
+                    ? 'border-brand bg-brand-soft/40'
+                    : isFocused
+                      ? 'border-ink shadow-card'
+                      : 'border-hairline hover:border-hairline-strong',
+                  // Sovereign Blue left edge when reviewer agent has cleared the request.
+                  reviewerClean ? 'shadow-[inset_3px_0_0_0_var(--color-brand)]' : '',
+                ].join(' ')}
               >
-                Review request
-              </ButtonLink>
-            </PulseLi>
-          );
-        })}
+                <div className="flex items-start gap-3 p-4 sm:gap-4 sm:p-5">
+                  {/* Selection checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    disabled={!isEligible}
+                    onChange={() => toggleRow(r.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-1 h-4 w-4 shrink-0 rounded-[3px] border-hairline-strong text-brand disabled:cursor-not-allowed disabled:opacity-30 focus:ring-brand/40"
+                    aria-label={`Select ${r.cert_number}`}
+                  />
+
+                  {/* Body */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                      <div className="min-w-0">
+                        <h3 className="font-display truncate text-[1.05rem] font-medium leading-[1.25] text-ink sm:text-[1.15rem]">
+                          {r.client?.business_name ?? '—'}
+                        </h3>
+                        <p className="mt-0.5 truncate text-[0.85rem] text-ink-muted">
+                          to <span className="text-ink">{r.holder_name}</span>
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2.5">
+                        <StatusPill status={r.status} />
+                        <AiReviewIndicator
+                          pass={r.reviewer_pass}
+                          errors={counts.errors}
+                          warnings={counts.warnings}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-hairline pt-3">
+                      <div className="flex items-center gap-3 text-[0.78rem] text-ink-faint">
+                        <Link
+                          href={`/admin/queue/${r.id}`}
+                          className="focus-ring num-tabular -m-1 rounded p-1 font-mono text-[0.78rem] font-medium text-ink hover:text-brand-deep"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {r.cert_number}
+                        </Link>
+                        <span className="num-tabular font-mono">{relativeTime(r.requested_at)}</span>
+                      </div>
+                      <Link
+                        href={`/admin/queue/${r.id}`}
+                        className="focus-ring caps inline-flex items-center gap-1.5 rounded text-[0.62rem] font-semibold tracking-[0.12em] text-brand transition-colors hover:text-brand-deep"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Open
+                        <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </PulseCard>
+            );
+          })}
+        </AnimatePresence>
       </ul>
 
-      {/* Desktop table — sm and up */}
-      <div className="hidden border-y border-hairline sm:block">
-        <table className="min-w-full">
-          <thead>
-            <tr className="border-b border-hairline">
-              <th scope="col" className="w-10 px-3 py-3">
-                <span className="sr-only">Select</span>
-              </th>
-              <Th>Certificate</Th>
-              <Th>Insured</Th>
-              <Th>Holder</Th>
-              <Th>Status</Th>
-              <Th>AI Review</Th>
-              <Th align="right">Received</Th>
-              <Th />
-            </tr>
-          </thead>
-          <tbody>
-            <AnimatePresence initial={false}>
-              {rows.map((r, idx) => {
-                const counts = flagCounts(r.reviewer_flags ?? []);
-                const isEligible = eligibleIds.has(r.id);
-                const isSelected = selected.has(r.id);
-                const isFocused = idx === focusIdx;
-                const isNew = newRowIds.has(r.id);
-                return (
-                  <PulseTr
-                    key={r.id}
-                    pulseKey={updateSig.get(r.id)}
-                    isFirstPaint={isInitial && !isNew}
-                    isNew={isNew}
-                    idx={idx}
-                    reduce={Boolean(reduce)}
-                    className={`group border-b border-hairline last:border-b-0 transition-colors hover:bg-paper-deep/50 ${
-                      isSelected ? 'bg-brand-soft/20' : ''
-                    } ${isFocused ? 'bg-paper-deep shadow-[inset_2px_0_0_0_var(--color-brand)]' : ''}`}
-                    onClick={() => setFocusIdx(idx)}
-                  >
-                    <td className="px-3 py-4 align-middle">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        disabled={!isEligible}
-                        onChange={() => toggleRow(r.id)}
-                        className="h-4 w-4 rounded-[3px] border-hairline-strong text-brand disabled:cursor-not-allowed disabled:opacity-30 focus:ring-brand/40"
-                        aria-label={`Select ${r.cert_number}`}
-                      />
-                    </td>
-                    <Td>
-                      <Link
-                        href={`/admin/queue/${r.id}`}
-                        className="focus-ring -m-1 inline-block rounded p-1 font-mono text-[0.78rem] font-medium text-ink"
-                      >
-                        {r.cert_number}
-                      </Link>
-                    </Td>
-                    <Td>
-                      <span className="font-medium text-[0.92rem] text-ink">
-                        {r.client?.business_name ?? '—'}
-                      </span>
-                    </Td>
-                    <Td>
-                      <span className="text-[0.9rem] text-ink-muted">{r.holder_name}</span>
-                    </Td>
-                    <Td>
-                      <StatusPill status={r.status} />
-                    </Td>
-                    <Td>
-                      <AiReviewIndicator
-                        pass={r.reviewer_pass}
-                        errors={counts.errors}
-                        warnings={counts.warnings}
-                      />
-                    </Td>
-                    <Td align="right">
-                      <span className="font-mono text-[0.75rem] text-ink-faint">
-                        {relativeTime(r.requested_at)}
-                      </span>
-                    </Td>
-                    <td className="py-4 pl-3 pr-2 text-right align-middle">
-                      <Link
-                        href={`/admin/queue/${r.id}`}
-                        className="focus-ring inline-flex items-center gap-1 rounded text-[0.78rem] font-semibold text-brand opacity-0 transition-opacity group-hover:opacity-100"
-                      >
-                        Review
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
-                    </td>
-                  </PulseTr>
-                );
-              })}
-            </AnimatePresence>
-          </tbody>
-        </table>
-
-        {/* Keyboard cheat-strip — visible on desktop */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 px-1 pb-1 pt-2">
-          <ShortcutHint keys={['j', 'k']} label="Move" />
-          <ShortcutHint keys={['Enter']} label="Open" />
-          <ShortcutHint keys={['a']} label="Approve" />
-          <ShortcutHint keys={['?']} label="More" />
-        </div>
+      {/* Keyboard cheat strip — visible on desktop */}
+      <div className="mt-5 hidden flex-wrap items-center gap-x-5 gap-y-2 px-1 sm:flex">
+        <ShortcutHint keys={['j', 'k']} label="Move" />
+        <ShortcutHint keys={['Enter']} label="Open" />
+        <ShortcutHint keys={['a']} label="Approve" />
+        <ShortcutHint keys={['?']} label="More" />
       </div>
 
       <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
@@ -574,56 +483,12 @@ export function QueueTable({ rows: initialRows }: { rows: QueueRow[] }) {
 }
 
 /**
- * Row wrapper for the mobile card list. Handles:
+ * Card wrapper with pulse + entry animation. Handles:
  *   - first-paint stagger (so the list reveals in order on mount)
  *   - realtime-update pulse (row-pulse class fires when `pulseKey` changes)
  *   - new-row entry animation (when Supabase INSERT delivers it)
  */
-function PulseLi({
-  pulseKey,
-  isFirstPaint,
-  isNew,
-  idx,
-  reduce,
-  className,
-  children,
-}: {
-  pulseKey: unknown;
-  isFirstPaint: boolean;
-  isNew: boolean;
-  idx: number;
-  reduce: boolean;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  const ref = useRowPulse<HTMLLIElement>(pulseKey);
-  return (
-    <motion.li
-      ref={ref}
-      initial={
-        reduce
-          ? false
-          : isNew
-          ? { opacity: 0, y: -4 }
-          : isFirstPaint
-          ? { opacity: 0, y: 6 }
-          : false
-      }
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.32,
-        ease: [0.16, 1, 0.3, 1],
-        delay: isFirstPaint && idx < 8 ? idx * 0.04 : 0,
-      }}
-      className={className}
-    >
-      {children}
-    </motion.li>
-  );
-}
-
-/** Desktop table-row twin of {@link PulseLi}. */
-function PulseTr({
+function PulseCard({
   pulseKey,
   isFirstPaint,
   isNew,
@@ -642,18 +507,18 @@ function PulseTr({
   onClick?: () => void;
   children: React.ReactNode;
 }) {
-  const ref = useRowPulse<HTMLTableRowElement>(pulseKey);
+  const ref = useRowPulse<HTMLLIElement>(pulseKey);
   return (
-    <motion.tr
+    <motion.li
       ref={ref}
       initial={
         reduce
           ? false
           : isNew
-          ? { opacity: 0 }
-          : isFirstPaint
-          ? { opacity: 0, y: 4 }
-          : false
+            ? { opacity: 0, y: -4 }
+            : isFirstPaint
+              ? { opacity: 0, y: 6 }
+              : false
       }
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
@@ -662,11 +527,11 @@ function PulseTr({
         ease: [0.16, 1, 0.3, 1],
         delay: isFirstPaint && idx < 8 ? idx * 0.04 : 0,
       }}
-      className={className}
       onClick={onClick}
+      className={className}
     >
       {children}
-    </motion.tr>
+    </motion.li>
   );
 }
 
@@ -676,7 +541,7 @@ function ShortcutHint({ keys, label }: { keys: string[]; label: string }) {
       {keys.map((k, i) => (
         <kbd
           key={i}
-          className="inline-flex h-5 min-w-5 items-center justify-center rounded-[3px] border border-hairline-strong bg-white px-1 font-mono text-[0.65rem] font-medium text-ink-muted"
+          className="inline-flex h-5 min-w-5 items-center justify-center rounded-[3px] border border-hairline-strong bg-card px-1 font-mono text-[0.65rem] font-medium text-ink-muted"
         >
           {k}
         </kbd>
@@ -713,11 +578,11 @@ function AiReviewIndicator({
   if (pass && errors === 0 && warnings === 0) {
     return (
       <span
-        className="caps inline-flex items-center gap-1.5 text-[0.65rem] font-semibold text-success"
+        className="caps inline-flex items-center gap-1.5 text-[0.65rem] font-semibold text-brand"
         role="status"
         aria-live="polite"
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+        <span className="h-1.5 w-1.5 rounded-full bg-brand" />
         Clean
       </span>
     );
@@ -746,5 +611,3 @@ function AiReviewIndicator({
     </span>
   );
 }
-
-

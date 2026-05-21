@@ -100,11 +100,11 @@ export default function LoginPage() {
         >
           <SealCorner size="lg" position="tr" />
 
-          <p className="caps relative text-[0.65rem] font-semibold tracking-[0.22em] text-seal-deep">
+          <p className="caps relative text-[0.65rem] font-semibold tracking-caps text-brand">
             Certificate Portal
           </p>
           <h1 className="font-display relative mt-3 text-[1.875rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[2.5rem]">
-            Welcome back.
+            Welcome <span className="text-brand">back.</span>
           </h1>
           <p className="relative mt-3 max-w-md text-[0.9375rem] leading-[1.6] text-ink-muted">
             One step on desktop or mobile. Enter the email your Policy Place admin

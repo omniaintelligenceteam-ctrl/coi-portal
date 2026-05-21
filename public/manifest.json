@@ -4,8 +4,8 @@
   "description": "Request and track Certificates of Insurance",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf9f7",
-  "theme_color": "#1a1a1a",
+  "background_color": "#f8f8f6",
+  "theme_color": "#0b2545",
   "icons": [
     {
       "src": "/icon-192.png",
