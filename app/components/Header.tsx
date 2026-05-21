@@ -10,6 +10,7 @@ import { Button } from './ui/Button';
 import { ButtonLink } from './ui/ButtonLink';
 import { IconButton } from './ui/IconButton';
 import { PageShell } from './ui/PageShell';
+import { ThemeToggle } from './ThemeToggle';
 import { createClient } from '@/lib/supabase/browser';
 
 /**
@@ -76,6 +77,7 @@ export function Header({
           <span className="hidden font-mono text-[0.72rem] text-ink-muted lg:inline">
             {email}
           </span>
+          <ThemeToggle className="hidden md:inline-flex" />
           {showMyCerts && (
             <ButtonLink
               href="/certificates"
@@ -172,6 +174,11 @@ export function Header({
               </DrawerLink>
             </nav>
           )}
+
+          <div className="flex items-center justify-between">
+            <span className="caps text-[0.62rem] font-semibold text-ink-faint">Theme</span>
+            <ThemeToggle size="md" />
+          </div>
 
           <nav aria-label="Account" className="flex flex-col gap-1">
             <div className="caps mb-1 text-[0.62rem] font-semibold text-ink-faint">

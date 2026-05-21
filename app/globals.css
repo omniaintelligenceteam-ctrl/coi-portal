@@ -1,74 +1,99 @@
 @import 'tailwindcss';
 
-@theme {
-  /* ------------------------------------------------------------------
-   * Editorial Trust — design tokens
-   * ------------------------------------------------------------------ */
+/* ==============================================================================
+ * Statement — design system foundation
+ * ==============================================================================
+ * The product runs on a single source-of-truth token set defined here. Tailwind
+ * v4's @theme block emits these as CSS custom properties on :root, so every
+ * `bg-paper`, `text-ink`, `border-hairline-strong` utility reads them at runtime.
+ *
+ * Light mode lives inside @theme (the default). Dark mode lives in the
+ * `[data-theme="dark"]` selector below, which overrides the same variables — so
+ * every component automatically dark-mode-aware without `dark:` variants.
+ *
+ * Token names preserved from "Editorial Trust" predecessor so existing pages
+ * continue to compile. Values re-toned to the Statement direction:
+ *   • Canvas: warm paper → colder off-white (still warm, less yellow)
+ *   • Brand: teal → Sovereign Blue (passport / leather portfolio civic-modern)
+ *   • Caps tracking: 0.18em → 0.12em (tighter, more precise)
+ *   • Functional colors: slightly more saturated, modernized
+ *   • Fraunces serif: retired. .font-display now uses Geist at display weight.
+ * ============================================================================== */
 
-  /* Surfaces */
-  --color-paper: #faf8f3;
-  --color-paper-deep: #f4f0e6;
+@theme {
+  /* ---- Surfaces ---- */
+  --color-canvas: #f8f8f6;            /* off-white, slightly warm */
+  --color-paper: #f8f8f6;             /* alias for canvas */
+  --color-paper-deep: #f2f2ee;
   --color-card: #ffffff;
 
-  /* Ink */
-  --color-ink: #1a1f2e;
-  --color-ink-muted: #5b6478;
-  --color-ink-faint: #8a93a6;
+  /* ---- Ink ---- */
+  --color-ink: #0f0f0e;
+  --color-ink-muted: #4a4a47;
+  --color-ink-faint: #8a8a85;
+  --color-ink-mute: #b8b7b0;          /* placeholder / disabled */
 
-  /* Hairlines */
-  --color-hairline: #e8e4db;
-  --color-hairline-cool: #e5e7eb;
-  --color-hairline-strong: #d6d1c4;
+  /* ---- Hairlines ---- */
+  --color-hairline: #e7e6e0;
+  --color-hairline-cool: #e3e3df;
+  --color-hairline-strong: #bcbbb4;
 
-  /* Brand — Policy Place teal, matches logo wordmark */
-  --color-brand: #5c8e97;
-  --color-brand-deep: #3d6b73;
-  --color-brand-near: #1f3a40;
-  --color-brand-soft: #eaf1f2;
+  /* ---- Brand — Sovereign Blue ---- */
+  /* Passport interior. Old leather portfolio. Tiffany box's negative space. */
+  --color-brand: #0b2545;
+  --color-brand-deep: #061a36;        /* darker, for hover/active */
+  --color-brand-near: #214e89;        /* lighter, for soft accents */
+  --color-brand-soft: #e7edf5;        /* tint for backgrounds */
 
-  /* Accent — muted gold, "issued" moments */
+  /* ---- Seal — muted gold, ceremonial moments only ---- */
+  /* Used for "issued / verified / approved" reveals. Kept from prior system —
+     the gold of an official stamp is the right reading here. */
   --color-seal: #b8923a;
   --color-seal-soft: #f5ecd6;
   --color-seal-deep: #8c6d27;
 
-  /* Status (institutional, not candy) */
-  --color-success: #16745a;
-  --color-success-soft: #e6f1ec;
+  /* ---- Functional ---- */
+  --color-success: #16a34a;
+  --color-success-soft: #e2f4e9;
   --color-warning: #b45309;
-  --color-warning-soft: #fbeed7;
-  --color-danger: #b91c1c;
-  --color-danger-soft: #fbe7e7;
+  --color-warning-soft: #fef0da;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fbe3e3;
 
-  /* Legacy kyblue scale — retoned to teal ramp; key name kept for backward compatibility */
-  --color-kyblue: #5c8e97;
-  --color-kyblue-50: #eaf1f2;
-  --color-kyblue-100: #d5e3e6;
-  --color-kyblue-200: #abc8cd;
-  --color-kyblue-300: #82adb4;
-  --color-kyblue-400: #6e9ba3;
-  --color-kyblue-500: #5c8e97;
-  --color-kyblue-600: #4a767e;
-  --color-kyblue-700: #3d6b73;
-  --color-kyblue-800: #2d5258;
-  --color-kyblue-900: #1f3a40;
+  /* ---- Legacy kyblue ramp — retoned to Sovereign Blue ramp ---- */
+  /* Key name kept for backward compatibility with prior pages. */
+  --color-kyblue: #0b2545;
+  --color-kyblue-50: #e7edf5;
+  --color-kyblue-100: #cfdaeb;
+  --color-kyblue-200: #9bb4d4;
+  --color-kyblue-300: #6f8fbc;
+  --color-kyblue-400: #4870a0;
+  --color-kyblue-500: #214e89;
+  --color-kyblue-600: #163864;
+  --color-kyblue-700: #0b2545;
+  --color-kyblue-800: #061a36;
+  --color-kyblue-900: #03132a;
 
-  /* Type families — bound to next/font CSS variables */
+  /* ---- Type families ---- */
+  /* Geist + Geist Mono carry every weight from labels to display. Fraunces
+     retired — Geist at heavy weights + tight tracking does display work better
+     for this product's civic register. */
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-serif: var(--font-fraunces), 'Iowan Old Style', Georgia, serif;
+  --font-serif: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Letter spacing */
-  --tracking-caps: 0.18em;
-  --tracking-display: -0.02em;
+  /* ---- Letter spacing ---- */
+  --tracking-caps: 0.12em;             /* tightened from 0.18em — more precise */
+  --tracking-display: -0.025em;        /* tightened from -0.02em — display weight */
 
-  /* Shadows — restrained */
-  --shadow-card: 0 1px 0 rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.04);
-  --shadow-lift: 0 1px 0 rgb(0 0 0 / 0.02), 0 8px 24px -8px rgb(26 31 46 / 0.12);
+  /* ---- Shadows — restrained, hairlines do most of the work ---- */
+  --shadow-card: 0 1px 0 rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03);
+  --shadow-lift: 0 1px 0 rgb(0 0 0 / 0.02), 0 8px 24px -8px rgb(11 37 69 / 0.10);
   --shadow-seal: 0 0 0 1px var(--color-seal) inset, 0 1px 0 rgb(0 0 0 / 0.04);
-  --shadow-sticky: 0 -1px 0 var(--color-hairline), 0 -8px 16px -10px rgb(26 31 46 / 0.08);
-  --shadow-sheet: 0 -1px 0 var(--color-hairline-strong), 0 -16px 40px -16px rgb(26 31 46 / 0.18);
+  --shadow-sticky: 0 -1px 0 var(--color-hairline), 0 -8px 16px -10px rgb(11 37 69 / 0.06);
+  --shadow-sheet: 0 -1px 0 var(--color-hairline-strong), 0 -16px 40px -16px rgb(11 37 69 / 0.16);
 
-  /* Radius — systematic, used by Button, Card, Input primitives */
+  /* ---- Radius ---- */
   --r-xs: 4px;
   --r-sm: 6px;
   --r-md: 10px;
@@ -76,39 +101,96 @@
   --r-xl: 20px;
   --r-pill: 9999px;
 
-  /* Row density — compact mobile rows, default desktop, loose for hero cards */
+  /* ---- Row density ---- */
   --row-tight: 0.625rem;
   --row-default: 0.875rem;
   --row-loose: 1.125rem;
 
-  /* Sticky header height — referenced by AdminTabs so the tab strip's sticky
-     offset tracks Header automatically. Change Header padding → bump these. */
+  /* ---- Sticky header height ---- */
   --header-height: 3.5rem;
   --header-height-sm: 3.75rem;
 
-  /* Motion — durations + easings (editorial, confident, fast).
-     Every new animation should pick one of these. Keeps the product on tempo. */
-  --m-fast: 150ms;     /* micro-state flips: focus, hover, checkmark stroke */
-  --m-base: 250ms;     /* default — pill morph, field shake, copy pill */
-  --m-slow: 400ms;     /* hero moments — seal stamp, success card mount */
-  --m-page: 180ms;     /* route crossfade */
+  /* ---- Motion ---- */
+  --m-fast: 150ms;
+  --m-base: 220ms;
+  --m-slow: 360ms;
+  --m-page: 180ms;
   --ease-out-quint: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-statement: cubic-bezier(0.2, 0, 0, 1);   /* Statement default — sharper out-ease */
 }
 
-/* ------------------------------------------------------------------
- * Motion utilities — small, named keyframes used across primitives.
- * Reduced-motion media query (below) zeroes durations globally.
- * ------------------------------------------------------------------ */
+/* ==============================================================================
+ * Dark mode — variable overrides only
+ * ==============================================================================
+ * Every utility (bg-paper, text-ink, border-hairline) reads from --color-*.
+ * Override the variables here and the entire app dark-modes for free without
+ * touching a single component. The brand color shifts: Sovereign Blue at
+ * #0B2545 is too dark for dark canvases, so we step up to the brand-near tone.
+ * ============================================================================== */
+[data-theme="dark"] {
+  --color-canvas: #0a0a09;
+  --color-paper: #0a0a09;
+  --color-paper-deep: #131311;
+  --color-card: #18181610;
+
+  --color-ink: #f4f4f1;
+  --color-ink-muted: #b3b3ad;
+  --color-ink-faint: #6e6e69;
+  --color-ink-mute: #4a4a47;
+
+  --color-hairline: #2a2a27;
+  --color-hairline-cool: #2c2e31;
+  --color-hairline-strong: #3d3d39;
+
+  /* Brand lifts: Sovereign Blue at original #0B2545 has poor contrast against
+     a dark canvas. Use the brand-near (#214E89) as the dark-mode primary, with
+     its own deep/soft companions. */
+  --color-brand: #4a7eb8;
+  --color-brand-deep: #2c5c93;
+  --color-brand-near: #5e96d0;
+  --color-brand-soft: #1a2a3d;
+
+  /* Seal gold reads well on dark — slight lift for legibility */
+  --color-seal: #d4ab4f;
+  --color-seal-soft: #2a2417;
+  --color-seal-deep: #f5cf76;
+
+  --color-success: #34d27a;
+  --color-success-soft: #163524;
+  --color-warning: #f59e0b;
+  --color-warning-soft: #3a2812;
+  --color-danger: #f87171;
+  --color-danger-soft: #3a1b1b;
+
+  --color-kyblue: #4a7eb8;
+  --color-kyblue-50: #1a2a3d;
+  --color-kyblue-100: #213b58;
+  --color-kyblue-200: #2c5c93;
+  --color-kyblue-300: #3a6fb0;
+  --color-kyblue-400: #4a7eb8;
+  --color-kyblue-500: #5e96d0;
+  --color-kyblue-600: #7ab0de;
+  --color-kyblue-700: #99c4e8;
+  --color-kyblue-800: #b8d6f0;
+  --color-kyblue-900: #d6e6f6;
+
+  --shadow-card: 0 1px 0 rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 1px 0 rgb(0 0 0 / 0.4), 0 8px 24px -8px rgb(0 0 0 / 0.6);
+}
+
+/* ==============================================================================
+ * Motion keyframes — kept verbatim from prior system.
+ * The motion language was already strong; Statement keeps every animation
+ * and just retunes the timing where useful (see --ease-statement above).
+ * ============================================================================== */
 @keyframes row-pulse {
   0%   { box-shadow: inset 0 -2px 0 0 transparent; background-color: transparent; }
   20%  { box-shadow: inset 0 -2px 0 0 var(--color-brand); background-color: var(--color-brand-soft); }
   100% { box-shadow: inset 0 -2px 0 0 transparent; background-color: transparent; }
 }
-.row-pulse {
-  animation: row-pulse 1500ms var(--ease-out-quint) 1;
-}
+.row-pulse { animation: row-pulse 1500ms var(--ease-out-quint) 1; }
 
 @keyframes field-shake {
   0%, 100% { transform: translateX(0); }
@@ -117,117 +199,89 @@
   60%      { transform: translateX(-2px); }
   80%      { transform: translateX(1px); }
 }
-.field-shake {
-  animation: field-shake 250ms var(--ease-out-quint) 1;
-}
+.field-shake { animation: field-shake 250ms var(--ease-out-quint) 1; }
 
 @keyframes copy-pill {
   0%   { opacity: 0; transform: translateY(0) scale(0.9); }
   20%  { opacity: 1; transform: translateY(-4px) scale(1); }
   100% { opacity: 0; transform: translateY(-16px) scale(1); }
 }
-.copy-pill {
-  animation: copy-pill 800ms var(--ease-out-quint) 1 both;
-}
+.copy-pill { animation: copy-pill 800ms var(--ease-out-quint) 1 both; }
 
 @keyframes row-reveal {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.row-reveal {
-  animation: row-reveal 400ms var(--ease-out-quint) both;
-}
+.row-reveal { animation: row-reveal 400ms var(--ease-out-quint) both; }
+
+/* Staggered list mounts — Statement signature. 30ms increments. */
+.rise { animation: row-reveal 480ms var(--ease-statement) both; }
+.rise:nth-child(1) { animation-delay: 0ms; }
+.rise:nth-child(2) { animation-delay: 30ms; }
+.rise:nth-child(3) { animation-delay: 60ms; }
+.rise:nth-child(4) { animation-delay: 90ms; }
+.rise:nth-child(5) { animation-delay: 120ms; }
+.rise:nth-child(6) { animation-delay: 150ms; }
+.rise:nth-child(7) { animation-delay: 180ms; }
+.rise:nth-child(8) { animation-delay: 210ms; }
 
 @keyframes pdf-shimmer {
   0%, 100% { opacity: 0.55; }
   50%      { opacity: 0.85; }
 }
-.pdf-shimmer {
-  animation: pdf-shimmer 1500ms var(--ease-in-out-soft) infinite;
-}
+.pdf-shimmer { animation: pdf-shimmer 1500ms var(--ease-in-out-soft) infinite; }
 
 @keyframes timeline-draw {
   from { transform: scaleY(0); }
   to   { transform: scaleY(1); }
 }
-.timeline-draw {
-  transform-origin: top;
-  animation: timeline-draw 600ms var(--ease-out-quint) both;
-}
+.timeline-draw { transform-origin: top; animation: timeline-draw 600ms var(--ease-out-quint) both; }
 
 @keyframes timeline-dot-pop {
   from { opacity: 0; transform: scale(0.6); }
   to   { opacity: 1; transform: scale(1); }
 }
-.timeline-dot-pop {
-  animation: timeline-dot-pop 200ms var(--ease-out-quint) both;
-}
+.timeline-dot-pop { animation: timeline-dot-pop 200ms var(--ease-out-quint) both; }
 
 @keyframes pill-ping {
   0%   { transform: scale(1); }
   35%  { transform: scale(1.25); }
   100% { transform: scale(1); }
 }
-.pill-ping {
-  animation: pill-ping 350ms var(--ease-out-quint) 1;
-}
+.pill-ping { animation: pill-ping 350ms var(--ease-out-quint) 1; }
 
-/* Toast countdown — animated bar that bleeds from full → empty over its duration.
-   Used in the bulk-approve undo toast (see app/admin/queue/QueueTable.tsx). */
 @keyframes toast-countdown {
   from { transform: scaleX(1); }
   to   { transform: scaleX(0); }
 }
-.toast-countdown {
-  transform-origin: left;
-  animation: toast-countdown var(--countdown-duration, 8000ms) linear both;
-}
+.toast-countdown { transform-origin: left; animation: toast-countdown var(--countdown-duration, 8000ms) linear both; }
 
-/* Seal stamp — the canonical "issued / verified / approved" reveal.
-   Tactile down-press: scales from 1.4 → 1, rotates -4° → 0°, fades in.
-   Reused across /verify, queue approve action, and any final-state moment. */
 @keyframes seal-stamp {
   0%   { opacity: 0; transform: scale(1.4) rotate(-4deg); }
   60%  { opacity: 1; transform: scale(0.96) rotate(0.5deg); }
   100% { opacity: 1; transform: scale(1) rotate(0); }
 }
-.seal-stamp {
-  animation: seal-stamp 480ms var(--ease-out-quint) both;
-}
+.seal-stamp { animation: seal-stamp 480ms var(--ease-out-quint) both; }
 
-/* Approve halo — brand-tone glow that washes a row, then fades.
-   Layered on top of row-pulse for the "ratified" moment in the queue. */
 @keyframes approve-halo {
   0%   { opacity: 0; transform: scaleX(0.85); }
   30%  { opacity: 0.85; transform: scaleX(1); }
   100% { opacity: 0; transform: scaleX(1); }
 }
-.approve-halo {
-  transform-origin: center;
-  animation: approve-halo 900ms var(--ease-out-quint) both;
-}
+.approve-halo { transform-origin: center; animation: approve-halo 900ms var(--ease-out-quint) both; }
 
-/* Slide-in stagger for verify-page data rows (under the seal). */
 @keyframes verify-data-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.verify-data-in {
-  animation: verify-data-in 360ms var(--ease-out-quint) both;
-}
+.verify-data-in { animation: verify-data-in 360ms var(--ease-out-quint) both; }
 
-/* AI reading — soft horizontal scan, layered under the spinner to imply
-   "reading line by line". Used while reviewer_pass is null. */
 @keyframes ai-scan {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
-.ai-scan {
-  animation: ai-scan 1400ms var(--ease-in-out-soft) infinite;
-}
+.ai-scan { animation: ai-scan 1400ms var(--ease-in-out-soft) infinite; }
 
-/* Stroke draw — for SVG path animations on empty states and logos.
-   Caller must set the `--stroke-len` custom property to the path's getTotalLength(). */
 @keyframes stroke-draw {
   from { stroke-dashoffset: var(--stroke-len, 600); }
   to   { stroke-dashoffset: 0; }
@@ -238,27 +292,21 @@
   animation: stroke-draw 1200ms var(--ease-out-quint) both;
 }
 
-/* Sheet / drawer slide-up from bottom (mobile nav, mobile PDF preview, decision sheets). */
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.slide-up {
-  animation: slide-up 280ms var(--ease-out-quint) both;
-}
+.slide-up { animation: slide-up 280ms var(--ease-out-quint) both; }
 
-/* Scrim fade for overlay backdrops. */
 @keyframes fade-scrim {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.fade-scrim {
-  animation: fade-scrim 200ms var(--ease-in-out-soft) both;
-}
+.fade-scrim { animation: fade-scrim 200ms var(--ease-in-out-soft) both; }
 
-/* ------------------------------------------------------------------
+/* ==============================================================================
  * Base reset
- * ------------------------------------------------------------------ */
+ * ============================================================================== */
 * {
   box-sizing: border-box;
   padding: 0;
@@ -275,10 +323,16 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  /* Smooth color transitions when the theme toggle flips. */
+  transition: background-color 220ms var(--ease-statement), color 220ms var(--ease-statement);
 }
 
 body {
   font-feature-settings: 'ss01', 'cv11';
+  background: var(--color-canvas);
+  color: var(--color-ink);
 }
 
 a {
@@ -286,31 +340,43 @@ a {
   text-decoration: none;
 }
 
-/* Display headings use Fraunces with optical sizing pushed up */
+/* ==============================================================================
+ * Type utilities
+ * ============================================================================== */
+
+/* Display headings — formerly Fraunces variable. Now Geist at heavier weight
+   with tight display tracking. The visual register stays "considered and
+   confident" without the lifestyle-magazine serif. */
 .font-display {
-  font-family: var(--font-serif);
-  font-variation-settings: 'opsz' 144, 'SOFT' 25, 'WONK' 0;
+  font-family: var(--font-sans);
+  font-weight: 350;
   letter-spacing: var(--tracking-display);
+  font-feature-settings: 'ss01', 'cv11', 'tnum';
 }
 
-/* Caps label utility */
+/* Caps label utility. Tightened to 0.12em from the prior 0.18em. */
 .caps {
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps);
   font-feature-settings: 'ss01';
+  font-weight: 600;
 }
 
-/* Hairline underline for inputs (editorial form style) */
+/* ==============================================================================
+ * Form fields
+ * ============================================================================== */
+
+/* Hairline underline for editorial-style forms. Brand color on focus. */
 .field-underline {
   border: 0;
   border-bottom: 1px solid var(--color-hairline-strong);
   background: transparent;
   border-radius: 0;
-  /* 16px font on mobile defeats iOS Safari focus-zoom; sm+ scales back down. */
   font-size: 1rem;
   line-height: 1.4;
   padding: 0.75rem 0;
   min-height: 2.75rem;
+  color: var(--color-ink);
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 .field-underline:focus {
@@ -322,74 +388,14 @@ a {
   color: var(--color-ink-faint);
 }
 
-/* Minimum 44×44 touch target (iOS HIG / WCAG 2.5.5). */
-.tap-target {
-  min-height: 2.75rem;
-  min-width: 2.75rem;
-}
-
-/* Safe-area aware bottom padding for sticky bars on iPhone notch devices. */
-.pb-safe {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
-}
-
-/* Safe-area aware top padding for sticky headers under the iPhone notch / Dynamic Island. */
-.pt-safe {
-  padding-top: max(env(safe-area-inset-top, 0px), 0px);
-}
-
-/* Mobile card pattern — used to stack table rows as readable cards on phones. */
-.mobile-card {
-  display: block;
-  background: var(--color-card);
-  border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: var(--shadow-card);
-}
-.mobile-card + .mobile-card {
-  margin-top: 0.75rem;
-}
-.mobile-card-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.75rem;
-  padding: 0.375rem 0;
-  font-size: 0.875rem;
-}
-.mobile-card-row + .mobile-card-row {
-  border-top: 1px dashed var(--color-hairline);
-}
-.mobile-card-row dt {
-  color: var(--color-ink-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  font-size: 0.7rem;
-  flex-shrink: 0;
-}
-.mobile-card-row dd {
-  color: var(--color-ink);
-  text-align: right;
-  word-break: break-word;
-}
-
-/* Focus ring — refined */
-.focus-ring:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-brand);
-  border-radius: 4px;
-}
-
-/* Boxed form field — the alternative to .field-underline for forms that
-   need clear field affordance (login, address blocks, decision notes). */
+/* Boxed form field — the default for primary forms. */
 .field-box {
   display: block;
   width: 100%;
   border: 1px solid var(--color-hairline-strong);
   background: var(--color-card);
   border-radius: var(--r-sm);
-  font-size: 1rem; /* 16px to defeat iOS Safari auto-zoom */
+  font-size: 1rem;
   line-height: 1.45;
   padding: 0.6875rem 0.875rem;
   min-height: 2.75rem;
@@ -416,15 +422,76 @@ a {
   box-shadow: 0 0 0 3px var(--color-danger-soft);
 }
 
-/* Sticky bottom action bar — used on mobile (and full-width on small forms)
-   for primary CTAs like Approve/Reject/Submit. Sits above the safe area. */
+/* ==============================================================================
+ * Accessibility helpers
+ * ============================================================================== */
+
+.tap-target {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
+}
+
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top, 0px), 0px);
+}
+
+/* Focus ring — Sovereign Blue. */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-canvas), 0 0 0 4px var(--color-brand);
+  border-radius: 4px;
+}
+
+/* ==============================================================================
+ * Mobile card pattern
+ * ============================================================================== */
+.mobile-card {
+  display: block;
+  background: var(--color-card);
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+}
+.mobile-card + .mobile-card { margin-top: 0.75rem; }
+.mobile-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.375rem 0;
+  font-size: 0.875rem;
+}
+.mobile-card-row + .mobile-card-row {
+  border-top: 1px dashed var(--color-hairline);
+}
+.mobile-card-row dt {
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+.mobile-card-row dd {
+  color: var(--color-ink);
+  text-align: right;
+  word-break: break-word;
+}
+
+/* ==============================================================================
+ * Sticky action bar + bottom sheet (mobile primitives)
+ * ============================================================================== */
 .action-bar {
   position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 30;
-  background: color-mix(in oklab, var(--color-paper) 92%, transparent);
+  background: color-mix(in oklab, var(--color-canvas) 92%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-top: 1px solid var(--color-hairline);
@@ -433,7 +500,6 @@ a {
   padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.75rem);
 }
 
-/* Bottom sheet container — used by MobileSheet primitive. */
 .bottom-sheet {
   background: var(--color-card);
   border-top-left-radius: var(--r-xl);
@@ -454,7 +520,6 @@ a {
   background: var(--color-hairline-strong);
 }
 
-/* Scrim backdrop for sheets / drawers. */
 .sheet-scrim {
   position: fixed;
   inset: 0;
@@ -464,7 +529,9 @@ a {
   z-index: 40;
 }
 
-/* Section card — the standard surface used across pages. */
+/* ==============================================================================
+ * Section card + divider patterns
+ * ============================================================================== */
 .section-card {
   background: var(--color-card);
   border: 1px solid var(--color-hairline);
@@ -472,7 +539,6 @@ a {
   box-shadow: var(--shadow-card);
 }
 
-/* Hairline divider between stacked list items inside cards. */
 .divide-hairline > * + * {
   border-top: 1px solid var(--color-hairline);
 }
@@ -482,38 +548,29 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
-/* ------------------------------------------------------------------
- * Vertical rhythm — single source of truth for page top/bottom
- * padding + section gaps. Every <main> uses page-pad-top / page-pad-bot
- * so every route starts at the same y-offset and ends with the same
- * tail breathing room.
- * ------------------------------------------------------------------ */
-.page-pad-top {
-  padding-top: 2rem;
-}
-.page-pad-bot {
-  padding-bottom: 5rem;
-}
-.section-gap {
-  margin-top: 2.5rem;
-}
+/* ==============================================================================
+ * Vertical rhythm
+ * ============================================================================== */
+.page-pad-top { padding-top: 2rem; }
+.page-pad-bot { padding-bottom: 5rem; }
+.section-gap { margin-top: 2.5rem; }
 @media (min-width: 640px) {
   .page-pad-top { padding-top: 2.5rem; }
   .page-pad-bot { padding-bottom: 6rem; }
-  .section-gap  { margin-top: 3rem; }
+  .section-gap { margin-top: 3rem; }
 }
 @media (min-width: 1024px) {
   .page-pad-top { padding-top: 3rem; }
 }
 
-/* Sonner editorial toast — title + description type tokens. The Toaster
-   in app/layout.tsx passes these classNames; here we wire the actual
-   look. Fraunces title, Geist body, restrained leading. */
+/* ==============================================================================
+ * Sonner toast styling
+ * ============================================================================== */
 .editorial-toast {
   font-family: var(--font-sans);
 }
 .editorial-toast-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: 0.95rem;
   font-weight: 500;
   line-height: 1.3;
@@ -527,7 +584,9 @@ a {
   color: var(--color-ink-muted);
 }
 
-/* Reduced motion */
+/* ==============================================================================
+ * Reduced motion + print
+ * ============================================================================== */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -539,25 +598,14 @@ a {
   }
 }
 
-/* Print: clean, no texture */
 @media print {
-  body {
-    background: white;
-  }
+  body { background: white; }
 }
 
-/* === @media print rules — Tier 5 polish === */
-/* Strip site chrome so Ctrl+P from the result page prints the bare cert.
-   Targets header/nav/footer chrome by element + class. The result-page
-   iframe and surrounding card print clean: no shadows, no admin controls,
-   no sticky bars. */
+/* Print: strip portal chrome, keep certificate. */
 @media print {
-  /* Page setup — half-inch margin all sides */
-  @page {
-    margin: 0.5in;
-  }
+  @page { margin: 0.5in; }
 
-  /* Editorial palette swaps to pure ink-on-white for printer economy */
   html,
   body {
     background: #ffffff !important;
@@ -566,8 +614,6 @@ a {
     max-width: none !important;
   }
 
-  /* Hide site chrome aggressively. Anything decorative, navigational, or
-     interactive that doesn't belong on a printed certificate. */
   header,
   nav,
   footer,
@@ -578,8 +624,6 @@ a {
     display: none !important;
   }
 
-  /* Strip shadows + borders from cards/containers so they don't print as
-     gray boxes — the certificate iframe itself carries the visual weight. */
   .border,
   .border-hairline,
   .bg-card,
@@ -593,7 +637,6 @@ a {
     background: transparent !important;
   }
 
-  /* Hide sticky bars / floating actions (download/CTA buttons). */
   .sticky,
   [class*='fixed'],
   button,
@@ -602,8 +645,6 @@ a {
     display: none !important;
   }
 
-  /* Keep the cert iframe + cert-number header visible.
-     The iframe is the actual certificate; everything else is portal chrome. */
   iframe {
     display: block !important;
     width: 100% !important;
@@ -613,22 +654,18 @@ a {
     page-break-inside: avoid;
   }
 
-  /* Result-page-specific: the back-link, status pill row, and admin
-     status callouts are portal chrome — drop them from print. */
   a[href='/certificates'],
   [class*='border-l-2'],
   [class*='caps'] {
     display: none !important;
   }
 
-  /* Keep the cert number heading visible — it's the document title. */
   h1 {
     color: #000000 !important;
     font-size: 18pt !important;
     margin-bottom: 0.25in !important;
   }
 
-  /* Ensure links print as plain text (no underlines, no URL annotations). */
   a {
     color: #000000 !important;
     text-decoration: none !important;
