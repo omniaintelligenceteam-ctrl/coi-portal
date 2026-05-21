@@ -58,7 +58,7 @@ export function Header({
     <header className="pt-safe sticky top-0 z-30 border-b border-hairline bg-paper/85 backdrop-blur-md">
       <PageShell as="div" className="flex items-center justify-between gap-4 py-3.5 sm:gap-6 sm:py-4">
         <Link
-          href={isAdmin ? '/admin/queue' : '/'}
+          href={isAdmin ? '/admin' : '/'}
           className="focus-ring -m-1 rounded-md p-1"
           aria-label="The Policy Place — home"
         >
@@ -145,6 +145,13 @@ export function Header({
                 Admin
               </div>
               <DrawerLink
+                href="/admin"
+                active={pathname === '/admin' || pathname === '/admin/'}
+                onClick={() => setOpen(false)}
+              >
+                Home
+              </DrawerLink>
+              <DrawerLink
                 href="/admin/queue"
                 active={pathname.startsWith('/admin/queue')}
                 onClick={() => setOpen(false)}
@@ -157,6 +164,13 @@ export function Header({
                 onClick={() => setOpen(false)}
               >
                 Generate
+              </DrawerLink>
+              <DrawerLink
+                href="/admin/clients"
+                active={pathname.startsWith('/admin/clients')}
+                onClick={() => setOpen(false)}
+              >
+                Clients
               </DrawerLink>
               <DrawerLink
                 href="/admin/access-requests"
