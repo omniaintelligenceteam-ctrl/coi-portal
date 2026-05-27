@@ -25,14 +25,6 @@
 
 import type { CoiInput } from '../types';
 
-/** Result type re-export from cert-doctor core. */
-export type { DoctorReport } from '../certDoctorCore';
-
-export interface DoctorRunOptions {
-  /** Skip the render-and-extract pass (faster, but loses rendered-overlap detection). */
-  skipRender?: boolean;
-}
-
 export interface FormConfig {
   /** Stable identifier used in cert_requests.form_type and coi_clients.enabled_forms. */
   readonly id: string;
@@ -58,12 +50,12 @@ export interface FormConfig {
    * directly; for divergent forms each module exports its own renderer.
    */
   readonly render: (input: CoiInput) => Promise<Uint8Array>;
-
-  /**
-   * Run the cert-doctor check suite against this form. For ACORD 25 today,
-   * this is the existing `runChecks` from lib/certDoctorCore (which is still
-   * hardcoded to ACORD 25's COORDS/FIELD_ANCHORS internally — generalizing
-   * those checks is deferred until form #2 lands).
-   */
-  readonly doctor: (opts?: DoctorRunOptions) => Promise<import('../certDoctorCore').DoctorReport>;
 }
+
+// NOTE: The cert-doctor check suite (lib/certDoctorCore.runChecks) is
+// intentionally NOT part of FormConfig. certDoctorCore imports test fixtures
+// and uses .js extensions that Next.js webpack can't resolve, so pulling it
+// into the registry would break `next build`. The CLI script
+// (scripts/certDoctor.ts) imports runChecks directly. When form #2 lands and
+// runChecks is parameterized per-form, switch the CLI to look up a doctor
+// function in a separate, script-only registry (lib/forms/doctors.ts).

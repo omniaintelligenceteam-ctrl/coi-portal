@@ -15,7 +15,6 @@
 
 import { resolve } from 'node:path';
 import { fillAcord25 } from '../../fillAcord25';
-import { runChecks } from '../../certDoctorCore';
 import type { FormConfig } from '../types';
 
 // Resolve template paths once at module load, relative to repo root.
@@ -30,5 +29,4 @@ export const ACORD_25: FormConfig = {
   templatePngPath: resolve(ROOT, 'assets/template/acord-25-page-1.png'),
   insurerSlotCount: 6,
   render: fillAcord25,
-  doctor: runChecks,
 };

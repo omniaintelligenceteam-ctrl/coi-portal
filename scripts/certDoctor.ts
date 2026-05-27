@@ -22,6 +22,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getFormConfig, listFormIds, DEFAULT_FORM_ID } from '../lib/forms/registry.js';
+import { runChecks } from '../lib/certDoctorCore.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -43,7 +44,13 @@ async function runOneForm(formId: string): Promise<boolean> {
   console.log(`\ncert-doctor — ${config.id} (${config.displayName} ${config.revision}) overlay precision check`);
   console.log(`  mode: ${fast ? 'fast (no render pass)' : 'full'}\n`);
 
-  const report = await config.doctor({ skipRender: fast });
+  // certDoctorCore's runChecks is currently hardcoded to ACORD 25's COORDS;
+  // when form #2 lands, swap this for a per-form doctor lookup.
+  if (config.id !== 'ACORD_25') {
+    console.log(`  (skipping ${config.id} — cert-doctor not yet parameterized for this form)\n`);
+    return true;
+  }
+  const report = await runChecks({ skipRender: fast });
 
   // Print violations grouped by severity
   const errors = report.violations.filter((v) => v.severity === 'error');
