@@ -2,7 +2,7 @@ import { after } from 'next/server';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { renderCertificate, templatePngPathFor } from './renderCertificate';
+import { renderCertificate, renderCertificateFromDb, templatePngPathFor } from './renderCertificate';
 import { DEFAULT_FORM_ID } from './forms/registry';
 import { reviewCert, type ClientOverride } from './reviewerAgent';
 import { selectableCoverages } from './getClientPolicies';
@@ -256,13 +256,26 @@ export async function issueCert(input: {
     signaturePngPath: SIGNATURE_PATH,
   });
 
-  // Render PDF
+  // Render PDF. Prefer the DB-backed data-driven path (form_fields rows
+  // authored via the visual mapper). Fall back to the legacy code-registered
+  // FormConfig if the DB lookup throws — covers the case where a form is
+  // registered in code but not yet seeded into form_templates / form_fields
+  // (defense-in-depth; should never happen for ACORD_25 post-migration).
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await renderCertificate(formId, coiInput);
-  } catch (err) {
-    log.error('cert.pdf_render_failed', { certNumber, error: (err as Error).message });
-    return { ok: false, status: 500, error: 'pdf render failed', detail: (err as Error).message };
+    pdfBytes = await renderCertificateFromDb(admin, formId, coiInput);
+  } catch (dbErr) {
+    log.warn('cert.db_render_fallback_to_legacy', {
+      certNumber,
+      formId,
+      error: (dbErr as Error).message,
+    });
+    try {
+      pdfBytes = await renderCertificate(formId, coiInput);
+    } catch (err) {
+      log.error('cert.pdf_render_failed', { certNumber, error: (err as Error).message });
+      return { ok: false, status: 500, error: 'pdf render failed', detail: (err as Error).message };
+    }
   }
 
   // Stamp the verify-QR into the lower-right of the cert. Non-fatal: if QR
