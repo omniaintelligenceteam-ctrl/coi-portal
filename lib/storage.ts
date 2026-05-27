@@ -52,6 +52,28 @@ export async function createCertSignedUrl(
 }
 
 /**
+ * Storage paths for an uploaded form template. The Visual Mapper writes:
+ *   templates/<formId>/template.pdf  — original upload, used for re-rasterize
+ *   templates/<formId>/page-<n>.png  — rasterized page background, used by the
+ *                                      mapper canvas AND as the renderer overlay
+ *   templates/<formId>/anchors.json  — extracted text labels, used by the mapper
+ *                                      to surface clickable anchor targets
+ *
+ * Same coi-archive bucket as issued certs — kept private, signed URLs only.
+ */
+export function formTemplateStoragePath(formId: string): string {
+  return `templates/${formId}/template.pdf`;
+}
+
+export function formPagePngStoragePath(formId: string, page: number): string {
+  return `templates/${formId}/page-${page}.png`;
+}
+
+export function formAnchorsStoragePath(formId: string): string {
+  return `templates/${formId}/anchors.json`;
+}
+
+/**
  * Builds a filename humans actually want to see in their downloads folder.
  * e.g. ACORD25_Sheffer-Construction_2026-05-18_PP-20260518-0001.pdf
  */

@@ -39,3 +39,70 @@ export function templatePngPathFor(formId: string | null | undefined): string {
 export function insurerSlotCountFor(formId: string | null | undefined): number {
   return getFormConfigOrDefault(formId).insurerSlotCount;
 }
+
+/**
+ * Data-driven render path — loads the form's field map from Postgres and
+ * fetches template assets from Supabase Storage, then dispatches to the
+ * generic renderer.
+ *
+ * Currently used by /api/admin/forms/[formId]/preview. Phase 4 will route
+ * issueCert through this path too (after the ACORD 25 migration + pixelmatch
+ * parity test confirm the data-driven renderer produces byte-identical output
+ * to fillAcord25). For now, issueCert and renderCertificate stay on the
+ * code-registered FormConfig path.
+ *
+ * Throws if the form doesn't exist in form_templates, or if its template
+ * assets can't be fetched.
+ */
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { loadFormDef } from './forms/loadFormDef';
+import { fillFromTemplate } from './forms/genericRenderer';
+import { COI_ARCHIVE_BUCKET, formAnchorsStoragePath } from './storage';
+
+export async function renderCertificateFromDb(
+  admin: SupabaseClient,
+  formId: string,
+  input: CoiInput,
+): Promise<Uint8Array> {
+  const formDef = await loadFormDef(admin, formId);
+  if (!formDef) {
+    throw new Error(`renderCertificateFromDb: form not found: ${formId}`);
+  }
+
+  // Fetch template PNG bytes
+  const pngDownload = await admin.storage
+    .from(COI_ARCHIVE_BUCKET)
+    .download(formDef.templatePngPath);
+  if (pngDownload.error || !pngDownload.data) {
+    throw new Error(
+      `renderCertificateFromDb: failed to fetch template PNG (${formDef.templatePngPath}): ${pngDownload.error?.message ?? 'no data'}`,
+    );
+  }
+  const templatePngBytes = new Uint8Array(await pngDownload.data.arrayBuffer());
+
+  // Fetch anchors JSON
+  const anchorsDownload = await admin.storage
+    .from(COI_ARCHIVE_BUCKET)
+    .download(formAnchorsStoragePath(formId));
+  if (anchorsDownload.error || !anchorsDownload.data) {
+    throw new Error(
+      `renderCertificateFromDb: failed to fetch anchors for ${formId}: ${anchorsDownload.error?.message ?? 'no data'}`,
+    );
+  }
+  const anchorsJson = JSON.parse(await anchorsDownload.data.text()) as {
+    page_width: number;
+    page_height: number;
+    labels: Array<{ text: string; x: number; y: number; width: number; height: number }>;
+  };
+
+  return fillFromTemplate(
+    formDef,
+    {
+      templatePngBytes,
+      anchors: anchorsJson.labels,
+      pageWidthPt: anchorsJson.page_width,
+      pageHeightPt: anchorsJson.page_height,
+    },
+    input,
+  );
+}
