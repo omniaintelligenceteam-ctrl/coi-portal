@@ -59,3 +59,66 @@ export interface FormConfig {
 // (scripts/certDoctor.ts) imports runChecks directly. When form #2 lands and
 // runChecks is parameterized per-form, switch the CLI to look up a doctor
 // function in a separate, script-only registry (lib/forms/doctors.ts).
+
+// =============================================================================
+// Data-driven form definitions — the new path (Visual Mapper, Phase 0.2)
+//
+// FormConfig (above) is the legacy code-registered shape, kept around for the
+// ACORD_25 fallback. FormDef + FormFieldDef are the runtime shapes loaded from
+// form_templates + form_fields in Postgres — what the generic renderer walks.
+// =============================================================================
+
+/** Which edge of an anchor label to anchor a field to. Mirrors AnchorRef.side
+ *  in lib/anchors.ts so coord resolution can stay shared. */
+export type AnchorSide = 'right' | 'left' | 'below' | 'above' | 'row' | 'inside';
+
+/** Form lifecycle status. Drafts live in the mapper; published forms are live
+ *  in the registry; archived forms are hidden from new use but historical
+ *  cert_requests with form_type set to an archived form still render. */
+export type FormStatus = 'draft' | 'published' | 'archived';
+
+/** One field's positioning + data source. Mirrors a row in the form_fields
+ *  table (snake_case → camelCase). */
+export interface FormFieldDef {
+  readonly id: string;
+  readonly formId: string;
+  /** Stable key from lib/forms/fieldDictionary.ts, or 'custom_<n>' for
+   *  free-form fields. The renderer looks this up to find a resolver fn. */
+  readonly fieldKey: string;
+  /** Dictionary lookup key OR a free-form expression. For dictionary fields
+   *  this duplicates fieldKey; for custom fields it's a JSONPath-ish string. */
+  readonly dataSource: string;
+  readonly page: number;
+  /** Null when the field uses absolute coords. */
+  readonly anchorLabel: string | null;
+  readonly anchorSide: AnchorSide | null;
+  readonly dx: number;
+  readonly dy: number;
+  /** Set only when anchorLabel is null. */
+  readonly absX: number | null;
+  readonly absY: number | null;
+  readonly fontSize: number;
+  readonly maxWidthPt: number | null;
+  /** Disambiguates when the PDF has duplicate label text (e.g., "POLICY NUMBER"
+   *  appears 5 times on ACORD 25). */
+  readonly nearY: number | null;
+}
+
+/** A loaded form definition — form_templates row + form_fields rows + storage
+ *  URLs for the template assets. The output of lib/forms/loadFormDef.ts. */
+export interface FormDef {
+  readonly id: string;
+  readonly displayName: string;
+  readonly revision: string;
+  readonly status: FormStatus;
+  readonly pageCount: number;
+  /** PDF page width in points. Null for legacy forms whose dimensions weren't
+   *  recorded at upload (e.g., ACORD_25 pre-migration). */
+  readonly pageWidthPt: number | null;
+  readonly pageHeightPt: number | null;
+  /** Storage paths (in the coi-archive bucket). Use lib/storage.ts to sign. */
+  readonly templatePdfPath: string;
+  readonly templatePngPath: string;
+  readonly insurerSlotCount: number;
+  readonly fields: readonly FormFieldDef[];
+}
