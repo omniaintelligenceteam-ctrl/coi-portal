@@ -19,6 +19,7 @@ import { Command } from 'cmdk';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   FileText,
+  Files,
   Home,
   Inbox,
   LogOut,
@@ -55,6 +56,7 @@ const JUMPS: Jump[] = [
   { label: 'Queue',       href: '/admin/queue',           sub: 'Requests awaiting review',      icon: Inbox },
   { label: 'Generate',    href: '/admin/generate',        sub: 'Issue a certificate',           icon: Plus },
   { label: 'Clients',     href: '/admin/clients',         sub: 'All insureds',                  icon: Users },
+  { label: 'Forms',       href: '/admin/forms',           sub: 'Form library & per-client toggles', icon: Files },
   { label: 'Settings',    href: '/admin/settings',        sub: 'Clients, overrides, automation', icon: Settings },
   { label: 'Certificates', href: '/certificates',         sub: 'All certificates',              icon: FileText },
   { label: 'Design system', href: '/admin/design',        sub: 'Primitive QA reference',        icon: Palette },

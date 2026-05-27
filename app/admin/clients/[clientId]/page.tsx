@@ -19,10 +19,12 @@ import { ProfileForm, type AgencyOption, type ProfileFormInitial } from './Profi
 import { VoidCertButton } from './VoidCertButton';
 import { AuditLogPanel, type AuditLogEntry } from './AuditLogPanel';
 import { MasterFileTab } from './MasterFileTab';
+import { FormsTab, type RegisteredFormSummary } from './FormsTab';
+import { listForms, DEFAULT_FORM_ID } from '@/lib/forms/registry';
 
 export const dynamic = 'force-dynamic';
 
-type TabKey = 'master' | 'certificates' | 'policies' | 'profile' | 'audit';
+type TabKey = 'master' | 'certificates' | 'policies' | 'forms' | 'profile' | 'audit';
 
 function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? '')
@@ -47,6 +49,7 @@ type Client = {
   default_description: string | null;
   auto_approve_threshold_low: number | null;
   auto_approve_threshold_high: number | null;
+  enabled_forms: string[] | null;
 };
 
 type CertRow = {
@@ -99,7 +102,8 @@ export default async function ClientHubPage({
       `id, agency_id, business_name, business_address1, business_address2,
        contact_name, contact_email, phone, active, auto_approve_enabled,
        archived_at, archived_reason,
-       default_description, auto_approve_threshold_low, auto_approve_threshold_high`,
+       default_description, auto_approve_threshold_low, auto_approve_threshold_high,
+       enabled_forms`,
     )
     .eq('id', clientId)
     .maybeSingle<Client>();
@@ -118,10 +122,11 @@ export default async function ClientHubPage({
       .maybeSingle();
     if (legacy.data) {
       client = {
-        ...(legacy.data as Omit<Client, 'default_description' | 'auto_approve_threshold_low' | 'auto_approve_threshold_high'>),
+        ...(legacy.data as Omit<Client, 'default_description' | 'auto_approve_threshold_low' | 'auto_approve_threshold_high' | 'enabled_forms'>),
         default_description: null,
         auto_approve_threshold_low: null,
         auto_approve_threshold_high: null,
+        enabled_forms: null,
       };
     }
   }
@@ -207,6 +212,7 @@ export default async function ClientHubPage({
             ['master', 'Master file'],
             ['certificates', `Certificates (${certs?.length ?? 0})`],
             ['policies', `Policies (${policies.length})`],
+            ['forms', `Forms (${(client.enabled_forms ?? [DEFAULT_FORM_ID]).length})`],
             ['profile', 'Profile'],
             ['audit', 'Audit'],
           ] as const
@@ -252,6 +258,20 @@ export default async function ClientHubPage({
       {tab === 'certificates' && <CertsTab certs={certs ?? []} />}
       {tab === 'policies' && (
         <PoliciesTab clientId={clientId} policies={policies} />
+      )}
+      {tab === 'forms' && (
+        <FormsTab
+          clientId={clientId}
+          clientName={client.business_name}
+          forms={
+            listForms().map((f): RegisteredFormSummary => ({
+              id: f.id,
+              displayName: f.displayName,
+              revision: f.revision,
+            }))
+          }
+          initialEnabled={client.enabled_forms ?? [DEFAULT_FORM_ID]}
+        />
       )}
       {tab === 'profile' && (
         <ProfileForm

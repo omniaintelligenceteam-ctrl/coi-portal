@@ -4,9 +4,11 @@ import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { selectableCoverages, type DbPolicy } from '@/lib/getClientPolicies';
-import { CoverageForm, type PolicyForForm, type SavedHolder } from '@/app/CoverageForm';
+import { type PolicyForForm, type SavedHolder } from '@/app/CoverageForm';
 import { Hairline } from '@/app/components/Hairline';
 import { Banner, PageShell } from '@/app/components/ui';
+import { listForms, DEFAULT_FORM_ID } from '@/lib/forms/registry';
+import { FormPicker, type EnabledFormSummary } from './FormPicker';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +26,7 @@ type ClientRow = {
   business_address2: string | null;
   contact_email: string | null;
   active: boolean;
+  enabled_forms: string[] | null;
 };
 
 type PolicyRow = DbPolicy & {
@@ -52,10 +55,17 @@ export default async function GenerateForClientPage({
 
   const { data: client } = await admin
     .from('coi_clients')
-    .select('id, business_name, business_address1, business_address2, contact_email, active')
+    .select('id, business_name, business_address1, business_address2, contact_email, active, enabled_forms')
     .eq('id', clientId)
     .maybeSingle<ClientRow>();
   if (!client) notFound();
+
+  // Filter the registry down to forms this client is enabled for. If the
+  // column is null (legacy row pre-migration), fall back to the default.
+  const enabledIds = new Set(client.enabled_forms ?? [DEFAULT_FORM_ID]);
+  const enabledForms: EnabledFormSummary[] = listForms()
+    .filter((f) => enabledIds.has(f.id))
+    .map((f) => ({ id: f.id, displayName: f.displayName, revision: f.revision }));
 
   const { data: policiesRaw } = await admin
     .from('policies')
@@ -143,12 +153,13 @@ export default async function GenerateForClientPage({
             This client has no in-force policies on file. Import one before issuing a certificate.
           </Banner>
         ) : (
-          <CoverageForm
+          <FormPicker
             clientId={client.id}
             policies={policiesForForm}
             savedHolders={savedHolders}
             mode="admin"
             onBehalfOf={client.business_name}
+            enabledForms={enabledForms}
           />
         )}
 

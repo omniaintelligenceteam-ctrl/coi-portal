@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation';
 import { AlertTriangle, ArrowRight, Mail, Phone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { selectableCoverages, type DbPolicy } from '@/lib/getClientPolicies';
-import { CoverageForm, type PolicyForForm, type SavedHolder } from './CoverageForm';
+import { type PolicyForForm, type SavedHolder } from './CoverageForm';
+import { FormPicker, type EnabledFormSummary } from './admin/generate/[clientId]/FormPicker';
+import { listForms, DEFAULT_FORM_ID } from '@/lib/forms/registry';
 import { Header } from './components/Header';
 import { Logo } from './components/Logo';
 import { MasterCertButton } from './MasterCertButton';
@@ -18,6 +20,7 @@ type ClientRow = {
   business_name: string;
   business_address1: string | null;
   business_address2: string | null;
+  enabled_forms: string[] | null;
 };
 
 type PolicyRow = DbPolicy & {
@@ -51,11 +54,18 @@ export default async function HomePage() {
 
   const { data: client } = await supabase
     .from('coi_clients')
-    .select('id, business_name, business_address1, business_address2')
+    .select('id, business_name, business_address1, business_address2, enabled_forms')
     .eq('contact_email', email)
     .maybeSingle<ClientRow>();
 
   if (!client) return <NoClientFound email={user.email} />;
+
+  // Filter the form registry down to forms this client is enabled for.
+  // Falls back to the default form when the column is null (legacy row).
+  const enabledIds = new Set(client.enabled_forms ?? [DEFAULT_FORM_ID]);
+  const enabledFormsForInsured: EnabledFormSummary[] = listForms()
+    .filter((f) => enabledIds.has(f.id))
+    .map((f) => ({ id: f.id, displayName: f.displayName, revision: f.revision }));
 
   const { data: policiesRaw } = await supabase
     .from('policies')
@@ -176,10 +186,11 @@ export default async function HomePage() {
           <NoActivePolicies />
         ) : (
           <>
-            <CoverageForm
+            <FormPicker
               clientId={client.id}
               policies={policiesForForm}
               savedHolders={savedHolders}
+              enabledForms={enabledFormsForInsured}
             />
             <MasterCertButton
               policyIds={policiesForForm.map((p) => p.id)}

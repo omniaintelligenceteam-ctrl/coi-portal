@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { issueCert, type IssueCertClient } from '@/lib/issueCert';
+import { isKnownForm, DEFAULT_FORM_ID } from '@/lib/forms/registry';
 
 export const runtime = 'nodejs';
 
@@ -21,6 +22,11 @@ const BodySchema = z.object({
     address1: z.string().min(1).max(200),
     address2: z.string().max(200).optional().default(''),
   }),
+  // Form picker selection. Omitted body → default form (ACORD_25). The picker
+  // only surfaces forms in coi_clients.enabled_forms, so admin can't choose a
+  // form the client isn't authorized for via the UI. We still validate against
+  // the registry below — a typo'd formId would otherwise wedge issueCert.
+  formId: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -62,6 +68,14 @@ export async function POST(req: NextRequest) {
 
   const requestedIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
 
+  const formId = body.formId ?? DEFAULT_FORM_ID;
+  if (!isKnownForm(formId)) {
+    return NextResponse.json(
+      { error: 'unknown form', detail: `form_type "${formId}" is not registered` },
+      { status: 400 },
+    );
+  }
+
   const result = await issueCert({
     reader: admin,
     admin,
@@ -70,6 +84,7 @@ export async function POST(req: NextRequest) {
     holder: body.holder,
     requestedByEmail: user!.email!, // admin's email — audit trail of who issued
     requestedIp,
+    formId,
   });
 
   if (!result.ok) {

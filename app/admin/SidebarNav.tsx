@@ -23,6 +23,7 @@ import {
   Home,
   Inbox,
   FilePlus,
+  Files,
   Users,
   UserPlus,
   Settings,
@@ -83,6 +84,12 @@ const GROUPS: Group[] = [
   {
     heading: 'Manage',
     items: [
+      {
+        label: 'Forms',
+        href: '/admin/forms',
+        icon: Files,
+        match: (p) => p.startsWith('/admin/forms'),
+      },
       {
         label: 'Settings',
         href: '/admin/settings',

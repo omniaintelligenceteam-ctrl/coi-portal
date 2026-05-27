@@ -101,12 +101,15 @@ export function CoverageForm({
   savedHolders = [],
   mode = 'self',
   onBehalfOf,
+  formId,
 }: {
   clientId: string;
   policies: PolicyForForm[];
   savedHolders?: SavedHolder[];
   mode?: 'self' | 'admin';
   onBehalfOf?: string;
+  /** Form template the user picked. Omitted → server defaults to ACORD_25. */
+  formId?: string;
 }) {
   const reduce = useReducedMotion();
 
@@ -261,6 +264,7 @@ export function CoverageForm({
             address1: trimmedAddress1,
             address2: trimmedAddress2,
           },
+          ...(formId ? { formId } : {}),
         }),
       });
       if (!res.ok) {

@@ -93,10 +93,9 @@ export function withChecksum(baseCertNumber: string): string {
 const HOURLY_LIMIT = () => parseInt(process.env.CERT_HOURLY_LIMIT ?? '20');
 const DAILY_LIMIT = () => parseInt(process.env.CERT_DAILY_LIMIT ?? '200');
 
-// First submissions default to ACORD 25. Phase 5 will let clients/admins
-// choose from coi_clients.enabled_forms via the generate-flow form picker.
-const FORM_ID = DEFAULT_FORM_ID;
-const TEMPLATE_PATH = templatePngPathFor(FORM_ID);
+// Signature path is form-agnostic — same Brook signature is overlaid on
+// every form regardless of type. Template path now resolves per-call from
+// the form picker's chosen formId (Phase 5 — multi-form lift, 2026-05-27).
 const SIGNATURE_PATH = resolve(process.cwd(), 'assets/policy-place-signature.png');
 
 export type IssueCertHolder = { name: string; address1: string; address2?: string };
@@ -127,10 +126,17 @@ export async function issueCert(input: {
    *  block to mirror the insured's business name + address regardless of any
    *  client-supplied holder values. */
   isMaster?: boolean;
+  /** Form to render. Defaults to DEFAULT_FORM_ID (ACORD_25) when omitted. The
+   *  picker on /admin/generate/[clientId] and the insured home selects this
+   *  from the client's coi_clients.enabled_forms. API routes validate against
+   *  isKnownForm before calling here, so by this point it's safe to trust. */
+  formId?: string;
 }): Promise<IssueCertResult> {
   const t0 = Date.now();
   const { reader, admin, client, selectedPolicyIds, requestedByEmail, requestedIp } = input;
   const isMaster = input.isMaster === true;
+  const formId = input.formId ?? DEFAULT_FORM_ID;
+  const templatePath = templatePngPathFor(formId);
 
   // For master certs, the holder is ALWAYS the insured. Don't trust any value
   // the form may have submitted — pre-fill from the canonical client row.
@@ -246,14 +252,14 @@ export async function issueCert(input: {
     },
     certNumber,
     today,
-    templatePngPath: TEMPLATE_PATH,
+    templatePngPath: templatePath,
     signaturePngPath: SIGNATURE_PATH,
   });
 
   // Render PDF
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await renderCertificate(FORM_ID, coiInput);
+    pdfBytes = await renderCertificate(formId, coiInput);
   } catch (err) {
     log.error('cert.pdf_render_failed', { certNumber, error: (err as Error).message });
     return { ok: false, status: 500, error: 'pdf render failed', detail: (err as Error).message };
@@ -290,7 +296,7 @@ export async function issueCert(input: {
       cert_number: certNumber,
       pdf_storage_path: storagePath,
       status: 'pending',
-      form_type: FORM_ID,
+      form_type: formId,
       requested_by_email: requestedByEmail,
       requested_ip: requestedIp,
       is_master: isMaster,
