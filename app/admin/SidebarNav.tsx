@@ -127,7 +127,7 @@ export function SidebarNav({
   return (
     <aside
       aria-label="Admin navigation"
-      className="hidden h-[calc(100dvh-var(--header-height-sm))] w-[232px] shrink-0 flex-col border-r border-hairline bg-paper-deep/40 px-3 py-5 md:sticky md:top-[var(--header-height-sm)] md:flex"
+      className="flex w-full flex-col border-b border-hairline bg-paper-deep/40 px-3 py-5 md:sticky md:top-[var(--header-height-sm)] md:h-[calc(100dvh-var(--header-height-sm))] md:w-[232px] md:shrink-0 md:border-b-0 md:border-r"
     >
       {/* Brand */}
       <Link

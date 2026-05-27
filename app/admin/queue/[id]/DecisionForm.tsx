@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import { Hairline } from '@/app/components/Hairline';
+import { Check, Edit3, X } from 'lucide-react';
+import { ActionBar, Button, RadioCard } from '@/app/components/ui';
 import type {
   AgencyOverride,
   CertOverrides,
@@ -442,39 +443,38 @@ export function DecisionForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <Hairline label="Decision" className="mb-6" />
-
-      {/* Segmented control */}
-      <div
-        role="radiogroup"
-        aria-label="Decision"
-        className="grid grid-cols-3 gap-0 overflow-hidden rounded-md border border-hairline-strong bg-card"
-      >
-        {(['approve', 'edit', 'reject'] as Decision[]).map((d, i) => {
-          const c = MODE_CONFIG[d];
-          const isActive = mode === d;
-          return (
-            <button
-              key={d}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              onClick={() => setMode(d)}
-              className={`focus-ring relative px-4 py-3.5 text-left transition-colors ${
-                i > 0 ? 'border-l border-hairline-strong' : ''
-              } ${isActive ? `${c.activeBg} ring-2 ring-inset ${c.activeRing}` : 'hover:bg-paper-deep/40'}`}
-            >
-              <span
-                className={`block text-sm font-semibold ${
-                  isActive ? c.activeColor : 'text-ink'
-                }`}
-              >
-                {c.label}
-              </span>
-              <span className="mt-0.5 block text-[0.7rem] text-ink-muted">{c.sub}</span>
-            </button>
-          );
-        })}
+      {/* Real radio cards — icon + title + description per choice */}
+      <div role="radiogroup" aria-label="Decision" className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+        <RadioCard
+          name="decision"
+          value="approve"
+          selected={mode === 'approve'}
+          onSelect={() => setMode('approve')}
+          icon={<Check className="h-4 w-4" aria-hidden="true" />}
+          title="Approve"
+          description="Send as-is to the requester."
+          tone="success"
+        />
+        <RadioCard
+          name="decision"
+          value="edit"
+          selected={mode === 'edit'}
+          onSelect={() => setMode('edit')}
+          icon={<Edit3 className="h-4 w-4" aria-hidden="true" />}
+          title="Edit"
+          description="Adjust the cert before sending."
+          tone="warning"
+        />
+        <RadioCard
+          name="decision"
+          value="reject"
+          selected={mode === 'reject'}
+          onSelect={() => setMode('reject')}
+          icon={<X className="h-4 w-4" aria-hidden="true" />}
+          title="Reject"
+          description="Send back to the client with a reason."
+          tone="danger"
+        />
       </div>
 
       {/* Mode-specific content */}
@@ -1075,15 +1075,28 @@ export function DecisionForm({
         </p>
       )}
 
-      <div className="mt-10 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <button
+      <ActionBar
+        className="mt-12"
+        context={
+          mode === 'edit'
+            ? overridesActive
+              ? 'Field edits are queued. PDF will re-render on send.'
+              : 'No edits yet. Use the tabs above to change holder, insured, producer, coverages, or operations.'
+            : mode === 'reject'
+              ? 'The reason you wrote will be emailed to the client.'
+              : 'PDF will be re-rendered with today’s date and emailed on send.'
+        }
+      >
+        <Button
           type="submit"
-          disabled={submitting}
-          className={`focus-ring inline-flex items-center justify-center rounded-md px-7 py-3.5 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-60 ${cfg.submit}`}
+          variant={mode === 'reject' ? 'danger' : 'primary'}
+          size="lg"
+          loading={submitting}
+          className="sm:ml-auto"
         >
           {submitting ? 'Working…' : cfg.submitLabel}
-        </button>
-      </div>
+        </Button>
+      </ActionBar>
 
       {showPreview && previewUrl && (
         <PdfPreviewModal url={previewUrl} onClose={handleClosePreview} />

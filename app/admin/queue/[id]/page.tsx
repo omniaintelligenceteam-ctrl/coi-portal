@@ -2,11 +2,16 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft, FileText } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { Hairline } from '@/app/components/Hairline';
 import { MonoTag } from '@/app/components/MonoTag';
 import { StatusPill, type CertStatus } from '@/app/components/StatusPill';
 import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
-import { Banner, Card, PageShell } from '@/app/components/ui';
+import {
+  Banner,
+  Card,
+  KeyValue,
+  PageShell,
+  Section,
+} from '@/app/components/ui';
 import { DecisionForm, type EditableCoverage } from './DecisionForm';
 import { PdfPreviewPanel } from './PdfPreviewPanel';
 import { RetrySend } from './RetrySend';
@@ -87,6 +92,10 @@ function formatDate(iso: string): string {
   return `${m}/${d}/${y}`;
 }
 
+function pad2(n: number): string {
+  return n.toString().padStart(2, '0');
+}
+
 export default async function CertDetailPage({
   params,
   searchParams,
@@ -156,8 +165,16 @@ export default async function CertDetailPage({
     }
   }
 
+  const coverageCount = (coverages ?? []).length;
+  const requestedDate = new Date(req.requested_at);
+  const requestedDisplay = `${requestedDate.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })} · ${pad2(requestedDate.getHours())}:${pad2(requestedDate.getMinutes())}`;
+
   return (
-    <PageShell as="main" className="page-pad-top pb-32">
+    <PageShell as="main" className="page-pad-top pb-40">
       <Link
         href="/admin/queue"
         className="focus-ring caps -m-1 inline-flex items-center gap-1.5 rounded p-1 text-[0.65rem] font-medium tracking-[0.18em] text-ink-muted transition-colors hover:text-ink"
@@ -167,131 +184,166 @@ export default async function CertDetailPage({
       </Link>
 
       {flash && (
-        <div className="mt-5">
+        <div className="mt-6">
           <Banner tone={flash.tone === 'ok' ? 'seal' : 'danger'}>{flash.text}</Banner>
         </div>
       )}
 
       {/* Document-style header — client name primary, cert# secondary */}
-      <header className="mt-7">
-        <p className="caps text-[0.65rem] font-semibold tracking-caps text-brand">
+      <header className="mt-7 sm:mt-10">
+        <p className="caps text-[0.62rem] font-semibold tracking-[0.18em] text-brand sm:text-[0.65rem]">
           Certificate request
         </p>
-        <h1 className="font-display mt-3 text-[1.875rem] font-medium leading-[1.05] tracking-display text-ink sm:text-[2.5rem]">
+        <h1 className="font-display mt-2.5 text-[1.875rem] font-medium leading-[1.05] tracking-display text-ink sm:mt-3 sm:text-[2.625rem]">
           {client?.business_name ?? 'Unknown client'}
         </h1>
-        <p className="num-tabular mt-2 font-mono text-[0.9rem] text-ink-muted">
+        <p className="num-tabular mt-2.5 font-mono text-[0.85rem] text-ink-muted sm:mt-3 sm:text-[0.9rem]">
           {req.cert_number}
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 sm:mt-5 sm:gap-x-4">
-          <StatusPill status={req.status} size="md" />
-          <span className="caps text-[0.6rem] font-medium tracking-caps text-ink-faint">
-            Requested by
-          </span>
-          <span className="font-mono text-[0.78rem] text-ink">{req.requested_by_email}</span>
-          <span className="text-hairline-strong" aria-hidden="true">
-            ·
-          </span>
-          <span className="font-mono text-[0.75rem] text-ink-muted">
-            {new Date(req.requested_at).toLocaleString()}
+
+        {/* Mobile meta: StatusPill on its own, then a tidy muted line of metadata. */}
+        <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
+          <div>
+            <StatusPill status={req.status} size="md" />
+          </div>
+          <span className="hidden h-4 w-px bg-hairline-strong sm:block" aria-hidden="true" />
+          <div className="flex flex-col gap-0.5 text-[0.75rem] sm:flex-row sm:items-center sm:gap-3">
+            <span className="caps text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint">
+              Requested by
+            </span>
+            <span className="truncate font-mono text-[0.78rem] text-ink">
+              {req.requested_by_email}
+            </span>
+          </div>
+          <span className="hidden h-4 w-px bg-hairline-strong sm:block" aria-hidden="true" />
+          <span className="num-tabular font-mono text-[0.72rem] text-ink-muted sm:text-[0.75rem]">
+            {requestedDisplay}
           </span>
         </div>
       </header>
 
-      <Hairline className="mt-8 sm:mt-10" />
-
       {/* Two-column split */}
-      <div className="mt-8 grid grid-cols-1 gap-10 xl:grid-cols-[minmax(0,1fr),minmax(0,560px)] xl:gap-12 sm:mt-10">
-        <div className="min-w-0 space-y-10 sm:space-y-12">
-          <section>
-            <ReviewerCard
-              pass={req.reviewer_pass}
-              notes={req.reviewer_notes}
-              flags={req.reviewer_flags ?? []}
-              model={req.reviewer_model}
-            />
-          </section>
+      <div className="mt-10 grid grid-cols-1 gap-12 xl:grid-cols-[minmax(0,1fr),minmax(0,560px)] xl:gap-14 sm:mt-14">
+        <div className="min-w-0 space-y-12 sm:space-y-16">
+          <ReviewerCard
+            pass={req.reviewer_pass}
+            notes={req.reviewer_notes}
+            flags={req.reviewer_flags ?? []}
+            model={req.reviewer_model}
+          />
 
-          <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
-            <PartyCard
-              label="Insured"
-              name={client?.business_name ?? 'Unknown client'}
-              address1={client?.business_address1}
-              address2={client?.business_address2}
-            />
-            <PartyCard
-              label="Certificate holder"
-              name={req.holder_name}
-              address1={req.holder_address1}
-              address2={req.holder_address2}
-            />
-          </section>
+          <Section eyebrow="01" title="Parties" description="Insured and certificate holder on this request.">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
+              <PartyCard
+                label="Insured"
+                name={client?.business_name ?? 'Unknown client'}
+                address1={client?.business_address1}
+                address2={client?.business_address2}
+              />
+              <PartyCard
+                label="Certificate holder"
+                name={req.holder_name}
+                address1={req.holder_address1}
+                address2={req.holder_address2}
+              />
+            </div>
+          </Section>
 
-          <section>
-            <Hairline label="Coverages selected" className="mb-5" />
-            <Card padding="none" className="overflow-hidden">
-              <ul className="divide-y divide-hairline">
-                {(coverages ?? []).map((c) => (
-                  <li key={c.id} className="px-5 py-5 sm:px-6">
-                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                      <span className="font-display text-[1.05rem] font-semibold tracking-tight text-ink">
-                        {TYPE_LABEL[c.type] ?? c.type}
-                      </span>
-                      <span className="caps text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
-                        {c.type}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[0.78rem] text-ink-muted">
-                      <span>{c.insurer?.name ?? 'Unknown insurer'}</span>
-                      <span className="text-hairline-strong" aria-hidden="true">·</span>
-                      <MonoTag size="sm" tone="subtle">
-                        {c.policy_number}
-                      </MonoTag>
-                      <span className="text-hairline-strong" aria-hidden="true">·</span>
-                      <span className="font-mono">
-                        {formatDate(c.eff_date)} → {formatDate(c.exp_date)}
-                      </span>
-                    </div>
-                    {(c.addl_insured_blanket || c.subrogation_waived || c.description) && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {c.addl_insured_blanket && (
-                          <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
-                            <span className="h-1 w-1 rounded-full bg-seal" aria-hidden="true" />
-                            AI · blanket
-                          </span>
-                        )}
-                        {c.subrogation_waived && (
-                          <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
-                            <span className="h-1 w-1 rounded-full bg-seal" aria-hidden="true" />
-                            WoS
-                          </span>
-                        )}
-                        {c.description && (
-                          <span className="rounded-[3px] border border-hairline-strong bg-card px-2 py-0.5 text-[0.72rem] text-ink-muted">
-                            {c.description}
-                          </span>
-                        )}
+          <Section
+            eyebrow="02"
+            title="Coverages selected"
+            description={`${coverageCount} ${coverageCount === 1 ? 'policy' : 'policies'} on this request.`}
+          >
+            {coverageCount === 0 ? (
+              <Card padding="md" surface="paper">
+                <p className="text-[0.875rem] text-ink-muted">
+                  No coverages attached to this request.
+                </p>
+              </Card>
+            ) : (
+              <Card padding="none" className="overflow-hidden">
+                <ul className="divide-y divide-hairline">
+                  {(coverages ?? []).map((c) => (
+                    <li key={c.id} className="px-5 py-6 sm:px-8 sm:py-8">
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <h3 className="font-display text-[1.125rem] font-medium leading-[1.2] tracking-tight text-ink">
+                          {TYPE_LABEL[c.type] ?? c.type}
+                        </h3>
+                        <span className="caps text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint">
+                          {c.type}
+                        </span>
                       </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </section>
 
-          {/* Mobile-only PDF preview button — opens fullscreen sheet */}
+                      <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
+                        <KeyValue label="Insurer" value={c.insurer?.name ?? 'Unknown insurer'} />
+                        <KeyValue
+                          label="Policy #"
+                          value={
+                            <MonoTag size="sm" tone="subtle">
+                              {c.policy_number}
+                            </MonoTag>
+                          }
+                        />
+                        <KeyValue
+                          label="Term"
+                          mono
+                          value={`${formatDate(c.eff_date)} → ${formatDate(c.exp_date)}`}
+                        />
+                      </dl>
+
+                      {(c.addl_insured_blanket || c.subrogation_waived || c.description) && (
+                        <div className="mt-5 flex flex-wrap items-center gap-2">
+                          {c.addl_insured_blanket && (
+                            <span className="caps inline-flex items-center gap-1.5 rounded-full border border-seal/30 bg-seal-soft px-2.5 py-1 text-[0.6rem] font-semibold tracking-[0.16em] text-seal-deep">
+                              <span className="h-1.5 w-1.5 rounded-full bg-seal" aria-hidden="true" />
+                              AI · blanket
+                            </span>
+                          )}
+                          {c.subrogation_waived && (
+                            <span className="caps inline-flex items-center gap-1.5 rounded-full border border-seal/30 bg-seal-soft px-2.5 py-1 text-[0.6rem] font-semibold tracking-[0.16em] text-seal-deep">
+                              <span className="h-1.5 w-1.5 rounded-full bg-seal" aria-hidden="true" />
+                              WoS
+                            </span>
+                          )}
+                          {c.description && (
+                            <span className="inline-flex items-center rounded-full border border-hairline-strong bg-card px-2.5 py-1 text-[0.72rem] text-ink-muted">
+                              {c.description}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+          </Section>
+
+          {/* Mobile-only PDF preview — full thumbnail card */}
           {previewUrl && (
             <div className="xl:hidden">
-              <PdfPreviewPanel
-                previewUrl={previewUrl}
-                downloadUrl={downloadUrl ?? previewUrl}
-                certNumber={req.cert_number}
-                variant="mobile"
-              />
+              <Section eyebrow="03" title="PDF preview" description="Tap to view the full document.">
+                <PdfPreviewPanel
+                  previewUrl={previewUrl}
+                  downloadUrl={downloadUrl ?? previewUrl}
+                  certNumber={req.cert_number}
+                  variant="mobile"
+                />
+              </Section>
             </div>
           )}
 
-          <section>
+          <Section
+            eyebrow={canDecide ? '04' : '—'}
+            title={canDecide ? 'Decision' : canRetrySend ? 'Send' : 'Status'}
+            description={
+              canDecide
+                ? 'Approve as-is, edit before sending, or reject back to the client.'
+                : canRetrySend
+                  ? 'The cert was approved but the email failed. Retry the send when ready.'
+                  : undefined
+            }
+          >
             {canDecide ? (
               <DecisionForm
                 requestId={req.id}
@@ -335,50 +387,48 @@ export default async function CertDetailPage({
             ) : canRetrySend ? (
               <RetrySend requestId={req.id} />
             ) : (
-              <Card padding="md" surface="paper" bordered>
-                <p className="caps text-[0.62rem] font-semibold tracking-[0.18em] text-ink-faint">
-                  Closed
-                </p>
-                <p className="mt-2 text-[0.875rem] leading-[1.55] text-ink">
+              <Card padding="md" surface="paper">
+                <p className="text-[0.9375rem] leading-[1.55] text-ink">
                   This request is{' '}
-                  <span className="font-semibold text-ink">{req.status}</span> — no further action
-                  needed.
+                  <span className="font-semibold text-ink">{req.status}</span> — no further
+                  action needed.
                 </p>
               </Card>
             )}
+          </Section>
 
-            <div className="mt-10 border-t border-hairline pt-6">
-              <p className="caps text-[0.6rem] font-medium tracking-[0.18em] text-ink-faint">
-                Danger zone
-              </p>
-              <div className="mt-3">
-                <DeleteRequest requestId={req.id} certNumber={req.cert_number} />
-              </div>
-            </div>
-          </section>
+          <Section
+            eyebrow="—"
+            title="Danger zone"
+            description="Deleting a request removes it from the queue. The audit trail keeps a record."
+            tone="danger"
+          >
+            <DeleteRequest requestId={req.id} certNumber={req.cert_number} />
+          </Section>
         </div>
 
         {/* Right column: sticky PDF preview (desktop only) */}
         <aside className="hidden min-w-0 xl:sticky xl:top-28 xl:block xl:self-start">
-          <Hairline label="PDF preview" className="mb-4" />
-          {previewUrl ? (
-            <PdfPreviewPanel
-              previewUrl={previewUrl}
-              downloadUrl={downloadUrl ?? previewUrl}
-              certNumber={req.cert_number}
-              variant="desktop"
-            />
-          ) : (
-            <Banner
-              tone="warning"
-              icon={<FileText className="h-4 w-4" aria-hidden="true" />}
-              title="No PDF on file"
-            >
-              The cert record has no{' '}
-              <code className="font-mono text-[0.78rem]">pdf_storage_path</code>. The submit
-              pipeline may have failed mid-flight. Investigate before approving.
-            </Banner>
-          )}
+          <Section eyebrow="03" title="PDF preview" description="Holder + signature re-render on send." bare={!previewUrl}>
+            {previewUrl ? (
+              <PdfPreviewPanel
+                previewUrl={previewUrl}
+                downloadUrl={downloadUrl ?? previewUrl}
+                certNumber={req.cert_number}
+                variant="desktop"
+              />
+            ) : (
+              <Banner
+                tone="warning"
+                icon={<FileText className="h-4 w-4" aria-hidden="true" />}
+                title="No PDF on file"
+              >
+                The cert record has no{' '}
+                <code className="font-mono text-[0.78rem]">pdf_storage_path</code>. The submit
+                pipeline may have failed mid-flight. Investigate before approving.
+              </Banner>
+            )}
+          </Section>
         </aside>
       </div>
     </PageShell>
@@ -397,13 +447,15 @@ function PartyCard({
   address2?: string | null;
 }) {
   return (
-    <div>
-      <p className="caps text-[0.62rem] font-semibold tracking-[0.18em] text-ink-faint">{label}</p>
-      <p className="font-display mt-2.5 text-[1.3rem] font-medium leading-[1.15] tracking-tight text-ink sm:text-[1.5rem]">
+    <Card padding="md" surface="paper" className="h-full">
+      <p className="caps text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint">
+        {label}
+      </p>
+      <p className="font-display mt-3 text-[1.25rem] font-medium leading-[1.2] tracking-tight text-ink sm:text-[1.4rem]">
         {name}
       </p>
       {address1 && (
-        <p className="mt-3 font-mono text-[0.78rem] leading-[1.55] text-ink-muted">
+        <address className="mt-4 not-italic font-mono text-[0.78rem] leading-[1.6] text-ink-muted">
           {address1}
           {address2 && (
             <>
@@ -411,9 +463,9 @@ function PartyCard({
               {address2}
             </>
           )}
-        </p>
+        </address>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -431,14 +483,14 @@ function ReviewerCard({
   if (pass === null) {
     return (
       <Card padding="md">
-        <p className="caps flex items-center gap-2 text-[0.65rem] font-semibold tracking-[0.18em] text-ink-muted">
+        <p className="caps flex items-center gap-2.5 text-[0.65rem] font-semibold tracking-[0.18em] text-ink-muted">
           <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ink-muted opacity-50" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ink-muted" />
           </span>
           AI review · running
         </p>
-        <p className="mt-3 text-[0.875rem] leading-[1.55] text-ink-muted">
+        <p className="mt-3 text-[0.9375rem] leading-[1.55] text-ink-muted">
           The reviewer is checking this request now. Reload in a moment.
         </p>
       </Card>
@@ -468,12 +520,12 @@ function ReviewerCard({
         )}
       </div>
       {notes && (
-        <p className="mt-4 text-[0.875rem] leading-[1.55] text-ink">{notes}</p>
+        <p className="mt-4 text-[0.9375rem] leading-[1.55] text-ink">{notes}</p>
       )}
       {flags.length > 0 && (
-        <ul className="mt-5 space-y-3 border-t border-hairline pt-4">
+        <ul className="mt-5 space-y-3 border-t border-hairline pt-5">
           {flags.map((f, i) => (
-            <li key={i} className="flex items-start gap-3 text-[0.875rem]">
+            <li key={i} className="flex items-start gap-3 text-[0.9375rem]">
               <SeverityChip severity={f.severity} />
               <div className="min-w-0 flex-1">
                 {f.field && (

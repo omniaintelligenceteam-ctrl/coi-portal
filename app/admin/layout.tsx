@@ -75,7 +75,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <>
       <Header email={email} badge="Agent" />
-      <div className="flex w-full">
+      <div className="flex w-full flex-col md:flex-row">
         <SidebarNav
           brand={{ mark: 'P', name: agency?.name ?? 'The Policy Place' }}
           user={{ initials, name: userName, role: 'Producer' }}

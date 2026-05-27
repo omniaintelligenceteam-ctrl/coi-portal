@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Eye, ExternalLink } from 'lucide-react';
+import { Download, ExternalLink, Maximize2 } from 'lucide-react';
 import { ButtonLink, IconButton, MobileSheet } from '@/app/components/ui';
 
 /**
@@ -10,9 +10,9 @@ import { ButtonLink, IconButton, MobileSheet } from '@/app/components/ui';
  * - `variant="desktop"` — inline iframe with hairline border, "Open in tab"
  *   and "Download" actions in a header above the document. Used in the sticky
  *   right column on xl+ viewports.
- * - `variant="mobile"` — a tappable card that opens the iframe inside a
- *   full-height MobileSheet. Mobile users get a real preview without the
- *   iframe shrinking the document into illegibility.
+ * - `variant="mobile"` — same Card frame, but the iframe sits at h-[55vh] and
+ *   an expand button opens a full-height MobileSheet for serious reading.
+ *   No more tiny eye-icon teaser — the PDF is the visual anchor of the page.
  */
 export function PdfPreviewPanel({
   previewUrl,
@@ -30,29 +30,36 @@ export function PdfPreviewPanel({
   if (variant === 'mobile') {
     return (
       <>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="focus-ring group flex w-full items-center gap-4 rounded-[var(--r-md)] border border-hairline bg-card px-4 py-4 text-left shadow-card transition-colors hover:border-brand/40 hover:bg-paper-deep/30"
-        >
-          <span className="flex h-14 w-11 shrink-0 items-center justify-center rounded-sm border border-hairline-strong bg-paper-deep">
-            <Eye className="h-4 w-4 text-ink-muted" aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="caps block text-[0.62rem] font-semibold tracking-[0.18em] text-seal-deep">
-              PDF preview
-            </span>
-            <span className="num-tabular mt-1 block font-mono text-[0.85rem] font-medium text-ink">
+        <div className="overflow-hidden rounded-[var(--r-md)] border border-hairline bg-card shadow-card">
+          <div className="flex items-center justify-between gap-2 border-b border-hairline px-3 py-2.5">
+            <span className="num-tabular font-mono text-[0.78rem] font-medium text-ink">
               {certNumber}
             </span>
-            <span className="mt-0.5 block text-[0.75rem] text-ink-muted">
-              Tap to view full document
-            </span>
-          </span>
-          <span className="caps shrink-0 text-[0.6rem] font-semibold tracking-[0.18em] text-brand-deep group-hover:text-brand-near">
-            View
-          </span>
-        </button>
+            <div className="flex items-center gap-1">
+              <IconButton
+                label="Download"
+                size="sm"
+                variant="ghost"
+                onClick={() => window.open(downloadUrl, '_self')}
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+              <IconButton
+                label="Expand to fullscreen"
+                size="sm"
+                variant="ghost"
+                onClick={() => setOpen(true)}
+              >
+                <Maximize2 className="h-4 w-4" aria-hidden="true" />
+              </IconButton>
+            </div>
+          </div>
+          <iframe
+            src={previewUrl}
+            title={`Certificate ${certNumber} preview`}
+            className="block h-[55vh] min-h-[420px] w-full bg-paper-deep"
+          />
+        </div>
 
         <MobileSheet
           open={open}
@@ -104,9 +111,9 @@ export function PdfPreviewPanel({
   return (
     <div>
       <div className="overflow-hidden rounded-[var(--r-md)] border border-hairline bg-card shadow-card">
-        <div className="flex items-center justify-between gap-2 border-b border-hairline px-3 py-2">
-          <span className="caps text-[0.6rem] font-semibold tracking-[0.18em] text-ink-faint">
-            Document
+        <div className="flex items-center justify-between gap-2 border-b border-hairline px-3 py-2.5">
+          <span className="num-tabular font-mono text-[0.78rem] font-medium text-ink">
+            {certNumber}
           </span>
           <div className="flex items-center gap-1">
             <IconButton
@@ -130,7 +137,7 @@ export function PdfPreviewPanel({
         <iframe
           src={previewUrl}
           title={`Certificate ${certNumber} preview`}
-          className="block min-h-[400px] w-full bg-paper-deep xl:h-[760px]"
+          className="block min-h-[480px] w-full bg-paper-deep xl:h-[780px]"
         />
       </div>
       <p className="caps mt-3 text-[0.58rem] font-medium tracking-[0.18em] text-ink-faint">

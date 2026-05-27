@@ -24,3 +24,6 @@ export type { ToggleProps } from './Toggle';
 export { Banner } from './Banner';
 export { Chip, StaticChip } from './Chip';
 export type { ChipProps } from './Chip';
+export { Section } from './Section';
+export { KeyValue } from './KeyValue';
+export { RadioCard } from './RadioCard';
