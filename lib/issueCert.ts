@@ -2,7 +2,8 @@ import { after } from 'next/server';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { fillAcord25 } from './fillAcord25';
+import { renderCertificate, templatePngPathFor } from './renderCertificate';
+import { DEFAULT_FORM_ID } from './forms/registry';
 import { reviewCert, type ClientOverride } from './reviewerAgent';
 import { selectableCoverages } from './getClientPolicies';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
@@ -92,7 +93,10 @@ export function withChecksum(baseCertNumber: string): string {
 const HOURLY_LIMIT = () => parseInt(process.env.CERT_HOURLY_LIMIT ?? '20');
 const DAILY_LIMIT = () => parseInt(process.env.CERT_DAILY_LIMIT ?? '200');
 
-const TEMPLATE_PATH = resolve(process.cwd(), 'assets/template/acord-25-page-1.png');
+// First submissions default to ACORD 25. Phase 5 will let clients/admins
+// choose from coi_clients.enabled_forms via the generate-flow form picker.
+const FORM_ID = DEFAULT_FORM_ID;
+const TEMPLATE_PATH = templatePngPathFor(FORM_ID);
 const SIGNATURE_PATH = resolve(process.cwd(), 'assets/policy-place-signature.png');
 
 export type IssueCertHolder = { name: string; address1: string; address2?: string };
@@ -249,7 +253,7 @@ export async function issueCert(input: {
   // Render PDF
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await fillAcord25(coiInput);
+    pdfBytes = await renderCertificate(FORM_ID, coiInput);
   } catch (err) {
     log.error('cert.pdf_render_failed', { certNumber, error: (err as Error).message });
     return { ok: false, status: 500, error: 'pdf render failed', detail: (err as Error).message };
@@ -286,6 +290,7 @@ export async function issueCert(input: {
       cert_number: certNumber,
       pdf_storage_path: storagePath,
       status: 'pending',
+      form_type: FORM_ID,
       requested_by_email: requestedByEmail,
       requested_ip: requestedIp,
       is_master: isMaster,

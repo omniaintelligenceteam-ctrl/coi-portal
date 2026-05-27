@@ -63,21 +63,35 @@ function isoToUsDate(iso: string): string {
 }
 
 /**
- * Assign insurer letters A..F to the distinct insurers across the policies.
- * Returns the insurer block + a NAIC→letter map for coverage rendering.
+ * Assign insurer letters (A, B, C, ...) to the distinct insurers across the
+ * policies. Returns the insurer block + a NAIC→letter map for coverage
+ * rendering.
+ *
+ * `slotCount` defaults to 6 (ACORD 25 has rows A-F). Other forms may have
+ * different counts — pass the form's FormConfig.insurerSlotCount.
  */
-function letterMap(policies: DbPolicyFull[]): {
+const INSURER_LETTERS: InsurerLetter[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+function letterMap(
+  policies: DbPolicyFull[],
+  slotCount: number = INSURER_LETTERS.length,
+): {
   insurers: Insurer[];
   naicToLetter: Map<string, InsurerLetter>;
 } {
-  const letters: InsurerLetter[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const effective = Math.min(slotCount, INSURER_LETTERS.length);
+  const letters = INSURER_LETTERS.slice(0, effective);
   const seen = new Map<string, InsurerLetter>();
   const insurers: Insurer[] = [];
   for (const p of policies) {
     if (!p.insurer) continue;
     if (seen.has(p.insurer.naic)) continue;
     const letter = letters[seen.size];
-    if (!letter) throw new Error('More than 6 distinct insurers — ACORD 25 only has slots A-F.');
+    if (!letter) {
+      throw new Error(
+        `More than ${effective} distinct insurers — this form template only has ${effective} insurer slot(s).`,
+      );
+    }
     seen.set(p.insurer.naic, letter);
     insurers.push({ letter, name: p.insurer.name, naic: p.insurer.naic });
   }

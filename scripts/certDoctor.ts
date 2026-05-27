@@ -2,33 +2,48 @@
 /**
  * Cert-doctor CLI.
  *
- * Single gate before any coords.ts change ships. Runs all check chains,
- * emits a machine-readable JSON report, and exits 0 (PASS) or 1 (FAIL).
+ * Single gate before any coords.ts change ships. Runs all check chains for
+ * the chosen form, emits a machine-readable JSON report, and exits 0 (PASS)
+ * or 1 (FAIL).
  *
  * Usage:
- *   npm run cert-doctor            — full check including render pass
- *   npm run cert-doctor -- --fast  — skip render pass (faster, misses rendered-overlap)
+ *   npm run cert-doctor                        — check default form (ACORD 25)
+ *   npm run cert-doctor -- --form ACORD_25     — explicit form id
+ *   npm run cert-doctor -- --form all          — check every registered form
+ *   npm run cert-doctor -- --fast              — skip render pass (faster)
  *
  * Output:
- *   stdout: one-line summary + violation list
- *   out/doctor-report.json: full machine-readable report
+ *   stdout: one-line summary + violation list per form
+ *   out/doctor-report.json: full machine-readable report (last form checked
+ *     when running --form all)
  */
 
 import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runChecks } from '../lib/certDoctorCore.js';
+import { getFormConfig, listFormIds, DEFAULT_FORM_ID } from '../lib/forms/registry.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
 const fast = process.argv.includes('--fast');
 
-async function main(): Promise<void> {
-  console.log(`\ncert-doctor — ACORD 25 overlay precision check`);
+// Parse `--form <id>` (or `--form=id`). Defaults to ACORD_25.
+function parseFormFlag(): string {
+  const argv = process.argv;
+  const eqArg = argv.find((a) => a.startsWith('--form='));
+  if (eqArg) return eqArg.slice('--form='.length);
+  const idx = argv.indexOf('--form');
+  if (idx >= 0 && argv[idx + 1]) return argv[idx + 1];
+  return DEFAULT_FORM_ID;
+}
+
+async function runOneForm(formId: string): Promise<boolean> {
+  const config = getFormConfig(formId);
+  console.log(`\ncert-doctor — ${config.id} (${config.displayName} ${config.revision}) overlay precision check`);
   console.log(`  mode: ${fast ? 'fast (no render pass)' : 'full'}\n`);
 
-  const report = await runChecks({ skipRender: fast });
+  const report = await config.doctor({ skipRender: fast });
 
   // Print violations grouped by severity
   const errors = report.violations.filter((v) => v.severity === 'error');
@@ -62,7 +77,20 @@ async function main(): Promise<void> {
   await writeFile(reportPath, JSON.stringify(report, null, 2) + '\n', 'utf-8');
   console.log(`  Report: ${reportPath}`);
 
-  process.exit(report.passed ? 0 : 1);
+  return report.passed;
+}
+
+async function main(): Promise<void> {
+  const formArg = parseFormFlag();
+  const formsToRun = formArg === 'all' ? [...listFormIds()] : [formArg];
+
+  let allPassed = true;
+  for (const id of formsToRun) {
+    const passed = await runOneForm(id);
+    if (!passed) allPassed = false;
+  }
+
+  process.exit(allPassed ? 0 : 1);
 }
 
 main().catch((err) => {

@@ -1,0 +1,3 @@
+business_name,contact_email,contact_name,phone,business_address1,business_address2,city,state,zip,enabled_forms,notes
+"Acme Construction LLC",ops@acmeconstruction.example,"Jane Acme","555-0100","123 Main St","Suite 200","Austin","TX","78701","ACORD_25","Example row — delete before sending"
+"Beacon Logistics Inc",dispatch@beaconlogistics.example,"Sam Beacon","555-0101","42 Industrial Pkwy","","Houston","TX","77002","ACORD_25|ACORD_27","Example row with two enabled forms"

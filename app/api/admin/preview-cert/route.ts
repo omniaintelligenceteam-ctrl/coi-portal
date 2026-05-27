@@ -16,13 +16,13 @@ import { resolve } from 'node:path';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { fillAcord25 } from '@/lib/fillAcord25';
+import { renderCertificate, templatePngPathFor } from '@/lib/renderCertificate';
+import { DEFAULT_FORM_ID } from '@/lib/forms/registry';
 import { buildCoiInput, type DbPolicyFull } from '@/lib/coiInputBuilder';
 import { CertOverridesSchema } from '@/lib/certOverridesSchema';
 
 export const runtime = 'nodejs';
 
-const TEMPLATE_PATH = resolve(process.cwd(), 'assets/template/acord-25-page-1.png');
 const SIGNATURE_PATH = resolve(process.cwd(), 'assets/policy-place-signature.png');
 
 function adminEmails(): string[] {
@@ -52,6 +52,7 @@ type CertRequestRow = {
   holder_address1: string;
   holder_address2: string | null;
   coverages_selected: string[];
+  form_type: string | null;
 };
 
 type AgencyRow = {
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
     .select(
       `client_id, agency_id, cert_number,
        holder_name, holder_address1, holder_address2,
-       coverages_selected`,
+       coverages_selected, form_type`,
     )
     .eq('id', body.requestId)
     .maybeSingle<CertRequestRow>();
@@ -140,6 +141,7 @@ export async function POST(req: NextRequest) {
         address2: cert.holder_address2 ?? '',
       };
 
+  const formId = cert.form_type ?? DEFAULT_FORM_ID;
   const coiInput = buildCoiInput({
     agency,
     client,
@@ -147,14 +149,14 @@ export async function POST(req: NextRequest) {
     holder,
     certNumber: cert.cert_number,
     today: new Date(),
-    templatePngPath: TEMPLATE_PATH,
+    templatePngPath: templatePngPathFor(formId),
     signaturePngPath: SIGNATURE_PATH,
     overrides: body.certOverrides,
   });
 
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await fillAcord25(coiInput);
+    pdfBytes = await renderCertificate(formId, coiInput);
   } catch (err) {
     return NextResponse.json(
       { error: 'render failed', detail: (err as Error).message },

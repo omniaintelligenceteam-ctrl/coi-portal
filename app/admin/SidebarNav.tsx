@@ -70,7 +70,7 @@ const GROUPS: Group[] = [
         label: 'Clients',
         href: '/admin/clients',
         icon: Users,
-        match: (p) => p.startsWith('/admin/clients'),
+        match: (p) => p.startsWith('/admin/clients') || p.startsWith('/admin/import-clients'),
       },
       {
         label: 'Access',

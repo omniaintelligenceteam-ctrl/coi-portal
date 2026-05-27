@@ -21,14 +21,14 @@
 
 import { resolve } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { fillAcord25 } from './fillAcord25';
+import { renderCertificate, templatePngPathFor } from './renderCertificate';
+import { DEFAULT_FORM_ID } from './forms/registry';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
 import { sendVoidedCertEmail } from './email';
 import { stampVerifyQr } from './verifyQr';
 import { log } from './logger';
 import type { CertOverrides, Holder } from './types';
 
-const TEMPLATE_PATH = resolve(process.cwd(), 'assets/template/acord-25-page-1.png');
 const SIGNATURE_PATH = resolve(process.cwd(), 'assets/policy-place-signature.png');
 
 type CertRequestRow = {
@@ -44,6 +44,7 @@ type CertRequestRow = {
   status: string;
   cert_overrides: CertOverrides | null;
   is_master: boolean;
+  form_type: string | null;
 };
 
 type AgencyRow = {
@@ -86,7 +87,7 @@ export async function voidCert(input: VoidCertInput): Promise<VoidCertResult> {
       `id, client_id, agency_id, cert_number,
        holder_name, holder_address1, holder_address2,
        coverages_selected, pdf_storage_path, status,
-       cert_overrides, is_master`,
+       cert_overrides, is_master, form_type`,
     )
     .eq('id', requestId)
     .maybeSingle<CertRequestRow>();
@@ -152,7 +153,9 @@ export async function voidCert(input: VoidCertInput): Promise<VoidCertResult> {
     .in('id', req.coverages_selected)
     .returns<DbPolicyFull[]>();
 
-  // 4. Render with VOIDED stamp
+  // 4. Render with VOIDED stamp — use the form_type recorded on the cert
+  //    request row (defaults to ACORD_25 for legacy rows pre-migration).
+  const formId = req.form_type ?? DEFAULT_FORM_ID;
   const holder: Holder = {
     name: req.holder_name,
     address1: req.holder_address1,
@@ -169,13 +172,13 @@ export async function voidCert(input: VoidCertInput): Promise<VoidCertResult> {
     holder,
     certNumber: req.cert_number,
     today: new Date(),
-    templatePngPath: TEMPLATE_PATH,
+    templatePngPath: templatePngPathFor(formId),
     signaturePngPath: SIGNATURE_PATH,
     overrides: req.cert_overrides ?? undefined,
     voided: true,
   });
 
-  let pdfBytes = await fillAcord25(coiInput);
+  let pdfBytes = await renderCertificate(formId, coiInput);
   try {
     pdfBytes = await stampVerifyQr(pdfBytes, req.cert_number);
   } catch {

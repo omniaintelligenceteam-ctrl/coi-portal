@@ -103,9 +103,17 @@ export default async function ClientsHubPage() {
         title="Everything per insured."
         subtitle="Pick a client to see every certificate they&apos;ve ever submitted, manage their policies, or edit their insured profile. Coverage cancellation lives here too."
         meta={
-          <span className="num-tabular inline-flex items-center gap-2 font-mono text-[0.875rem] text-ink-muted">
-            {rows.length === 0 ? '0' : <CountUp value={rows.length} />} total · {activeCount} active
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="num-tabular inline-flex items-center gap-2 font-mono text-[0.875rem] text-ink-muted">
+              {rows.length === 0 ? '0' : <CountUp value={rows.length} />} total · {activeCount} active
+            </span>
+            <Link
+              href="/admin/import-clients"
+              className="focus-ring inline-flex items-center gap-1.5 rounded border border-hairline bg-paper-deep/40 px-3 py-1.5 text-[0.8125rem] font-medium text-ink hover:bg-paper-deep"
+            >
+              Import roster
+            </Link>
+          </div>
         }
       />
 

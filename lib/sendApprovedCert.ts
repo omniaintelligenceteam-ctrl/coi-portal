@@ -13,7 +13,8 @@
 
 import { resolve } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { fillAcord25 } from './fillAcord25';
+import { renderCertificate, templatePngPathFor } from './renderCertificate';
+import { DEFAULT_FORM_ID } from './forms/registry';
 import { sendCoiEmail } from './email';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
 import type { CertOverrides, Holder } from './types';
@@ -21,7 +22,6 @@ import { selectableCoverages } from './getClientPolicies';
 import { stampVerifyQr } from './verifyQr';
 import { log } from './logger';
 
-const TEMPLATE_PATH = resolve(process.cwd(), 'assets/template/acord-25-page-1.png');
 const SIGNATURE_PATH = resolve(process.cwd(), 'assets/policy-place-signature.png');
 
 type CertRequestRow = {
@@ -36,6 +36,7 @@ type CertRequestRow = {
   pdf_storage_path: string | null;
   status: string;
   cert_overrides: CertOverrides | null;
+  form_type: string | null;
 };
 
 type AgencyRow = {
@@ -73,7 +74,7 @@ export async function sendApprovedCert(
     .select(
       `id, client_id, agency_id, cert_number,
        holder_name, holder_address1, holder_address2,
-       coverages_selected, pdf_storage_path, status, cert_overrides`,
+       coverages_selected, pdf_storage_path, status, cert_overrides, form_type`,
     )
     .eq('id', certRequestId)
     .maybeSingle<CertRequestRow>();
@@ -153,7 +154,9 @@ export async function sendApprovedCert(
     throw new Error('no eligible policies remain for this request');
   }
 
-  // 4. Build CoiInput + render
+  // 4. Build CoiInput + render — use the form_type recorded on the cert
+  //    request row (defaults to ACORD_25 for legacy rows pre-migration).
+  const formId = req.form_type ?? DEFAULT_FORM_ID;
   const holder: Holder = {
     name: req.holder_name,
     address1: req.holder_address1,
@@ -178,12 +181,12 @@ export async function sendApprovedCert(
     holder,
     certNumber: req.cert_number,
     today: new Date(),
-    templatePngPath: TEMPLATE_PATH,
+    templatePngPath: templatePngPathFor(formId),
     signaturePngPath: SIGNATURE_PATH,
     // cert-level edits applied by Brook in DecisionForm. Date stays today's.
     overrides: req.cert_overrides ?? undefined,
   });
-  let pdfBytes = await fillAcord25(coiInput);
+  let pdfBytes = await renderCertificate(formId, coiInput);
   try {
     pdfBytes = await stampVerifyQr(pdfBytes, req.cert_number);
   } catch (err) {

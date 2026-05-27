@@ -15,7 +15,8 @@
 
 import { resolve } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { fillAcord25 } from './fillAcord25';
+import { renderCertificate, templatePngPathFor } from './renderCertificate';
+import { DEFAULT_FORM_ID } from './forms/registry';
 import { selectableCoverages } from './getClientPolicies';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
 import { withChecksum } from './issueCert';
@@ -24,7 +25,10 @@ import { log } from './logger';
 import { stampVerifyQr } from './verifyQr';
 import { validateHolderInput } from './holderInput';
 
-const TEMPLATE_PATH = resolve(process.cwd(), 'assets/template/acord-25-page-1.png');
+// First submissions default to ACORD 25. Phase 5 will let clients/admins
+// choose from coi_clients.enabled_forms via the generate-flow form picker.
+const FORM_ID = DEFAULT_FORM_ID;
+const TEMPLATE_PATH = templatePngPathFor(FORM_ID);
 const SIGNATURE_PATH = resolve(process.cwd(), 'assets/policy-place-signature.png');
 
 export type GenerateCertificateInput = {
@@ -190,7 +194,7 @@ export async function generateCertificate(
 
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await fillAcord25(coiInput);
+    pdfBytes = await renderCertificate(FORM_ID, coiInput);
   } catch (err) {
     log.error('certPipeline.pdf_render_failed', { certNumber, error: (err as Error).message });
     return { ok: false, status: 500, error: 'pdf render failed' };
@@ -226,6 +230,7 @@ export async function generateCertificate(
       cert_number: certNumber,
       pdf_storage_path: storagePath,
       status: 'pending',
+      form_type: FORM_ID,
       requested_by_email: input.requestedByEmail,
       requested_ip: input.requestedIp ?? null,
     })
