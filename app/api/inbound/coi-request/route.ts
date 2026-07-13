@@ -28,6 +28,7 @@ import { parseInboundCoi } from '@/lib/parseInboundCoi';
 import { alertBrookUrgent } from '@/lib/alertBrookUrgent';
 import { sendCoiEmail, sendInboundReply } from '@/lib/email';
 import { reviewCert, type ClientOverride } from '@/lib/reviewerAgent';
+import { requirementsGateForRequest } from '@/lib/requirementsCheck';
 import { timingSafeEqual } from '@/lib/secureCompare';
 import { log } from '@/lib/logger';
 
@@ -467,14 +468,24 @@ Happy to get this out to you. I just need ${askText} so the certificate is fille
 
     let reviewerPass = false;
     let reviewerFlagCount = 0;
+    let requirementsBlocked = false;
     try {
       const review = await reviewCert({ request: result.coiInput, clientOverrides: overrides ?? [] });
-      reviewerPass = review.pass && review.flags.every((f) => f.severity !== 'error');
-      reviewerFlagCount = review.flags.length;
+
+      // Deterministic requirements gate — holder contract requirements vs the
+      // policies on this cert. An error here blocks auto-send even for
+      // auto-approve clients: a proven mismatch is never shippable unreviewed.
+      const gate = await requirementsGateForRequest(admin, result.requestId);
+      requirementsBlocked = gate.hasError;
+      const mergedFlags = [...review.flags, ...gate.flags];
+
+      reviewerPass =
+        review.pass && !gate.hasError && mergedFlags.every((f) => f.severity !== 'error');
+      reviewerFlagCount = mergedFlags.length;
 
       await admin.from('cert_requests').update({
-        reviewer_pass: review.pass,
-        reviewer_flags: review.flags,
+        reviewer_pass: review.pass && !gate.hasError,
+        reviewer_flags: mergedFlags,
         reviewer_notes: review.notes,
         reviewer_model: review.model,
         reviewed_at: new Date().toISOString(),
@@ -489,7 +500,8 @@ Happy to get this out to you. I just need ${askText} so the certificate is fille
       .select('auto_approve_enabled')
       .eq('id', result.client.id)
       .maybeSingle();
-    const autoApprove = Boolean(autoApproveRow?.auto_approve_enabled);
+    // A deterministic requirements mismatch overrides even auto-approve.
+    const autoApprove = Boolean(autoApproveRow?.auto_approve_enabled) && !requirementsBlocked;
 
     if (!reviewerPass && !autoApprove) {
       // Reviewer flagged or failed → don't auto-send to client. Escalate Brook.

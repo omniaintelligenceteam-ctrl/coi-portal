@@ -23,6 +23,7 @@ export type AdminPolicyRow = {
   cancelled_reason: string | null;
   addl_insured_blanket: boolean;
   subrogation_waived: boolean;
+  primary_noncontributory: boolean;
   description: string | null;
   limits_jsonb: Record<string, number>;
   insurer_id: string;
@@ -38,7 +39,8 @@ export async function getClientPoliciesAll(
     .select(
       `id, client_id, type, policy_number, eff_date, exp_date, active,
        status, cancelled_at, cancelled_reason,
-       addl_insured_blanket, subrogation_waived, description, limits_jsonb,
+       addl_insured_blanket, subrogation_waived, primary_noncontributory,
+       description, limits_jsonb,
        insurer_id, insurer:insurers ( name, naic )`,
     )
     .eq('client_id', clientId)

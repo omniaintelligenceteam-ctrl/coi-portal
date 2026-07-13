@@ -19,6 +19,7 @@ import { renderCertificateWithFallback, templatePngPathFor } from './renderCerti
 import { DEFAULT_FORM_ID } from './forms/registry';
 import { selectableCoverages } from './getClientPolicies';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
+import { findOrCreateHolder } from './holders';
 import { withChecksum } from './issueCert';
 import type { CoiInput } from './types';
 import { log } from './logger';
@@ -217,6 +218,14 @@ export async function generateCertificate(
     return { ok: false, status: 500, error: 'storage upload failed' };
   }
 
+  // Holder CRM linkage (non-fatal — strings on the row stay canonical).
+  const holderId = await findOrCreateHolder(admin, {
+    clientId: client.id,
+    name: holder.name,
+    address1: holder.address1,
+    address2: holder.address2 || null,
+  });
+
   // 8. Insert
   const { data: inserted, error: insErr } = await admin
     .from('cert_requests')
@@ -226,6 +235,7 @@ export async function generateCertificate(
       holder_name: holder.name,
       holder_address1: holder.address1,
       holder_address2: holder.address2 || null,
+      holder_id: holderId,
       coverages_selected: selected.map((p) => p.id),
       cert_number: certNumber,
       pdf_storage_path: storagePath,

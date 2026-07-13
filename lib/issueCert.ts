@@ -19,6 +19,7 @@ import { log } from './logger';
 import { stampVerifyQr } from './verifyQr';
 import { validateHolderInput } from './holderInput';
 import { findOrCreateHolder } from './holders';
+import { requirementsGateForRequest } from './requirementsCheck';
 
 /**
  * Tamper-evident checksum suffix.
@@ -370,6 +371,13 @@ export async function issueCert(input: {
         clientOverrides: overridesRaw ?? [],
       });
 
+      // Deterministic requirements gate: holder's stored contract requirements
+      // vs the policies actually on this cert. Findings merge into the flags;
+      // any error forces the manual lane — LLM confidence can't override a
+      // proven contractual mismatch.
+      const gate = await requirementsGateForRequest(admin, requestId);
+      const mergedFlags = [...review.flags, ...gate.flags];
+
       // Pull the client's auto-approve config so we can pick a lane in the same
       // write that records the reviewer output. Fetching here also lets us tag
       // the cert row with the lane decision BEFORE we branch — keeps the audit
@@ -382,20 +390,29 @@ export async function issueCert(input: {
         .eq('id', clientSnapshot.id)
         .maybeSingle();
 
-      const lane = decideLane({
-        autoApproveEnabled: clientRow?.auto_approve_enabled ?? false,
-        thresholdLow: clientRow?.auto_approve_threshold_low ?? DEFAULT_THRESHOLD_LOW,
-        thresholdHigh: clientRow?.auto_approve_threshold_high ?? DEFAULT_THRESHOLD_HIGH,
-        confidenceScore: review.confidenceScore,
-      });
+      const lane = gate.hasError
+        ? 'manual'
+        : decideLane({
+            autoApproveEnabled: clientRow?.auto_approve_enabled ?? false,
+            thresholdLow: clientRow?.auto_approve_threshold_low ?? DEFAULT_THRESHOLD_LOW,
+            thresholdHigh: clientRow?.auto_approve_threshold_high ?? DEFAULT_THRESHOLD_HIGH,
+            confidenceScore: review.confidenceScore,
+          });
+      if (gate.hasError) {
+        log.info('cert.requirements_gate_forced_manual', {
+          certNumber,
+          requestId,
+          findingCount: gate.flags.length,
+        });
+      }
 
       // Guard on status='pending' so the reviewer can't clobber a row Brook
       // has already decided (approve/edit/reject) while the reviewer was running.
       const { data: reviewedRow } = await admin
         .from('cert_requests')
         .update({
-          reviewer_pass: review.pass,
-          reviewer_flags: review.flags,
+          reviewer_pass: review.pass && !gate.hasError,
+          reviewer_flags: mergedFlags,
           reviewer_notes: review.notes,
           reviewer_model: review.model,
           reviewed_at: new Date().toISOString(),

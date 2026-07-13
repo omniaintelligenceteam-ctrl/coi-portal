@@ -34,6 +34,7 @@ const BodySchema = z.object({
   limits: z.record(z.string(), z.number().nonnegative()).optional(),
   addlInsuredBlanket: z.boolean().optional(),
   subrogationWaived: z.boolean().optional(),
+  primaryNoncontributory: z.boolean().optional(),
   description: z.string().max(2000).optional().nullable(),
   insurerName: z.string().min(1).max(200).optional(),
   insurerNaic: z.string().min(1).max(20).optional(),
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest) {
   if (body.limits !== undefined) update.limits_jsonb = body.limits;
   if (body.addlInsuredBlanket !== undefined) update.addl_insured_blanket = body.addlInsuredBlanket;
   if (body.subrogationWaived !== undefined) update.subrogation_waived = body.subrogationWaived;
+  if (body.primaryNoncontributory !== undefined) update.primary_noncontributory = body.primaryNoncontributory;
   if (body.description !== undefined) update.description = body.description || null;
   if (insurerId !== undefined) update.insurer_id = insurerId;
   if (Object.keys(update).length === 0) {

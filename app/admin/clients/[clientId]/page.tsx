@@ -15,6 +15,7 @@ import {
 import { getClientPoliciesAll } from '@/lib/getClientPoliciesAll';
 import { CancelCoverageButton } from './CancelCoverageButton';
 import { HolderLinkButton } from './HolderLinkButton';
+import { HolderRequirementsEditor } from './HolderRequirementsEditor';
 import { ReissueAffectedButton } from './ReissueAffectedButton';
 import { UncancelCoverageButton } from './UncancelCoverageButton';
 import { ProfileForm, type AgencyOption, type ProfileFormInitial } from './ProfileForm';
@@ -36,6 +37,7 @@ type HolderRow = {
   contact_email: string | null;
   phone: string | null;
   notes: string | null;
+  requirements: Record<string, unknown> | null;
 };
 
 function adminEmails(): string[] {
@@ -173,7 +175,7 @@ export default async function ClientHubPage({
       tab === 'holders'
         ? admin
             .from('holders')
-            .select('id, name, address1, address2, contact_email, phone, notes')
+            .select('id, name, address1, address2, contact_email, phone, notes, requirements')
             .eq('client_id', clientId)
             .order('name')
             .limit(300)
@@ -531,6 +533,10 @@ function HoldersTab({ holders, certs }: { holders: HolderRow[]; certs: CertRow[]
                     {h.notes}
                   </p>
                 )}
+                <HolderRequirementsEditor
+                  holderId={h.id}
+                  initial={(h.requirements as never) ?? null}
+                />
               </div>
               <div className="shrink-0 text-right">
                 <p className="num-tabular font-mono text-[1.25rem] font-medium text-ink">

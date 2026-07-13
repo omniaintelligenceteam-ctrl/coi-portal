@@ -53,6 +53,9 @@ export type DbPolicyFull = {
   limits_jsonb: Record<string, number>;
   addl_insured_blanket: boolean;
   subrogation_waived: boolean;
+  /** P&NC endorsement flag (migration 20260713_0005). Requirements-engine
+   *  input only — never rendered; optional for selects that don't need it. */
+  primary_noncontributory?: boolean;
   description: string | null;
   insurer: { name: string; naic: string } | null;
 };

@@ -35,6 +35,7 @@ export type LimitsEditorPolicy = {
   limits_jsonb: Record<string, number> | null;
   addl_insured_blanket: boolean;
   subrogation_waived: boolean;
+  primary_noncontributory: boolean;
   description: string | null;
 };
 
@@ -95,6 +96,7 @@ export function LimitsEditor({ policy }: { policy: LimitsEditorPolicy }) {
   const [limits, setLimits] = useState<Record<string, number>>(() => limitsFromPolicy(policy));
   const [addlInsured, setAddlInsured] = useState(policy.addl_insured_blanket);
   const [wos, setWos] = useState(policy.subrogation_waived);
+  const [pnc, setPnc] = useState(policy.primary_noncontributory);
   const [description, setDescription] = useState(policy.description ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,14 +107,16 @@ export function LimitsEditor({ policy }: { policy: LimitsEditorPolicy }) {
     setLimits(limitsFromPolicy(policy));
     setAddlInsured(policy.addl_insured_blanket);
     setWos(policy.subrogation_waived);
+    setPnc(policy.primary_noncontributory);
     setDescription(policy.description ?? '');
-  }, [policy.id, policy.limits_jsonb, policy.addl_insured_blanket, policy.subrogation_waived, policy.description]);
+  }, [policy.id, policy.limits_jsonb, policy.addl_insured_blanket, policy.subrogation_waived, policy.primary_noncontributory, policy.description]);
 
   const dirty = useMemo(() => {
     const original = limitsFromPolicy(policy);
     if (
       addlInsured !== policy.addl_insured_blanket ||
       wos !== policy.subrogation_waived ||
+      pnc !== policy.primary_noncontributory ||
       (description ?? '') !== (policy.description ?? '')
     ) {
       return true;
@@ -146,6 +150,7 @@ export function LimitsEditor({ policy }: { policy: LimitsEditorPolicy }) {
           limits: cleanLimits,
           addlInsuredBlanket: addlInsured,
           subrogationWaived: wos,
+          primaryNoncontributory: pnc,
           description: description.trim() || null,
         }),
       });
@@ -204,7 +209,7 @@ export function LimitsEditor({ policy }: { policy: LimitsEditorPolicy }) {
               <span className="text-ink-faint">+{fields.length - 3} more</span>
             )}
           </div>
-          {(policy.addl_insured_blanket || policy.subrogation_waived) && (
+          {(policy.addl_insured_blanket || policy.subrogation_waived || policy.primary_noncontributory) && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {policy.addl_insured_blanket && (
                 <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
@@ -214,6 +219,11 @@ export function LimitsEditor({ policy }: { policy: LimitsEditorPolicy }) {
               {policy.subrogation_waived && (
                 <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
                   Waiver of subrogation
+                </span>
+              )}
+              {policy.primary_noncontributory && (
+                <span className="caps inline-flex items-center gap-1 rounded-[3px] border border-seal/30 bg-seal-soft px-2 py-0.5 text-[0.6rem] font-semibold text-seal-deep">
+                  P&amp;NC
                 </span>
               )}
             </div>
@@ -265,6 +275,12 @@ export function LimitsEditor({ policy }: { policy: LimitsEditorPolicy }) {
               onChange={(e) => setWos(e.target.checked)}
               label="Waiver of subrogation"
               description="On if the underlying policy carries a blanket waiver of subrogation. Off if WoS is granted per cert."
+            />
+            <Toggle
+              checked={pnc}
+              onChange={(e) => setPnc(e.target.checked)}
+              label="Primary & noncontributory"
+              description="On if the policy carries a blanket P&NC endorsement. Feeds the holder requirements check — not printed on the cert (use the description for P&NC wording)."
             />
           </div>
 
