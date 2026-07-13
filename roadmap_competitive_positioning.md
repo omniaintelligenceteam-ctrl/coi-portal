@@ -1,5 +1,14 @@
 # COI Portal — World-Class Roadmap & Competitive Positioning
 
+> **Status (2026-07-13):** Tier 1 SHIPPED (#1 renewal reissue, #2 delivery ledger,
+> #3 safety migrations, #4 ROI tiles, #5 holder self-serve link). Tier 2 SHIPPED
+> (#6 requirements engine + P&NC, #7 holder CRM, #8 full renewal automation,
+> #10 health endpoint + trust-ladder/webhook tests — Sentry pending vendor decision).
+> Blocked/pending: #9 needs an ACORD 24/27 source PDF (licensed asset);
+> Resend webhook needs RESEND_WEBHOOK_SECRET set in Vercel; Tier 3 (#11–14)
+> awaits business greenlight (AMS partner apps, white-label architecture,
+> holder-side product, outbound event infra).
+
 ## Context
 
 Wes asked: what makes this app world-class, and what features make it a no-brainer buy for the client (Brook / PolicyPlace, and agencies like her)? Full built-vs-stubbed audit completed first (three parallel codebase sweeps: app surface, cert pipeline, data model/tooling).
