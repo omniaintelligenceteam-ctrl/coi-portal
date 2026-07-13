@@ -13,6 +13,7 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
     "rasterize": "tsx scripts/rasterizeTemplate.ts",
     "regen-sheffer": "tsx scripts/regenSheffer.ts",
     "calibrate": "tsx scripts/calibrate.ts",

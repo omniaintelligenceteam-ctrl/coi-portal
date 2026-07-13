@@ -45,11 +45,9 @@ export function insurerSlotCountFor(formId: string | null | undefined): number {
  * fetches template assets from Supabase Storage, then dispatches to the
  * generic renderer.
  *
- * Currently used by /api/admin/forms/[formId]/preview. Phase 4 will route
- * issueCert through this path too (after the ACORD 25 migration + pixelmatch
- * parity test confirm the data-driven renderer produces byte-identical output
- * to fillAcord25). For now, issueCert and renderCertificate stay on the
- * code-registered FormConfig path.
+ * This is the primary render path for every pipeline stage (issue, send,
+ * void, inbound/API) via renderCertificateWithFallback below; the form
+ * preview endpoint calls it directly.
  *
  * Throws if the form doesn't exist in form_templates, or if its template
  * assets can't be fetched.
@@ -58,6 +56,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadFormDef } from './forms/loadFormDef';
 import { fillFromTemplate } from './forms/genericRenderer';
 import { COI_ARCHIVE_BUCKET, formAnchorsStoragePath } from './storage';
+import { DEFAULT_FORM_ID } from './forms/registry';
+import { log } from './logger';
 
 export async function renderCertificateFromDb(
   admin: SupabaseClient,
@@ -105,4 +105,32 @@ export async function renderCertificateFromDb(
     },
     input,
   );
+}
+
+/**
+ * Canonical render entry for every pipeline stage: DB-backed form_fields path
+ * first, legacy code-registered FormConfig on failure. The fallback covers a
+ * form registered in code but not yet seeded into form_templates / form_fields
+ * (defense-in-depth; should never fire for ACORD_25 post-migration). All four
+ * artifact-producing callers (issueCert, sendApprovedCert, certPipeline,
+ * voidCert) go through here so preview, sent, and voided PDFs can never render
+ * from different field maps.
+ */
+export async function renderCertificateWithFallback(
+  admin: SupabaseClient,
+  formId: string | null | undefined,
+  input: CoiInput,
+  logCtx: Record<string, unknown> = {},
+): Promise<Uint8Array> {
+  const resolvedFormId = formId ?? DEFAULT_FORM_ID;
+  try {
+    return await renderCertificateFromDb(admin, resolvedFormId, input);
+  } catch (dbErr) {
+    log.warn('render.db_fallback_to_legacy', {
+      formId: resolvedFormId,
+      error: (dbErr as Error).message,
+      ...logCtx,
+    });
+    return renderCertificate(resolvedFormId, input);
+  }
 }

@@ -13,7 +13,7 @@
 
 import { resolve } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { renderCertificate, templatePngPathFor } from './renderCertificate';
+import { renderCertificateWithFallback, templatePngPathFor } from './renderCertificate';
 import { DEFAULT_FORM_ID } from './forms/registry';
 import { sendCoiEmail } from './email';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
@@ -87,11 +87,8 @@ export async function sendApprovedCert(
   // the winning path is the sole sender. Note: the cert_request_status enum
   // does not include a 'sending' interim state (see migration
   // 20260518_0002_approval_workflow.sql), so we use the final 'sent' status
-  // itself as the lock token. Trade-off: if downstream rendering/upload/email
-  // fails after this flip, the row stays at 'sent' and the retry path will
-  // refuse it via the `if (req.status === 'sent')` guard above. That's the
-  // intended behaviour for this approach — single-send guarantee beats easy
-  // retry under race.
+  // itself as the lock token. If anything fails before the email goes out, the
+  // catch below reverts the row to its prior status so it stays retryable.
   const sentAt = new Date().toISOString();
   const { data: lockRow, error: lockErr } = await admin
     .from('cert_requests')
@@ -106,127 +103,166 @@ export async function sendApprovedCert(
     throw new Error('cert send already in progress (lost optimistic lock)');
   }
 
-  // 2. Load client + agency
-  const { data: client, error: clientErr } = await admin
-    .from('coi_clients')
-    .select('id, business_name, business_address1, business_address2, contact_email')
-    .eq('id', req.client_id)
-    .maybeSingle<ClientRow>();
-  if (clientErr || !client) throw new Error('client not found');
-
-  const { data: agency, error: agencyErr } = await admin
-    .from('agencies')
-    .select('id, name, address1, address2, contact_name, phone, fax, email')
-    .eq('id', req.agency_id)
-    .maybeSingle<AgencyRow>();
-  if (agencyErr || !agency) throw new Error('agency not found');
-
-  // 3. Load selected policies (re-fetch — never trust the cached coverages_selected
-  //    is still valid; an admin could have deactivated a policy since)
-  const { data: policies, error: polErr } = await admin
-    .from('policies')
-    .select(
-      `id, type, policy_number, eff_date, exp_date, active,
-       status, cancelled_at, cancelled_reason,
-       addl_insured_blanket, subrogation_waived, description, limits_jsonb,
-       insurer:insurers ( name, naic )`,
-    )
-    .in('id', req.coverages_selected)
-    .returns<DbPolicyFull[]>();
-  if (polErr || !policies || policies.length === 0) {
-    throw new Error('no policies found for this request');
-  }
-
-  // Hard gate again at send-time so we never email an expired/inactive policy
-  // if a request sat in queue across a renewal boundary.
-  const eligible = selectableCoverages(policies, new Date());
-  const eligibleById = new Map(eligible.map((p) => [p.id, p]));
-  const invalidSelected = req.coverages_selected.filter((id) => !eligibleById.has(id));
-  if (invalidSelected.length > 0) {
-    throw new Error(
-      `some selected coverages are no longer eligible (expired or inactive): ${invalidSelected.join(', ')}`,
-    );
-  }
-  const selectedPolicies = req.coverages_selected
-    .map((id) => eligibleById.get(id))
-    .filter((p): p is DbPolicyFull => Boolean(p));
-  if (selectedPolicies.length === 0) {
-    throw new Error('no eligible policies remain for this request');
-  }
-
-  // 4. Build CoiInput + render — use the form_type recorded on the cert
-  //    request row (defaults to ACORD_25 for legacy rows pre-migration).
-  const formId = req.form_type ?? DEFAULT_FORM_ID;
-  const holder: Holder = {
-    name: req.holder_name,
-    address1: req.holder_address1,
-    address2: req.holder_address2 ?? '',
-  };
-  const coiInput = buildCoiInput({
-    agency: {
-      name: agency.name,
-      address1: agency.address1,
-      address2: agency.address2,
-      contact_name: agency.contact_name,
-      phone: agency.phone,
-      fax: agency.fax,
-      email: agency.email,
-    },
-    client: {
-      business_name: client.business_name,
-      business_address1: client.business_address1,
-      business_address2: client.business_address2,
-    },
-    policies: selectedPolicies,
-    holder,
-    certNumber: req.cert_number,
-    today: new Date(),
-    templatePngPath: templatePngPathFor(formId),
-    signaturePngPath: SIGNATURE_PATH,
-    // cert-level edits applied by Brook in DecisionForm. Date stays today's.
-    overrides: req.cert_overrides ?? undefined,
-  });
-  let pdfBytes = await renderCertificate(formId, coiInput);
-  try {
-    pdfBytes = await stampVerifyQr(pdfBytes, req.cert_number);
-  } catch (err) {
-    log.warn('sendApprovedCert.qr_stamp_failed', {
-      certNumber: req.cert_number,
-      error: (err as Error).message,
-    });
-  }
-
-  // 5. Upload (overwrite — single canonical copy per cert number)
   const storagePath = req.pdf_storage_path || `certs/${req.cert_number}.pdf`;
-  const { error: upErr } = await admin.storage
-    .from('coi-archive')
-    .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: true });
-  if (upErr) throw new Error(`storage upload failed: ${upErr.message}`);
+  let emailId: string;
+  let clientContactEmail: string;
+  // Everything up to and including the client email runs under the lock with a
+  // compensating revert: we hold the lock (guarded flip above), so flipping
+  // back on failure is race-safe and returns the row to a retryable state
+  // instead of leaving a 'sent' row with no email delivered. Failures AFTER
+  // the email is out (audit insert) intentionally do NOT revert — the email
+  // is delivered, so 'sent' is the truthful status and a revert would let a
+  // retry double-send.
+  try {
+    // 2. Load client + agency
+    const { data: client, error: clientErr } = await admin
+      .from('coi_clients')
+      .select('id, business_name, business_address1, business_address2, contact_email')
+      .eq('id', req.client_id)
+      .maybeSingle<ClientRow>();
+    if (clientErr || !client) throw new Error('client not found');
+    clientContactEmail = client.contact_email;
 
-  // 6. Send email
-  const portalBase =
-    process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ?? 'https://coi-portal.vercel.app';
-  const { id: emailId } = await sendCoiEmail({
-    to: client.contact_email,
-    // Cert Holders see CC addresses in the email envelope (SMTP exposes them).
-    // Keep audit CCs configurable so non-staff addresses don't leak in prod.
-    cc: [agency.email, process.env.COI_CC_AUDIT_EMAIL]
-      .filter((e): e is string => Boolean(e) && e !== client.contact_email),
-    pdfBytes,
-    certNumber: req.cert_number,
-    holderName: req.holder_name,
-    insuredBusinessName: client.business_name,
-    verifyUrl: `${portalBase}/verify/${req.cert_number}`,
-  });
+    const { data: agency, error: agencyErr } = await admin
+      .from('agencies')
+      .select('id, name, address1, address2, contact_name, phone, fax, email')
+      .eq('id', req.agency_id)
+      .maybeSingle<AgencyRow>();
+    if (agencyErr || !agency) throw new Error('agency not found');
+
+    // 3. Load selected policies (re-fetch — never trust the cached coverages_selected
+    //    is still valid; an admin could have deactivated a policy since)
+    const { data: policies, error: polErr } = await admin
+      .from('policies')
+      .select(
+        `id, type, policy_number, eff_date, exp_date, active,
+         status, cancelled_at, cancelled_reason,
+         addl_insured_blanket, subrogation_waived, description, limits_jsonb,
+         insurer:insurers ( name, naic )`,
+      )
+      .in('id', req.coverages_selected)
+      .returns<DbPolicyFull[]>();
+    if (polErr || !policies || policies.length === 0) {
+      throw new Error('no policies found for this request');
+    }
+
+    // Hard gate again at send-time so we never email an expired/inactive policy
+    // if a request sat in queue across a renewal boundary.
+    const eligible = selectableCoverages(policies, new Date());
+    const eligibleById = new Map(eligible.map((p) => [p.id, p]));
+    const invalidSelected = req.coverages_selected.filter((id) => !eligibleById.has(id));
+    if (invalidSelected.length > 0) {
+      throw new Error(
+        `some selected coverages are no longer eligible (expired or inactive): ${invalidSelected.join(', ')}`,
+      );
+    }
+    const selectedPolicies = req.coverages_selected
+      .map((id) => eligibleById.get(id))
+      .filter((p): p is DbPolicyFull => Boolean(p));
+    if (selectedPolicies.length === 0) {
+      throw new Error('no eligible policies remain for this request');
+    }
+
+    // 4. Build CoiInput + render — use the form_type recorded on the cert
+    //    request row (defaults to ACORD_25 for legacy rows pre-migration).
+    const formId = req.form_type ?? DEFAULT_FORM_ID;
+    const holder: Holder = {
+      name: req.holder_name,
+      address1: req.holder_address1,
+      address2: req.holder_address2 ?? '',
+    };
+    const coiInput = buildCoiInput({
+      agency: {
+        name: agency.name,
+        address1: agency.address1,
+        address2: agency.address2,
+        contact_name: agency.contact_name,
+        phone: agency.phone,
+        fax: agency.fax,
+        email: agency.email,
+      },
+      client: {
+        business_name: client.business_name,
+        business_address1: client.business_address1,
+        business_address2: client.business_address2,
+      },
+      policies: selectedPolicies,
+      holder,
+      certNumber: req.cert_number,
+      today: new Date(),
+      templatePngPath: templatePngPathFor(formId),
+      signaturePngPath: SIGNATURE_PATH,
+      // cert-level edits applied by Brook in DecisionForm. Date stays today's.
+      overrides: req.cert_overrides ?? undefined,
+    });
+    let pdfBytes = await renderCertificateWithFallback(admin, formId, coiInput, {
+      certNumber: req.cert_number,
+    });
+    try {
+      pdfBytes = await stampVerifyQr(pdfBytes, req.cert_number);
+    } catch (err) {
+      log.warn('sendApprovedCert.qr_stamp_failed', {
+        certNumber: req.cert_number,
+        error: (err as Error).message,
+      });
+    }
+
+    // 5. Upload (overwrite — single canonical copy per cert number)
+    const { error: upErr } = await admin.storage
+      .from('coi-archive')
+      .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: true });
+    if (upErr) throw new Error(`storage upload failed: ${upErr.message}`);
+
+    // 6. Send email
+    const portalBase =
+      process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ?? 'https://coi-portal.vercel.app';
+    const sent = await sendCoiEmail({
+      to: client.contact_email,
+      // Cert Holders see CC addresses in the email envelope (SMTP exposes them).
+      // Keep audit CCs configurable so non-staff addresses don't leak in prod.
+      cc: [agency.email, process.env.COI_CC_AUDIT_EMAIL]
+        .filter((e): e is string => Boolean(e) && e !== client.contact_email),
+      pdfBytes,
+      certNumber: req.cert_number,
+      holderName: req.holder_name,
+      insuredBusinessName: client.business_name,
+      verifyUrl: `${portalBase}/verify/${req.cert_number}`,
+    });
+    emailId = sent.id;
+  } catch (err) {
+    // Revert the send lock — guarded on the exact sent_at we wrote, so if
+    // anything else has since touched the row we leave it alone.
+    const revertTo = req.status === 'edited' ? 'edited' : 'approved';
+    const { error: revertErr } = await admin
+      .from('cert_requests')
+      .update({ status: revertTo, sent_at: null })
+      .eq('id', req.id)
+      .eq('status', 'sent')
+      .eq('sent_at', sentAt);
+    if (revertErr) {
+      log.error('sendApprovedCert.revert_failed', {
+        certNumber: req.cert_number,
+        error: revertErr.message,
+        sendError: (err as Error).message,
+      });
+    } else {
+      log.warn('sendApprovedCert.reverted_after_failure', {
+        certNumber: req.cert_number,
+        revertTo,
+        error: (err as Error).message,
+      });
+    }
+    throw err;
+  }
 
   // 7. Insert audit row (E&O paper trail). Use upsert with ignoreDuplicates so
   // a legitimate retry doesn't blow up on the `cert_number UNIQUE` constraint
   // when an audit row already exists from a prior in-flight attempt.
   const { error: auditErr } = await admin.from('coi_audit').upsert(
     {
-      client_id: client.id,
+      client_id: req.client_id,
       cert_number: req.cert_number,
-      requested_by_email: client.contact_email,
+      requested_by_email: clientContactEmail,
       holder_name: req.holder_name,
       holder_address1: req.holder_address1,
       holder_address2: req.holder_address2,

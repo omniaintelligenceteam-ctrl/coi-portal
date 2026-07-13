@@ -39,6 +39,9 @@ type PolicyWithClient = {
   } | null;
 };
 
+/** Idempotency marker column per warning milestone (see migration 20260713_0001). */
+type RenewalMarkerColumn = 'renewal_30_notified_at' | 'renewal_7_notified_at';
+
 function isoDateString(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -59,7 +62,11 @@ async function scanWindow(
   targetDate: string,
   windowDate: string,
   daysLabel: number,
+  markerColumn: RenewalMarkerColumn,
 ) {
+  // The 3-day window tolerates a missed cron run; the marker column is what
+  // prevents the same policy from being warned on each day of the window
+  // (pre-marker behavior: three duplicate emails per milestone).
   const { data: policies, error } = await admin
     .from('policies')
     .select(
@@ -70,6 +77,7 @@ async function scanWindow(
     .eq('active', true)
     .gte('exp_date', targetDate)
     .lte('exp_date', windowDate)
+    .is(markerColumn, null)
     .returns<PolicyWithClient[]>();
 
   if (error) {
@@ -79,7 +87,7 @@ async function scanWindow(
 
   let sent = 0;
   let failed = 0;
-  const adminEmails = (process.env.ADMIN_EMAILS ?? 'wesoverstreet@gmail.com')
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
@@ -91,7 +99,7 @@ async function scanWindow(
     try {
       await sendExpiryWarningEmail({
         to: contactEmail,
-        cc: daysLabel <= 7 ? adminEmails : undefined,
+        cc: daysLabel <= 7 && adminEmails.length > 0 ? adminEmails : undefined,
         businessName: policy.client?.business_name ?? 'Valued Client',
         policyType: POLICY_TYPE_LABEL[policy.type] ?? policy.type,
         policyNumber: policy.policy_number,
@@ -101,6 +109,19 @@ async function scanWindow(
         agentPhone: policy.agency?.phone ?? '270-410-2015',
       });
       sent++;
+      const { error: markErr } = await admin
+        .from('policies')
+        .update({ [markerColumn]: new Date().toISOString() })
+        .eq('id', policy.id);
+      if (markErr) {
+        // Email went out but the marker write failed — log loudly; the next
+        // run would re-send this one, which a human should know about.
+        log.error('cron.renewals.marker_write_failed', {
+          policyId: policy.id,
+          markerColumn,
+          error: markErr.message,
+        });
+      }
       log.info('cron.renewals.sent', {
         policyId: policy.id,
         daysUntilExpiry: daysLabel,
@@ -120,9 +141,16 @@ async function scanWindow(
 }
 
 export async function GET(req: NextRequest) {
-  // Verify Vercel cron secret (skip in dev when CRON_SECRET is unset)
+  // Verify Vercel cron secret. Fail CLOSED in production when unset — an
+  // unauthenticated trigger of this route sends real client email.
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
+  if (!cronSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      log.error('cron.renewals.secret_missing');
+      return NextResponse.json({ error: 'cron not configured' }, { status: 503 });
+    }
+    // dev/local: allow manual invocation without a secret
+  } else {
     const authHeader = req.headers.get('authorization');
     if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -143,8 +171,8 @@ export async function GET(req: NextRequest) {
   log.info('cron.renewals.start', { date: isoDateString(today) });
 
   const [result30, result7] = await Promise.all([
-    scanWindow(admin, w30start, w30end, 30),
-    scanWindow(admin, w7start, w7end, 7),
+    scanWindow(admin, w30start, w30end, 30, 'renewal_30_notified_at'),
+    scanWindow(admin, w7start, w7end, 7, 'renewal_7_notified_at'),
   ]);
 
   const summary = {

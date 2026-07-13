@@ -15,7 +15,7 @@
 
 import { resolve } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { renderCertificate, templatePngPathFor } from './renderCertificate';
+import { renderCertificateWithFallback, templatePngPathFor } from './renderCertificate';
 import { DEFAULT_FORM_ID } from './forms/registry';
 import { selectableCoverages } from './getClientPolicies';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
@@ -194,7 +194,7 @@ export async function generateCertificate(
 
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await renderCertificate(FORM_ID, coiInput);
+    pdfBytes = await renderCertificateWithFallback(admin, FORM_ID, coiInput, { certNumber });
   } catch (err) {
     log.error('certPipeline.pdf_render_failed', { certNumber, error: (err as Error).message });
     return { ok: false, status: 500, error: 'pdf render failed' };

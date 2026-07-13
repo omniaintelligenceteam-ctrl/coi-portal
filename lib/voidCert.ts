@@ -21,7 +21,7 @@
 
 import { resolve } from 'node:path';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { renderCertificate, templatePngPathFor } from './renderCertificate';
+import { renderCertificateWithFallback, templatePngPathFor } from './renderCertificate';
 import { DEFAULT_FORM_ID } from './forms/registry';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
 import { sendVoidedCertEmail } from './email';
@@ -178,7 +178,9 @@ export async function voidCert(input: VoidCertInput): Promise<VoidCertResult> {
     voided: true,
   });
 
-  let pdfBytes = await renderCertificate(formId, coiInput);
+  let pdfBytes = await renderCertificateWithFallback(admin, formId, coiInput, {
+    certNumber: req.cert_number,
+  });
   try {
     pdfBytes = await stampVerifyQr(pdfBytes, req.cert_number);
   } catch {
