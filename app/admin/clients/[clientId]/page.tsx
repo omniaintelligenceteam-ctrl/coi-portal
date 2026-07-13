@@ -14,6 +14,7 @@ import {
 } from '@/app/components/ui';
 import { getClientPoliciesAll } from '@/lib/getClientPoliciesAll';
 import { CancelCoverageButton } from './CancelCoverageButton';
+import { ReissueAffectedButton } from './ReissueAffectedButton';
 import { UncancelCoverageButton } from './UncancelCoverageButton';
 import { ProfileForm, type AgencyOption, type ProfileFormInitial } from './ProfileForm';
 import { VoidCertButton } from './VoidCertButton';
@@ -431,13 +432,16 @@ function PoliciesTab({
                   </p>
                 )}
               </div>
-              <div className="shrink-0">
+              <div className="flex shrink-0 flex-col items-end gap-2">
                 {isCancelled ? (
                   <UncancelCoverageButton policyId={p.id} />
                 ) : isExpired ? (
                   <span className="caps text-[0.6rem] text-ink-faint">renew via import</span>
                 ) : (
-                  <CancelCoverageButton policyId={p.id} clientId={clientId} />
+                  <>
+                    <ReissueAffectedButton policyId={p.id} clientId={clientId} />
+                    <CancelCoverageButton policyId={p.id} clientId={clientId} />
+                  </>
                 )}
               </div>
             </div>
