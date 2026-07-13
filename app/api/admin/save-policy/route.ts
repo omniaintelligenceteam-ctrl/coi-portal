@@ -8,9 +8,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { processRenewal, type RenewalResult } from '@/lib/renewals';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
+// Renewal detection can batch-reissue certs (renders + sends) synchronously.
+export const maxDuration = 300;
 
 function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? '')
@@ -132,5 +135,49 @@ export async function POST(req: NextRequest) {
   }
 
   log.info('policy.saved', { policyId: policy.id, clientId: body.clientId, type: body.type });
-  return NextResponse.json({ ok: true, policyId: policy.id });
+
+  // Renewal detection (import path): a fresh policy row whose term starts
+  // adjacent to an existing same-type policy's expiry is a renewal of it.
+  // Live certs reference the OLD policy id, so the reissue swaps old → new.
+  let renewal: RenewalResult | null = null;
+  try {
+    const { data: predecessor } = await admin
+      .from('policies')
+      .select('id, exp_date')
+      .eq('client_id', body.clientId)
+      .eq('type', body.type)
+      .neq('id', policy.id)
+      .in('status', ['active', 'expired'])
+      .lte('exp_date', body.expDate)
+      .order('exp_date', { ascending: false })
+      .limit(1)
+      .maybeSingle<{ id: string; exp_date: string }>();
+
+    if (predecessor) {
+      // Adjacent terms only (±60 days between old expiry and new effective
+      // date) — anything wider is a new coverage line, not a renewal.
+      const gapDays = Math.abs(
+        (new Date(body.effDate).getTime() - new Date(predecessor.exp_date).getTime()) / 86_400_000,
+      );
+      if (gapDays <= 60) {
+        renewal = await processRenewal(admin, {
+          renewedPolicyId: policy.id,
+          previousPolicyId: predecessor.id,
+          clientId: body.clientId,
+          oldExpDate: predecessor.exp_date,
+          newExpDate: body.expDate,
+          byEmail: email,
+          requestedIp: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+        });
+      }
+    }
+  } catch (err) {
+    // Renewal automation must never fail the policy save itself.
+    log.error('policy.save_renewal_detection_failed', {
+      policyId: policy.id,
+      error: (err as Error).message,
+    });
+  }
+
+  return NextResponse.json({ ok: true, policyId: policy.id, renewal });
 }

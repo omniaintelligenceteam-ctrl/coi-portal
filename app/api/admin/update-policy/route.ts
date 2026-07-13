@@ -14,9 +14,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { processRenewal, type RenewalResult } from '@/lib/renewals';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
+// Renewal detection can batch-reissue certs (renders + sends) synchronously.
+export const maxDuration = 300;
 
 function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? '')
@@ -99,6 +102,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'no fields to update' }, { status: 400 });
   }
 
+  // Snapshot the prior term so a forward exp_date move is detectable as a
+  // renewal after the update lands.
+  const { data: prior } = await admin
+    .from('policies')
+    .select('exp_date, client_id')
+    .eq('id', body.policyId)
+    .maybeSingle<{ exp_date: string; client_id: string }>();
+
   const { data, error } = await admin
     .from('policies')
     .update(update)
@@ -113,5 +124,20 @@ export async function POST(req: NextRequest) {
   }
 
   log.info('policy.updated', { policyId: body.policyId, by: email, fields: Object.keys(update) });
-  return NextResponse.json({ ok: true, policy: data });
+
+  // Renewal automation: exp_date moved forward → record the renewal, re-arm
+  // expiry warnings, and roll live certs through the trust ladder.
+  let renewal: RenewalResult | null = null;
+  if (body.expDate && prior?.exp_date && body.expDate > prior.exp_date) {
+    renewal = await processRenewal(admin, {
+      renewedPolicyId: body.policyId,
+      clientId: prior.client_id,
+      oldExpDate: prior.exp_date,
+      newExpDate: body.expDate,
+      byEmail: email,
+      requestedIp: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    });
+  }
+
+  return NextResponse.json({ ok: true, policy: data, renewal });
 }

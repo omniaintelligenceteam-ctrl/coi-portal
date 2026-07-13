@@ -25,8 +25,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { findAffectedCertsForPolicy } from '@/lib/affectedCerts';
-import { issueCert, type IssueCertClient } from '@/lib/issueCert';
+import type { IssueCertClient } from '@/lib/issueCert';
+import { reissueAffectedCerts } from '@/lib/reissueAffected';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -43,14 +43,6 @@ function adminEmails(): string[] {
 const BodySchema = z.object({
   policyId: z.string().uuid(),
 });
-
-type ReissueOutcome = {
-  oldCertNumber: string;
-  holderName: string;
-  newCertNumber?: string;
-  requestId?: string;
-  error?: string;
-};
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -106,92 +98,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'client is inactive' }, { status: 400 });
   }
 
-  // Live certs referencing this policy; view is ordered sent_at DESC so the
-  // first row per holder is the most recent send.
-  const affected = await findAffectedCertsForPolicy(admin, body.policyId);
-  const sentCerts = affected.filter((c) => c.status === 'sent');
-  const skippedInFlight = affected.length - sentCerts.length;
-
-  // Original request rows carry the holder address + coverages + form.
-  const { data: originals, error: origErr } = await admin
-    .from('cert_requests')
-    .select('id, cert_number, holder_name, holder_address1, holder_address2, coverages_selected, form_type, is_master')
-    .in('id', sentCerts.map((c) => c.requestId));
-  if (origErr) {
-    return NextResponse.json({ error: 'db error', detail: origErr.message }, { status: 500 });
-  }
-  const originalById = new Map((originals ?? []).map((r) => [r.id, r]));
-
-  // Dedupe per holder, keeping the most recent send.
-  const seenHolders = new Set<string>();
-  const toReissue: NonNullable<typeof originals> = [];
-  for (const cert of sentCerts) {
-    const row = originalById.get(cert.requestId);
-    if (!row) continue;
-    const holderKey = `${row.holder_name}|${row.holder_address1}`.toLowerCase();
-    if (seenHolders.has(holderKey)) continue;
-    seenHolders.add(holderKey);
-    toReissue.push(row);
-  }
-
   const requestedIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
-  const outcomes: ReissueOutcome[] = [];
+  const summary = await reissueAffectedCerts(admin, {
+    policyId: body.policyId,
+    client,
+    requestedByEmail: user!.email!,
+    requestedIp,
+  });
 
-  // Sequential on purpose: each issue renders a PDF and (instant lane) sends
-  // an email — parallel fan-out here would spike memory and Resend throughput.
-  for (const original of toReissue) {
-    const result = await issueCert({
-      reader: admin,
-      admin,
-      client,
-      selectedPolicyIds: original.coverages_selected as string[],
-      holder: {
-        name: original.holder_name,
-        address1: original.holder_address1,
-        address2: original.holder_address2 ?? '',
-      },
-      requestedByEmail: user!.email!,
-      requestedIp,
-      isMaster: original.is_master === true,
-      formId: original.form_type ?? undefined,
-      bypassRateLimit: true,
-    });
-    if (result.ok) {
-      outcomes.push({
-        oldCertNumber: original.cert_number,
-        holderName: original.holder_name,
-        newCertNumber: result.certNumber,
-        requestId: result.requestId,
-      });
-    } else {
-      outcomes.push({
-        oldCertNumber: original.cert_number,
-        holderName: original.holder_name,
-        error: result.detail || result.error,
-      });
-    }
-  }
-
-  const reissued = outcomes.filter((o) => o.newCertNumber).length;
-  const failed = outcomes.length - reissued;
   log.info('policy.reissue_affected', {
     policyId: body.policyId,
     clientId: client.id,
     type: policy.type,
     policyNumber: policy.policy_number,
     by: email,
-    liveCerts: affected.length,
-    reissued,
-    failed,
-    skippedInFlight,
-    dedupedOut: sentCerts.length - toReissue.length,
+    reissued: summary.reissued,
+    failed: summary.failed,
+    skippedInFlight: summary.skippedInFlight,
   });
 
-  return NextResponse.json({
-    ok: true,
-    reissued,
-    failed,
-    skippedInFlight,
-    outcomes,
-  });
+  return NextResponse.json({ ok: true, ...summary });
 }
