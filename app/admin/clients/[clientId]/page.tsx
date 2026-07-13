@@ -14,6 +14,7 @@ import {
 } from '@/app/components/ui';
 import { getClientPoliciesAll } from '@/lib/getClientPoliciesAll';
 import { CancelCoverageButton } from './CancelCoverageButton';
+import { HolderLinkButton } from './HolderLinkButton';
 import { ReissueAffectedButton } from './ReissueAffectedButton';
 import { UncancelCoverageButton } from './UncancelCoverageButton';
 import { ProfileForm, type AgencyOption, type ProfileFormInitial } from './ProfileForm';
@@ -203,7 +204,10 @@ export default async function ClientHubPage({
         <h1 className="mt-3 font-display text-[2.5rem] font-medium leading-[1.05] tracking-display text-ink">
           {client.business_name}
         </h1>
-        <p className="mt-2 font-mono text-[0.78rem] text-ink-muted">{client.contact_email}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p className="font-mono text-[0.78rem] text-ink-muted">{client.contact_email}</p>
+          {!isArchived && client.active && <HolderLinkButton clientId={clientId} />}
+        </div>
       </header>
 
       {/* Tabs */}
