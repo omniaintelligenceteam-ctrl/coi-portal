@@ -15,6 +15,13 @@ import type { CertStatus } from '@/app/components/StatusPill';
 
 type Severity = 'low' | 'medium' | 'high' | string;
 
+export type DeliveryInfo = {
+  /** outbound_email_log status for the cert-delivery email (Resend webhook). */
+  status: 'sent' | 'delivery_delayed' | 'delivered' | 'opened' | 'bounced' | 'complained';
+  lastEventAt: string | null;
+  bounceReason: string | null;
+};
+
 export type LifecycleProps = {
   status: CertStatus;
   requestedAt: string;
@@ -27,6 +34,8 @@ export type LifecycleProps = {
   sentAt: string | null;
   holderName: string;
   holderOpenedAt: string | null;
+  /** Live delivery state from the outbound email ledger; null = not tracked. */
+  delivery?: DeliveryInfo | null;
 };
 
 type StepState = 'done' | 'current' | 'pending' | 'skipped';
@@ -81,6 +90,7 @@ export function LifecycleTimeline({
   sentAt,
   holderName,
   holderOpenedAt,
+  delivery,
 }: LifecycleProps) {
   const isRejected = status === 'rejected';
   const isSent = status === 'sent';
@@ -135,21 +145,49 @@ export function LifecycleTimeline({
     ) : null,
   };
 
+  // Delivery state from the outbound email ledger (Resend webhook events).
+  const bounced = delivery?.status === 'bounced' || delivery?.status === 'complained';
+  const deliveredAt =
+    delivery && (delivery.status === 'delivered' || delivery.status === 'opened')
+      ? delivery.lastEventAt
+      : null;
+  const deliveredRow: StepRow = {
+    key: 'delivered',
+    label: 'Delivered',
+    state: bounced || deliveredAt ? 'done' : isRejected ? 'skipped' : 'pending',
+    timestamp: bounced ? delivery?.lastEventAt ?? null : deliveredAt,
+    meta: bounced ? (
+      <span className="text-[0.72rem] text-danger">
+        {delivery?.bounceReason ?? 'The delivery email bounced — Brook has been notified.'}
+      </span>
+    ) : !deliveredAt && sentAt && delivery?.status === 'delivery_delayed' ? (
+      <span className="caps text-[0.6rem] font-medium text-ink-faint">Delivery delayed</span>
+    ) : null,
+    pill: bounced
+      ? { tone: 'danger', text: delivery?.status === 'complained' ? 'Marked spam' : 'Bounced' }
+      : deliveredAt
+      ? { tone: 'success', text: 'Confirmed' }
+      : sentAt && !isRejected
+      ? { tone: 'muted', text: delivery ? 'In transit' : 'Not tracked' }
+      : undefined,
+  };
+
+  const openedAt = holderOpenedAt ?? (delivery?.status === 'opened' ? delivery.lastEventAt : null);
   const openedRow: StepRow = {
     key: 'opened',
     label: 'Holder Opened',
-    state: holderOpenedAt ? 'done' : isRejected ? 'skipped' : 'pending',
-    timestamp: holderOpenedAt,
-    meta: holderOpenedAt ? null : (
+    state: openedAt ? 'done' : isRejected || bounced ? 'skipped' : 'pending',
+    timestamp: openedAt,
+    meta: openedAt ? null : (
       <span className="caps text-[0.6rem] font-medium text-ink-faint">Not yet opened</span>
     ),
     pill:
-      !holderOpenedAt && !isRejected
+      !openedAt && !isRejected && !bounced
         ? { tone: 'muted', text: 'Pending' }
         : undefined,
   };
 
-  const rows: StepRow[] = [requestedRow, reviewedRow, approvedRow, sentRow, openedRow];
+  const rows: StepRow[] = [requestedRow, reviewedRow, approvedRow, sentRow, deliveredRow, openedRow];
 
   // Mark the first pending step as "current" if the cert is still in flight,
   // for a subtle highlight that replaces the old in-flight stepper.

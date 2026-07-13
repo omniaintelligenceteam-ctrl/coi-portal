@@ -9,6 +9,7 @@ import { Banner, ButtonLink, Card, PageShell } from '@/app/components/ui';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildCertFilename, createCertSignedUrl } from '@/lib/storage';
+import { getCertDeliveryState } from '@/lib/outboundEmailLog';
 import { AutoRefresh } from './AutoRefresh';
 import { LifecycleTimeline } from './LifecycleTimeline';
 import { PdfPreview } from './PdfPreview';
@@ -95,6 +96,17 @@ export default async function ResultPage({ params }: PageProps) {
   const isSent = req.status === 'sent';
   const isRejected = req.status === 'rejected';
   const isInFlight = !isSent && !isRejected;
+
+  // Delivery state from the outbound email ledger (webhook-updated). Only
+  // meaningful once the cert has actually been emailed.
+  let delivery = null;
+  if (isSent) {
+    try {
+      delivery = await getCertDeliveryState(createAdminClient(), req.id);
+    } catch (err) {
+      console.error('delivery state lookup failed:', err);
+    }
+  }
 
   return (
     <>
@@ -212,6 +224,7 @@ export default async function ResultPage({ params }: PageProps) {
             sentAt={req.sent_at}
             holderName={req.holder_name}
             holderOpenedAt={null}
+            delivery={delivery}
           />
 
           {previewUrl && !isRejected && (

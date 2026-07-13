@@ -18,6 +18,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendApprovedCert } from './sendApprovedCert';
 import { sendRejectionEmail } from './email';
+import { logOutboundEmail } from './outboundEmailLog';
 import type { CertStatus } from '@/app/components/StatusPill';
 import type { CertOverrides } from './types';
 import { hasOverrides } from './certOverridesSchema';
@@ -112,11 +113,12 @@ export async function decideCertRequest(
     try {
       const { data: detail } = await admin
         .from('cert_requests')
-        .select('cert_number, holder_name, client:coi_clients ( business_name, contact_email )')
+        .select('cert_number, holder_name, client_id, client:coi_clients ( business_name, contact_email )')
         .eq('id', input.requestId)
         .maybeSingle<{
           cert_number: string;
           holder_name: string;
+          client_id: string;
           client: { business_name: string; contact_email: string } | null;
         }>();
 
@@ -125,7 +127,7 @@ export async function decideCertRequest(
         const portalBase =
           process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ??
           'https://coi-portal.vercel.app';
-        await sendRejectionEmail({
+        const { id: rejectionEmailId } = await sendRejectionEmail({
           to: contactEmail,
           certNumber: detail.cert_number,
           insuredBusinessName: detail.client?.business_name ?? 'Insured',
@@ -134,6 +136,15 @@ export async function decideCertRequest(
             input.decisionNote?.trim() ||
             'Please reach out to Brook so we can sort out the details before re-issuing.',
           resubmitUrl: `${portalBase}/`,
+        });
+        await logOutboundEmail(admin, {
+          resendEmailId: rejectionEmailId,
+          category: 'rejection',
+          to: contactEmail,
+          subject: `Action needed: Certificate ${detail.cert_number} — ${detail.client?.business_name ?? 'Insured'}`,
+          certRequestId: input.requestId,
+          certNumber: detail.cert_number,
+          clientId: detail.client_id,
         });
       }
     } catch (emailErr) {

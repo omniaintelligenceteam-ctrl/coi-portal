@@ -16,6 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { renderCertificateWithFallback, templatePngPathFor } from './renderCertificate';
 import { DEFAULT_FORM_ID } from './forms/registry';
 import { sendCoiEmail } from './email';
+import { logOutboundEmail } from './outboundEmailLog';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
 import type { CertOverrides, Holder } from './types';
 import { selectableCoverages } from './getClientPolicies';
@@ -216,12 +217,13 @@ export async function sendApprovedCert(
     // 6. Send email
     const portalBase =
       process.env.NEXT_PUBLIC_PORTAL_URL?.replace(/\/+$/, '') ?? 'https://coi-portal.vercel.app';
-    const sent = await sendCoiEmail({
-      to: client.contact_email,
+    const ccList = [agency.email, process.env.COI_CC_AUDIT_EMAIL]
       // Cert Holders see CC addresses in the email envelope (SMTP exposes them).
       // Keep audit CCs configurable so non-staff addresses don't leak in prod.
-      cc: [agency.email, process.env.COI_CC_AUDIT_EMAIL]
-        .filter((e): e is string => Boolean(e) && e !== client.contact_email),
+      .filter((e): e is string => Boolean(e) && e !== client.contact_email);
+    const sent = await sendCoiEmail({
+      to: client.contact_email,
+      cc: ccList,
       pdfBytes,
       certNumber: req.cert_number,
       holderName: req.holder_name,
@@ -229,6 +231,16 @@ export async function sendApprovedCert(
       verifyUrl: `${portalBase}/verify/${req.cert_number}`,
     });
     emailId = sent.id;
+    await logOutboundEmail(admin, {
+      resendEmailId: emailId,
+      category: 'cert_delivery',
+      to: client.contact_email,
+      cc: ccList,
+      subject: `Certificate of Insurance ${req.cert_number} — ${client.business_name}`,
+      certRequestId: req.id,
+      certNumber: req.cert_number,
+      clientId: req.client_id,
+    });
   } catch (err) {
     // Revert the send lock — guarded on the exact sent_at we wrote, so if
     // anything else has since touched the row we leave it alone.

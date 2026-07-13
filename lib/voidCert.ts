@@ -25,6 +25,7 @@ import { renderCertificateWithFallback, templatePngPathFor } from './renderCerti
 import { DEFAULT_FORM_ID } from './forms/registry';
 import { buildCoiInput, type DbPolicyFull } from './coiInputBuilder';
 import { sendVoidedCertEmail } from './email';
+import { logOutboundEmail } from './outboundEmailLog';
 import { stampVerifyQr } from './verifyQr';
 import { log } from './logger';
 import type { CertOverrides, Holder } from './types';
@@ -200,10 +201,11 @@ export async function voidCert(input: VoidCertInput): Promise<VoidCertResult> {
   // 6. Email — client gets the void notice so they can forward to the holder.
   let emailId = '';
   try {
+    const ccList = [agency.email, process.env.COI_CC_AUDIT_EMAIL]
+      .filter((e): e is string => Boolean(e) && e !== client.contact_email);
     const { id } = await sendVoidedCertEmail({
       to: client.contact_email,
-      cc: [agency.email, process.env.COI_CC_AUDIT_EMAIL]
-        .filter((e): e is string => Boolean(e) && e !== client.contact_email),
+      cc: ccList,
       certNumber: req.cert_number,
       insuredBusinessName: client.business_name,
       holderName: req.holder_name,
@@ -211,6 +213,16 @@ export async function voidCert(input: VoidCertInput): Promise<VoidCertResult> {
       voidedAtISO: voidedAt,
     });
     emailId = id;
+    await logOutboundEmail(admin, {
+      resendEmailId: emailId,
+      category: 'void_notice',
+      to: client.contact_email,
+      cc: ccList,
+      subject: `VOIDED: Certificate ${req.cert_number} — ${client.business_name}`,
+      certRequestId: requestId,
+      certNumber: req.cert_number,
+      clientId: req.client_id,
+    });
   } catch (err) {
     log.error('voidCert.email_failed', {
       certNumber: req.cert_number,

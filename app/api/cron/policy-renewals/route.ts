@@ -11,6 +11,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendExpiryWarningEmail } from '@/lib/email';
+import { logOutboundEmail } from '@/lib/outboundEmailLog';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -29,6 +30,7 @@ type PolicyWithClient = {
   type: string;
   policy_number: string;
   exp_date: string;
+  client_id: string;
   client: {
     business_name: string;
     contact_email: string;
@@ -70,7 +72,7 @@ async function scanWindow(
   const { data: policies, error } = await admin
     .from('policies')
     .select(
-      `id, type, policy_number, exp_date,
+      `id, type, policy_number, exp_date, client_id,
        client:coi_clients ( business_name, contact_email ),
        agency:agencies ( phone, email )`,
     )
@@ -97,7 +99,7 @@ async function scanWindow(
     if (!contactEmail) continue;
 
     try {
-      await sendExpiryWarningEmail({
+      const { id: warningEmailId } = await sendExpiryWarningEmail({
         to: contactEmail,
         cc: daysLabel <= 7 && adminEmails.length > 0 ? adminEmails : undefined,
         businessName: policy.client?.business_name ?? 'Valued Client',
@@ -109,6 +111,14 @@ async function scanWindow(
         agentPhone: policy.agency?.phone ?? '270-410-2015',
       });
       sent++;
+      await logOutboundEmail(admin, {
+        resendEmailId: warningEmailId,
+        category: 'expiry_warning',
+        to: contactEmail,
+        cc: daysLabel <= 7 ? adminEmails : undefined,
+        subject: `Policy ${policy.policy_number} expires ${formatExpDate(policy.exp_date)}`,
+        clientId: policy.client_id,
+      });
       const { error: markErr } = await admin
         .from('policies')
         .update({ [markerColumn]: new Date().toISOString() })
