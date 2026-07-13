@@ -45,17 +45,42 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // If they already have an approved coi_clients row, send them straight to login.
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    request.headers.get('x-real-ip') ??
+    null;
+
+  // Per-IP throttle — this endpoint is unauthenticated and every accepted
+  // request inserts a row + emails every admin. Same count-recent pattern as
+  // the cert rate limit in lib/certPipeline.ts.
+  if (ip) {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count } = await admin
+      .from('access_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('requested_ip', ip)
+      .gte('requested_at', oneHourAgo);
+    if ((count ?? 0) >= 5) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 },
+      );
+    }
+  }
+
+  // If they already have an approved coi_clients row, or an open pending
+  // request, do nothing — but return the SAME generic response as a fresh
+  // submission. Distinct responses let an unauthenticated caller enumerate
+  // which emails are Policy Place clients.
   const { data: existingClient } = await admin
     .from('coi_clients')
     .select('id')
     .eq('contact_email', email)
     .maybeSingle();
   if (existingClient) {
-    return NextResponse.json({ ok: true, alreadyApproved: true });
+    return NextResponse.json({ ok: true });
   }
 
-  // De-dupe: if there's an open pending request for this email, don't create a second one.
   const { data: existingPending } = await admin
     .from('access_requests')
     .select('id')
@@ -63,13 +88,8 @@ export async function POST(request: Request) {
     .eq('status', 'pending')
     .maybeSingle();
   if (existingPending) {
-    return NextResponse.json({ ok: true, alreadyPending: true });
+    return NextResponse.json({ ok: true });
   }
-
-  const ip =
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    request.headers.get('x-real-ip') ??
-    null;
 
   const { data: inserted, error } = await admin
     .from('access_requests')

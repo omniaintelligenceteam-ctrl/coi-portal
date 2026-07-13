@@ -25,6 +25,7 @@ import { reviewCert, type ClientOverride } from '@/lib/reviewerAgent';
 import { sendQueueNotification } from '@/lib/email';
 import { generateCertificate } from '@/lib/certPipeline';
 import { sendApprovedCert } from '@/lib/sendApprovedCert';
+import { timingSafeEqual } from '@/lib/secureCompare';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'agent API not configured on this instance' }, { status: 503 });
   }
   const authHeader = req.headers.get('authorization') ?? '';
-  if (authHeader !== `Bearer ${apiKey}`) {
+  if (!timingSafeEqual(authHeader, `Bearer ${apiKey}`)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

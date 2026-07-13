@@ -131,6 +131,10 @@ export async function issueCert(input: {
    *  from the client's coi_clients.enabled_forms. API routes validate against
    *  isKnownForm before calling here, so by this point it's safe to trust. */
   formId?: string;
+  /** Skip the per-client hourly/daily rate limit. Admin-initiated batch flows
+   *  only (renewal reissue) — those limits exist to bound client/API abuse,
+   *  and a renewal batch would otherwise burn the client's own budget. */
+  bypassRateLimit?: boolean;
 }): Promise<IssueCertResult> {
   const t0 = Date.now();
   const { reader, admin, client, selectedPolicyIds, requestedByEmail, requestedIp } = input;
@@ -155,35 +159,37 @@ export async function issueCert(input: {
   const holder = holderResult.holder;
 
   // Rate limit: count recent requests for this client
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const [{ count: hourCount }, { count: dayCount }] = await Promise.all([
-    admin
-      .from('cert_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('client_id', client.id)
-      .gte('requested_at', oneHourAgo),
-    admin
-      .from('cert_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('client_id', client.id)
-      .gte('requested_at', oneDayAgo),
-  ]);
-  if ((hourCount ?? 0) >= HOURLY_LIMIT()) {
-    log.warn('cert.rate_limited', { clientId: client.id, window: 'hour', count: hourCount });
-    return {
-      ok: false,
-      status: 429,
-      error: 'Too many requests — please wait before submitting another certificate.',
-    };
-  }
-  if ((dayCount ?? 0) >= DAILY_LIMIT()) {
-    log.warn('cert.rate_limited', { clientId: client.id, window: 'day', count: dayCount });
-    return {
-      ok: false,
-      status: 429,
-      error: 'Daily certificate limit reached. Contact Brook if you need more.',
-    };
+  if (input.bypassRateLimit !== true) {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const [{ count: hourCount }, { count: dayCount }] = await Promise.all([
+      admin
+        .from('cert_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('client_id', client.id)
+        .gte('requested_at', oneHourAgo),
+      admin
+        .from('cert_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('client_id', client.id)
+        .gte('requested_at', oneDayAgo),
+    ]);
+    if ((hourCount ?? 0) >= HOURLY_LIMIT()) {
+      log.warn('cert.rate_limited', { clientId: client.id, window: 'hour', count: hourCount });
+      return {
+        ok: false,
+        status: 429,
+        error: 'Too many requests — please wait before submitting another certificate.',
+      };
+    }
+    if ((dayCount ?? 0) >= DAILY_LIMIT()) {
+      log.warn('cert.rate_limited', { clientId: client.id, window: 'day', count: dayCount });
+      return {
+        ok: false,
+        status: 429,
+        error: 'Daily certificate limit reached. Contact Brook if you need more.',
+      };
+    }
   }
 
   // Agency

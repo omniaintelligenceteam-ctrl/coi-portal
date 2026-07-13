@@ -40,10 +40,13 @@ export async function canRequestPortalLogin(email: string): Promise<boolean> {
   if (adminEmails().includes(normalized)) return true;
 
   const admin = createAdminClient();
+  // active=true matters: this function is also the proxy's live-approval
+  // check, so an archived client must lose portal access at the next request.
   const { data } = await admin
     .from('coi_clients')
     .select('id')
     .eq('contact_email', normalized)
+    .eq('active', true)
     .maybeSingle<{ id: string }>();
 
   return Boolean(data?.id);

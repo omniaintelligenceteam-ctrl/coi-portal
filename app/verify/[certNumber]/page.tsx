@@ -5,6 +5,7 @@ import { Logo } from '@/app/components/Logo';
 import { SealStamp } from '@/app/components/motion';
 import { Card, PageShell } from '@/app/components/ui';
 import { verifyChecksum } from '@/lib/issueCert';
+import { isPolicyInForce } from '@/lib/getClientPolicies';
 
 // Intentionally public — no auth. Only exposes non-sensitive cert metadata.
 export const dynamic = 'force-dynamic';
@@ -142,8 +143,10 @@ export default async function VerifyPage({ params }: PageProps) {
         .returns<PolicyRow[]>()
     : { data: [] as PolicyRow[] };
 
-  const today = new Date().toISOString().slice(0, 10);
-  const allActive = (policies ?? []).every((p) => p.active && p.exp_date > today);
+  // Same in-force semantics as the issuance gate (inclusive same-day expiry,
+  // local server date) — see lib/getClientPolicies.isPolicyInForce.
+  const now = new Date();
+  const allActive = (policies ?? []).every((p) => p.active && isPolicyInForce(p.exp_date, now));
   const earliestExpiry = (policies ?? [])
     .map((p) => p.exp_date)
     .sort()[0];
@@ -280,7 +283,7 @@ export default async function VerifyPage({ params }: PageProps) {
           </p>
           <ul className="divide-y divide-hairline">
             {(policies ?? []).map((p, i) => {
-              const expired = p.exp_date <= today;
+              const expired = !isPolicyInForce(p.exp_date, now);
               return (
                 <li
                   key={i}

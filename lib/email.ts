@@ -20,7 +20,12 @@ function adminNotifyList(): string[] {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  return list.length > 0 ? list : ['wesoverstreet@gmail.com'];
+  if (list.length === 0) {
+    // No silent personal-inbox fallback — an unset ADMIN_EMAILS means queue
+    // notifications go nowhere, and that must be loud in the logs.
+    console.error('ADMIN_EMAILS is not set — admin notifications have no recipients.');
+  }
+  return list;
 }
 
 async function resendPost(

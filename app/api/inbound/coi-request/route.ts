@@ -28,6 +28,7 @@ import { parseInboundCoi } from '@/lib/parseInboundCoi';
 import { alertBrookUrgent } from '@/lib/alertBrookUrgent';
 import { sendCoiEmail, sendInboundReply } from '@/lib/email';
 import { reviewCert, type ClientOverride } from '@/lib/reviewerAgent';
+import { timingSafeEqual } from '@/lib/secureCompare';
 import { log } from '@/lib/logger';
 
 export const runtime = 'nodejs';
@@ -45,13 +46,6 @@ type InboundLogStatus =
   | 'other_intent'
   | 'duplicate'
   | 'error';
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return mismatch === 0;
-}
 
 /** Normalises the various inbound webhook payload shapes into one local type. */
 type Normalized = {
@@ -202,19 +196,12 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // 2. Idempotency by Message-ID.
-  const { data: existing } = await admin
-    .from('inbound_email_log')
-    .select('id, status')
-    .eq('message_id', norm.messageId)
-    .maybeSingle();
-  if (existing) {
-    log.info('inbound.duplicate', { messageId: norm.messageId, prior: existing.status });
-    return NextResponse.json({ ok: true, deduped: true });
-  }
-
-  // Pre-insert a 'received' row so a crash mid-flow leaves a paper trail.
-  const { data: logRow } = await admin
+  // 2. Idempotency by Message-ID — insert-first against the UNIQUE constraint
+  // (migration 20260518_0004). A read-then-insert check raced under concurrent
+  // redelivery: both requests passed the SELECT, one INSERT failed, and that
+  // path continued processing with no log row → duplicate cert emailed. Now
+  // the unique violation (23505) IS the dedupe signal.
+  const { data: logRow, error: logInsertErr } = await admin
     .from('inbound_email_log')
     .insert({
       message_id: norm.messageId,
@@ -227,6 +214,18 @@ export async function POST(req: NextRequest) {
     })
     .select('id')
     .single();
+  if (logInsertErr) {
+    if (logInsertErr.code === '23505') {
+      log.info('inbound.duplicate', { messageId: norm.messageId });
+      return NextResponse.json({ ok: true, deduped: true });
+    }
+    // Couldn't establish the paper-trail row — 500 so the provider retries.
+    log.error('inbound.log_insert_failed', {
+      messageId: norm.messageId,
+      error: logInsertErr.message,
+    });
+    return NextResponse.json({ error: 'internal error' }, { status: 500 });
+  }
   const logId = logRow?.id ?? null;
 
   const finish = async (
@@ -538,7 +537,9 @@ Happy to get this out to you. I just need ${askText} so the certificate is fille
     const certRecipient = result.client.contact_email;
     await sendCoiEmail({
       to: certRecipient,
-      cc: [result.agency.email, 'wesoverstreet@gmail.com']
+      // Same configurable audit CC as sendApprovedCert — holders see CC
+      // addresses in the envelope, so nothing personal gets hardcoded here.
+      cc: [result.agency.email, process.env.COI_CC_AUDIT_EMAIL]
         .filter((e): e is string => Boolean(e) && e !== certRecipient),
       pdfBytes: result.pdfBytes,
       certNumber: result.certNumber,

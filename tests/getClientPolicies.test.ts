@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { selectableCoverages, type DbPolicy } from '../lib/getClientPolicies.js';
+import { isPolicyInForce, selectableCoverages, type DbPolicy } from '../lib/getClientPolicies.js';
 
 const TODAY = new Date(2026, 4, 18); // May 18 2026
 
@@ -88,5 +88,29 @@ describe('selectableCoverages', () => {
     const result = selectableCoverages(policies, TODAY);
     // Type-level: result is Extended[], so `.custom` is accessible without a cast.
     expect(result[0]?.custom).toBe('hello');
+  });
+});
+
+describe('isPolicyInForce', () => {
+  // Shared by the issuance gate AND the public /verify page — the two must
+  // agree, or a cert issued on its policy's expiry day reads "Expired" to the
+  // holder minutes after it was emailed.
+  it('treats same-day expiry as in force (inclusive)', () => {
+    expect(isPolicyInForce('2026-05-18', TODAY)).toBe(true);
+  });
+
+  it('treats yesterday as expired', () => {
+    expect(isPolicyInForce('2026-05-17', TODAY)).toBe(false);
+  });
+
+  it('treats tomorrow as in force', () => {
+    expect(isPolicyInForce('2026-05-19', TODAY)).toBe(true);
+  });
+
+  it('uses local date components, not UTC (evening does not flip the day)', () => {
+    // 11 PM local on May 18 — a UTC-based comparison would already be May 19
+    // in any timezone west of UTC and call a May 18 policy expired early.
+    const lateEvening = new Date(2026, 4, 18, 23, 0, 0);
+    expect(isPolicyInForce('2026-05-18', lateEvening)).toBe(true);
   });
 });

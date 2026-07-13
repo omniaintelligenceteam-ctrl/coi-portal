@@ -27,9 +27,18 @@ export const runtime = 'nodejs';
 const BATCH_LIMIT = 50;
 
 export async function GET(req: NextRequest) {
-  if (process.env.CRON_SECRET) {
+  // Fail CLOSED in production when the secret is unset — an unauthenticated
+  // trigger of this route releases certs and sends real client email.
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    if (process.env.NODE_ENV === 'production') {
+      log.error('holdback_release.secret_missing');
+      return NextResponse.json({ error: 'cron not configured' }, { status: 503 });
+    }
+    // dev/local: allow manual invocation without a secret
+  } else {
     const auth = req.headers.get('authorization') ?? '';
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (auth !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
   }

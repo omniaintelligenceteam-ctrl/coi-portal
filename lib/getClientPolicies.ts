@@ -38,14 +38,23 @@ function toIsoDate(today: Date): string {
 }
 
 /**
+ * Single source of truth for "is this policy still in force on `today`".
+ * Same-day expiry counts as in force (inclusive >=), matching the issuance
+ * gate — the public /verify page must agree with this, or a cert issued on
+ * its policy's expiry day immediately reads "Expired" to the holder.
+ */
+export function isPolicyInForce(expDate: string, today: Date = new Date()): boolean {
+  return expDate >= toIsoDate(today);
+}
+
+/**
  * Returns only policies that are eligible to appear on a cert generated TODAY.
  *
  * A policy without a `status` field is treated as `active` (backward compat
  * for any code path that hasn't selected the new column yet).
  */
 export function selectableCoverages<T extends DbPolicy>(policies: T[], today: Date): T[] {
-  const todayIso = toIsoDate(today);
   return policies.filter(
-    (p) => p.active && (p.status ?? 'active') === 'active' && p.exp_date >= todayIso,
+    (p) => p.active && (p.status ?? 'active') === 'active' && isPolicyInForce(p.exp_date, today),
   );
 }
