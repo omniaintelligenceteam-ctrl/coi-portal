@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
     },
     requestedByEmail: body.requesterEmail,
     requestedIp,
+    holderContactEmail: body.requesterEmail,
   });
 
   if (!result.ok) {

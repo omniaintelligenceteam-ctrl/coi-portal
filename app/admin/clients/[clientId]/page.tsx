@@ -26,7 +26,17 @@ import { listForms, DEFAULT_FORM_ID } from '@/lib/forms/registry';
 
 export const dynamic = 'force-dynamic';
 
-type TabKey = 'master' | 'certificates' | 'policies' | 'forms' | 'profile' | 'audit';
+type TabKey = 'master' | 'certificates' | 'policies' | 'holders' | 'forms' | 'profile' | 'audit';
+
+type HolderRow = {
+  id: string;
+  name: string;
+  address1: string;
+  address2: string | null;
+  contact_email: string | null;
+  phone: string | null;
+  notes: string | null;
+};
 
 function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? '')
@@ -59,6 +69,7 @@ type CertRow = {
   cert_number: string;
   status: CertStatus;
   holder_name: string;
+  holder_id: string | null;
   is_master: boolean;
   requested_at: string;
   sent_at: string | null;
@@ -135,12 +146,12 @@ export default async function ClientHubPage({
 
   if (!client) notFound();
 
-  const [{ data: certs }, policies, { data: agencies }, { data: auditEntries }] =
+  const [{ data: certs }, policies, { data: agencies }, { data: auditEntries }, { data: holderRows }] =
     await Promise.all([
       admin
         .from('cert_requests')
         .select(
-          `id, cert_number, status, holder_name, is_master, requested_at, sent_at,
+          `id, cert_number, status, holder_name, holder_id, is_master, requested_at, sent_at,
            voided_at, voided_reason`,
         )
         .eq('client_id', clientId)
@@ -159,6 +170,15 @@ export default async function ClientHubPage({
             .limit(100)
             .returns<AuditLogEntry[]>()
         : Promise.resolve({ data: [] as AuditLogEntry[] }),
+      tab === 'holders'
+        ? admin
+            .from('holders')
+            .select('id, name, address1, address2, contact_email, phone, notes')
+            .eq('client_id', clientId)
+            .order('name')
+            .limit(300)
+            .returns<HolderRow[]>()
+        : Promise.resolve({ data: [] as HolderRow[] }),
     ]);
 
   const agencyOptions: AgencyOption[] = (agencies ?? []) as AgencyOption[];
@@ -217,6 +237,7 @@ export default async function ClientHubPage({
             ['master', 'Master file'],
             ['certificates', `Certificates (${certs?.length ?? 0})`],
             ['policies', `Policies (${policies.length})`],
+            ['holders', 'Holders'],
             ['forms', `Forms (${(client.enabled_forms ?? [DEFAULT_FORM_ID]).length})`],
             ['profile', 'Profile'],
             ['audit', 'Audit'],
@@ -263,6 +284,9 @@ export default async function ClientHubPage({
       {tab === 'certificates' && <CertsTab certs={certs ?? []} />}
       {tab === 'policies' && (
         <PoliciesTab clientId={clientId} policies={policies} />
+      )}
+      {tab === 'holders' && (
+        <HoldersTab holders={holderRows ?? []} certs={certs ?? []} />
       )}
       {tab === 'forms' && (
         <FormsTab
@@ -446,6 +470,79 @@ function PoliciesTab({
                     <ReissueAffectedButton policyId={p.id} clientId={clientId} />
                     <CancelCoverageButton policyId={p.id} clientId={clientId} />
                   </>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function HoldersTab({ holders, certs }: { holders: HolderRow[]; certs: CertRow[] }) {
+  if (holders.length === 0) {
+    return (
+      <div className="border border-hairline bg-card px-6 py-12 text-center">
+        <p className="caps text-[0.62rem] font-semibold text-ink-faint">No holders yet</p>
+        <p className="mt-3 text-sm text-ink-muted">
+          Holder records appear automatically as certificates are issued.
+        </p>
+      </div>
+    );
+  }
+
+  // Per-holder rollup from the already-fetched cert list. Prefer the FK link;
+  // fall back to name matching for legacy rows issued before the backfill.
+  const stats = new Map<string, { count: number; lastSentAt: string | null }>();
+  for (const c of certs) {
+    const holder = c.holder_id
+      ? holders.find((h) => h.id === c.holder_id)
+      : holders.find((h) => h.name.toLowerCase() === c.holder_name.toLowerCase());
+    if (!holder) continue;
+    const s = stats.get(holder.id) ?? { count: 0, lastSentAt: null };
+    s.count++;
+    if (c.sent_at && (!s.lastSentAt || c.sent_at > s.lastSentAt)) s.lastSentAt = c.sent_at;
+    stats.set(holder.id, s);
+  }
+
+  return (
+    <div className="space-y-4">
+      <Hairline label={`Certificate holders (${holders.length})`} />
+      {holders.map((h) => {
+        const s = stats.get(h.id);
+        return (
+          <div key={h.id} className="border border-hairline bg-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="font-display text-[1.05rem] font-semibold text-ink">{h.name}</p>
+                <p className="mt-1 font-mono text-[0.72rem] text-ink-muted">
+                  {[h.address1, h.address2].filter(Boolean).join(', ') || '—'}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.78rem] text-ink-muted">
+                  {h.contact_email && <span className="font-mono text-[0.72rem]">{h.contact_email}</span>}
+                  {h.phone && <span className="font-mono text-[0.72rem]">{h.phone}</span>}
+                  {!h.contact_email && !h.phone && (
+                    <span className="caps text-[0.6rem] text-ink-faint">no contact on file</span>
+                  )}
+                </div>
+                {h.notes && (
+                  <p className="mt-2 border-l-2 border-hairline pl-3 text-[0.78rem] italic text-ink-muted">
+                    {h.notes}
+                  </p>
+                )}
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="num-tabular font-mono text-[1.25rem] font-medium text-ink">
+                  {s?.count ?? 0}
+                </p>
+                <p className="caps text-[0.6rem] font-semibold text-ink-faint">
+                  cert{(s?.count ?? 0) === 1 ? '' : 's'}
+                </p>
+                {s?.lastSentAt && (
+                  <p className="mt-1 font-mono text-[0.68rem] text-ink-faint">
+                    last {formatDateTime(s.lastSentAt)}
+                  </p>
                 )}
               </div>
             </div>

@@ -18,6 +18,7 @@ import {
 import { log } from './logger';
 import { stampVerifyQr } from './verifyQr';
 import { validateHolderInput } from './holderInput';
+import { findOrCreateHolder } from './holders';
 
 /**
  * Tamper-evident checksum suffix.
@@ -135,6 +136,9 @@ export async function issueCert(input: {
    *  only (renewal reissue) — those limits exist to bound client/API abuse,
    *  and a renewal batch would otherwise burn the client's own budget. */
   bypassRateLimit?: boolean;
+  /** Holder's own contact email when the request came from the holder side
+   *  (public holder link). Enriches the holder CRM record; never rendered. */
+  holderContactEmail?: string;
 }): Promise<IssueCertResult> {
   const t0 = Date.now();
   const { reader, admin, client, selectedPolicyIds, requestedByEmail, requestedIp } = input;
@@ -290,6 +294,15 @@ export async function issueCert(input: {
     return { ok: false, status: 500, error: 'storage upload failed', detail: upErr.message };
   }
 
+  // Holder CRM linkage (non-fatal — strings on the row stay canonical).
+  const holderId = await findOrCreateHolder(admin, {
+    clientId: client.id,
+    name: holder.name,
+    address1: holder.address1,
+    address2: holder.address2 || null,
+    contactEmail: input.holderContactEmail ?? null,
+  });
+
   // Insert cert_request row (status starts pending)
   const { data: inserted, error: insErr } = await admin
     .from('cert_requests')
@@ -299,6 +312,7 @@ export async function issueCert(input: {
       holder_name: holder.name,
       holder_address1: holder.address1,
       holder_address2: holder.address2 || null,
+      holder_id: holderId,
       coverages_selected: selectedPolicyIds,
       cert_number: certNumber,
       pdf_storage_path: storagePath,
