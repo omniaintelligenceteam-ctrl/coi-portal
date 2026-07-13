@@ -27,6 +27,7 @@ import { RenewalsPreview, type RenewalRow } from './_dashboard/RenewalsPreview';
 import { ActivitySpark } from './_dashboard/ActivitySpark';
 import { IncompleteFiles, type IncompleteFileRow } from './_dashboard/IncompleteFiles';
 import { scoreMasterFile } from '@/lib/masterFileCompleteness';
+import { computeRoiStats, formatDuration, MANUAL_MINUTES_BASELINE, type RoiSourceRow } from '@/lib/roiStats';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,6 +120,7 @@ export default async function AdminHomePage() {
     { data: queueRows },
     { data: renewalRows },
     { data: activityRows },
+    roiRows,
     { data: agencyRow },
     incompleteFiles,
   ] = await Promise.all([
@@ -159,6 +161,7 @@ export default async function AdminHomePage() {
       .select('sent_at')
       .gte('sent_at', thirtyAgo.toISOString())
       .order('sent_at', { ascending: true }),
+    loadRoiRows(admin, thirtyAgo),
     process.env.BRAND_AGENCY_ID
       ? admin
           .from('agencies')
@@ -194,6 +197,8 @@ export default async function AdminHomePage() {
 
   // Bucket sent_at timestamps into daily counts (oldest first, length 30).
   const daily = bucketDaily((activityRows ?? []).map((r) => r.sent_at as string | null), 30);
+
+  const roi = computeRoiStats(roiRows);
 
   const greetingName = agencyRow?.contact_name?.split(' ')[0] ?? firstName(email);
   const oldestPendingMinutes = queueView.length
@@ -278,6 +283,47 @@ export default async function AdminHomePage() {
           </div>
         </BentoCard>
 
+        {/* ROI · last 30 days — full-width row */}
+        <BentoCard
+          label="ROI · last 30 days"
+          delta={
+            roi.sentCount > 0
+              ? { value: `${roi.sentCount} certs sent`, tone: 'success' }
+              : { value: 'no sends yet', tone: 'neutral' }
+          }
+          full
+        >
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <div>
+              <p className="caps text-[0.6rem] font-semibold text-ink-faint">Hands-free</p>
+              <p className="num-tabular mt-1 font-mono text-[1.75rem] font-medium text-ink">
+                {roi.handsFreePct === null ? '—' : `${roi.handsFreePct}%`}
+              </p>
+              <p className="mt-1 text-[0.72rem] text-ink-muted">
+                sent by the trust ladder without a manual approval
+              </p>
+            </div>
+            <div>
+              <p className="caps text-[0.6rem] font-semibold text-ink-faint">
+                Request → sent
+              </p>
+              <p className="num-tabular mt-1 font-mono text-[1.75rem] font-medium text-ink">
+                {formatDuration(roi.avgMinutesToSent)}
+              </p>
+              <p className="mt-1 text-[0.72rem] text-ink-muted">average turnaround</p>
+            </div>
+            <div>
+              <p className="caps text-[0.6rem] font-semibold text-ink-faint">Time saved</p>
+              <p className="num-tabular mt-1 font-mono text-[1.75rem] font-medium text-ink">
+                {roi.hoursSaved}h
+              </p>
+              <p className="mt-1 text-[0.72rem] text-ink-muted">
+                vs ~{MANUAL_MINUTES_BASELINE} min manual issuance each
+              </p>
+            </div>
+          </div>
+        </BentoCard>
+
         {/* Files needing attention — full-width row below the bento */}
         <BentoCard
           label="Files needing attention"
@@ -296,6 +342,31 @@ export default async function AdminHomePage() {
 }
 
 /* ---------- helpers ---------- */
+
+/**
+ * Sent certs in the ROI window. Defensive: if the trust-ladder columns
+ * (auto_approve_lane / intercepted_at, migration 20260521_0001) aren't
+ * applied yet, re-select without them — hands-free % then reads 0, but the
+ * dashboard still renders.
+ */
+async function loadRoiRows(
+  admin: ReturnType<typeof createAdminClient>,
+  since: Date,
+): Promise<RoiSourceRow[]> {
+  const full = await admin
+    .from('cert_requests')
+    .select('requested_at, sent_at, auto_approve_lane, intercepted_at')
+    .gte('sent_at', since.toISOString())
+    .returns<RoiSourceRow[]>();
+  if (!full.error) return full.data ?? [];
+
+  const legacy = await admin
+    .from('cert_requests')
+    .select('requested_at, sent_at')
+    .gte('sent_at', since.toISOString())
+    .returns<RoiSourceRow[]>();
+  return legacy.data ?? [];
+}
 
 /**
  * Pull every active client + their policies in two queries, score each
